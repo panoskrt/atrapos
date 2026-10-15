@@ -204,7 +204,18 @@ export function LibraryPage() {
       {refresh.isError && (
         <p role="alert" className={styles.error}>
           Couldn't refresh from Suunto: {syncErrorMessage(refresh.error).message}{' '}
-          {syncErrorMessage(refresh.error).signIn && <a href="/auth/login">Sign in with Suunto again</a>}
+          {syncErrorMessage(refresh.error).signIn && (
+            <button
+              type="button"
+              className={styles.inlineLink}
+              onClick={() => {
+                const popup = window.open('/auth/login', 'suunto-login', 'width=520,height=720');
+                if (!popup) window.location.assign('/auth/login');
+              }}
+            >
+              Sign in with Suunto again
+            </button>
+          )}
         </p>
       )}
       {refresh.isSuccess && (

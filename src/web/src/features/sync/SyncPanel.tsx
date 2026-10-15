@@ -129,9 +129,16 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
         <p role="alert" className={styles.error}>
           {error.message}{' '}
           {error.signIn && (
-            <a href="/auth/login" className={styles.inlineLink}>
+            <button
+              type="button"
+              className={styles.inlineLink}
+              onClick={() => {
+                const popup = window.open('/auth/login', 'suunto-login', 'width=520,height=720');
+                if (!popup) window.location.assign('/auth/login');
+              }}
+            >
               Sign in with Suunto again
-            </a>
+            </button>
           )}
         </p>
       )}

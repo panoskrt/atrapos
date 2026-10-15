@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
@@ -46,15 +47,15 @@ public static class AuthEndpoints
             http.Response.Cookies.Delete(StateCookie, new CookieOptions { Path = "/auth" });
 
             if (!string.IsNullOrEmpty(error))
-                return Results.Redirect($"{home}/login?error={Uri.EscapeDataString(error)}");
+                return Results.Content(AuthPopupHtml(home, $"/login?error={Uri.EscapeDataString(error)}", false, error), "text/html");
 
             if (string.IsNullOrEmpty(code))
-                return Results.Redirect($"{home}/login?error=missing_code");
+                return Results.Content(AuthPopupHtml(home, "/login?error=missing_code", false, "missing_code"), "text/html");
 
             if (app.Value.RequireOAuthState && !StateMatches(expectedState, state))
             {
                 logger.LogWarning("OAuth callback rejected: state mismatch");
-                return Results.Redirect($"{home}/login?error=state_mismatch");
+                return Results.Content(AuthPopupHtml(home, "/login?error=state_mismatch", false, "state_mismatch"), "text/html");
             }
 
             try
@@ -71,12 +72,12 @@ public static class AuthEndpoints
                     new AuthenticationProperties { IsPersistent = true });
 
                 logger.LogInformation("Signed in Suunto user {User}", user.SuuntoUsername);
-                return Results.Redirect($"{home}/");
+                return Results.Content(AuthPopupHtml(home, "/", true), "text/html");
             }
             catch (SuuntoAuthException ex)
             {
                 logger.LogWarning(ex, "Suunto code exchange failed");
-                return Results.Redirect($"{home}/login?error=token_exchange_failed");
+                return Results.Content(AuthPopupHtml(home, "/login?error=token_exchange_failed", false, "token_exchange_failed"), "text/html");
             }
         });
 
@@ -101,6 +102,37 @@ public static class AuthEndpoints
     public static Guid GetUserId(this ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)
                    ?? throw new InvalidOperationException("No user id claim."));
+
+    private static string AuthPopupHtml(string home, string redirectPath, bool success, string? error = null)
+    {
+        var redirect = $"{home.TrimEnd('/')}{redirectPath}";
+        var payload = JsonSerializer.Serialize(new
+        {
+            type = "rpm-suunto-auth",
+            status = success ? "success" : "error",
+            redirect,
+            error,
+        });
+
+        return $$"""
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Signing in…</title>
+<script>
+  const payload = {{payload}};
+  if (window.opener) {
+    window.opener.postMessage(payload, '*');
+    window.close();
+  } else {
+    window.location.replace(payload.redirect);
+  }
+</script>
+<body></body>
+</html>
+""";
+    }
 
     private static bool StateMatches(string? expected, string? actual) =>
         !string.IsNullOrEmpty(expected) && !string.IsNullOrEmpty(actual) &&

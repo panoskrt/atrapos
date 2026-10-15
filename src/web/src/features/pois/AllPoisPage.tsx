@@ -107,7 +107,18 @@ export function AllPoisPage() {
       {push.isError && (
         <p role="alert" className={styles.error}>
           {syncErrorMessage(push.error).message}{' '}
-          {syncErrorMessage(push.error).signIn && <a href="/auth/login">Sign in with Suunto again</a>}
+          {syncErrorMessage(push.error).signIn && (
+            <button
+              type="button"
+              className={styles.inlineLink}
+              onClick={() => {
+                const popup = window.open('/auth/login', 'suunto-login', 'width=520,height=720');
+                if (!popup) window.location.assign('/auth/login');
+              }}
+            >
+              Sign in with Suunto again
+            </button>
+          )}
         </p>
       )}
 

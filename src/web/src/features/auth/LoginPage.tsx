@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { Spinner } from '../../components/Spinner';
@@ -17,13 +17,54 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const error = params.get('error');
   const [opening, setOpening] = useState(false);
+  const popupRef = useRef<Window | null>(null);
 
-  // Coming back with the browser's Back button restores this page from cache, still "opening".
   useEffect(() => {
-    const reset = (e: PageTransitionEvent) => e.persisted && setOpening(false);
-    window.addEventListener('pageshow', reset);
-    return () => window.removeEventListener('pageshow', reset);
+    const handleMessage = (event: MessageEvent) => {
+      const payload = event.data;
+      if (!payload || payload.type !== 'rpm-suunto-auth') return;
+
+      setOpening(false);
+      if (payload.status === 'success') {
+        window.location.assign(payload.redirect ?? '/');
+      } else if (payload.redirect) {
+        window.location.assign(payload.redirect);
+      }
+    };
+
+    const handlePageShow = (e: PageTransitionEvent) => e.persisted && setOpening(false);
+    window.addEventListener('message', handleMessage);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!popupRef.current) return;
+    const timer = window.setInterval(() => {
+      if (popupRef.current?.closed) {
+        setOpening(false);
+        popupRef.current = null;
+        window.clearInterval(timer);
+      }
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [opening]);
+
+  const openSuuntoLogin = () => {
+    const popup = window.open('/auth/login', 'suunto-login', 'width=520,height=720');
+    if (!popup) {
+      window.location.assign('/auth/login');
+      return;
+    }
+
+    popupRef.current = popup;
+    setOpening(true);
+  };
 
   if (me.data) return <Navigate to="/" replace />;
 
@@ -57,16 +98,16 @@ export function LoginPage() {
             </div>
           )}
 
-          {/* A plain link: the backend redirects to Suunto's authorize page. */}
-          <a
+          <button
+            type="button"
             className={`btn btn-primary ${styles.cta}`}
-            href="/auth/login"
             aria-disabled={opening || undefined}
-            onClick={(e) => (opening ? e.preventDefault() : setOpening(true))}
+            disabled={opening}
+            onClick={openSuuntoLogin}
           >
             {opening ? <Spinner size={20} /> : <Icon name="watch" />}
             {opening ? 'Opening Suunto…' : 'Sign in with Suunto'}
-          </a>
+          </button>
 
           <ul className={styles.points}>
             <li>

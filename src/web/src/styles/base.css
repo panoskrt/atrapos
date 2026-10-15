@@ -38,8 +38,9 @@ textarea {
 }
 
 button {
+  appearance: none;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
 button:hover {
@@ -80,6 +81,7 @@ button:hover {
 
 .btn:hover {
   background: var(--panel-2);
+  border-color: var(--border);
 }
 
 /* Busy (waiting on a server) rather than unavailable: keep it readable and show the wait cursor. */
@@ -96,7 +98,8 @@ button:hover {
 }
 
 .btn-primary:hover {
-  filter: brightness(1.04);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white), color-mix(in srgb, var(--accent-strong) 88%, white));
+  box-shadow: 0 12px 24px rgb(89 197 255 / 0.38);
 }
 
 .btn-danger {
@@ -108,7 +111,8 @@ button:hover {
 }
 
 .btn-danger:hover {
-  filter: brightness(1.04);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 88%, white), color-mix(in srgb, var(--danger-solid) 88%, white));
+  box-shadow: 0 12px 24px rgb(219 83 83 / 0.4);
 }
 
 /* Selection checkboxes (lists, cards, tables). */

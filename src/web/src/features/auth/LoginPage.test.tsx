@@ -17,9 +17,13 @@ function renderAt(url: string) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LoginPage', () => {
-  it('starts the Suunto sign-in through the backend', () => {
+  it('starts the Suunto sign-in in a popup window', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => ({ closed: false } as Window));
+
     renderAt('/login');
-    expect(screen.getByRole('link', { name: /sign in with suunto/i })).toHaveAttribute('href', '/auth/login');
+    screen.getByRole('button', { name: /sign in with suunto/i }).click();
+
+    expect(open).toHaveBeenCalledWith('/auth/login', 'suunto-login', 'width=520,height=720');
   });
 
   it('explains a denied consent', () => {
