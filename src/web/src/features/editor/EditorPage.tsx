@@ -1,16 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { toast } from '../../components/Toast';
 import { ApiError } from '../../lib/api';
-import { routeKeys, useRoute, type RouteDetail } from '../routes/api';
+import { routeKeys, useCreateRoute, useRoute, type RouteDetail, type UpdateRouteRequest } from '../routes/api';
 import { loadBaseLayer, storeBaseLayer, type BaseLayerId } from './baseLayers';
 import { EditorSidebar } from './EditorSidebar';
 import { ElevationProfile } from './ElevationProfile';
 import { cumulativeDistances, joinSegments, stats } from './geo';
 import { LayerSwitcher, MapToolbar } from './MapToolbar';
 import { MapView } from './MapView';
-import { displayPositions, seedSegments, segmentKey, useSegments, type SegmentFailure } from './segments';
+import { displayPositions, seedSegments, segmentKey, toWire, useSegments, type SegmentFailure } from './segments';
 import { PoiCard } from '../pois/PoiCard';
 import { usePoiLocations } from '../pois/placement';
 import { SelectedPointBar } from './SelectedPointBar';
@@ -21,6 +22,10 @@ import styles from './Editor.module.css';
 
 export function EditorPage() {
   const { id = '' } = useParams();
+  return id === 'new' ? <NewRouteEditor /> : <ExistingRouteEditor id={id} />;
+}
+
+function ExistingRouteEditor({ id }: { id: string }) {
   const route = useRoute(id);
 
   if (route.isPending) return <div className={styles.centered} aria-busy="true">Loading route…</div>;
@@ -41,6 +46,16 @@ export function EditorPage() {
   // Keyed by the server's modified time too: a reload after taking the Suunto version remounts the editor with a
   // fresh undo history and autosave baseline. Autosave itself never refetches the route, so editing doesn't remount.
   return <LoadedEditor key={`${id}:${route.data.localModifiedAt}`} route={route.data} />;
+}
+
+function NewRouteEditor() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    useEditorStore.getState().startNew();
+    useHoverStore.getState().setDistance(null);
+    setReady(true);
+  }, []);
+  return ready ? <Editor routeId="new" hadLine={false} onReload={() => {}} isDraft /> : null;
 }
 
 function LoadedEditor({ route }: { route: RouteDetail }) {
@@ -66,7 +81,17 @@ interface SnapNotice {
   retryable: boolean;
 }
 
-function Editor({ routeId, hadLine, onReload }: { routeId: string; hadLine: boolean; onReload: () => void }) {
+function Editor({
+  routeId,
+  hadLine,
+  onReload,
+  isDraft = false,
+}: {
+  routeId: string;
+  hadLine: boolean;
+  onReload: () => void;
+  isDraft?: boolean;
+}) {
   const points = useEditorStore((s) => s.points);
   const profile = useEditorStore((s) => s.routingProfile);
   const { segments, snapped, pending, failures } = useSegments(points, profile);
@@ -74,8 +99,82 @@ function Editor({ routeId, hadLine, onReload }: { routeId: string; hadLine: bool
   const cumulative = useMemo(() => cumulativeDistances(line), [line]);
   const routeStats = useMemo(() => stats(line), [line]);
   const markerPositions = useMemo(() => displayPositions(points, segments, snapped), [points, segments, snapped]);
-  const save = useAutosave(routeId, segments, pending);
+  const autosave = useAutosave(routeId, segments, pending, !isDraft);
   const qc = useQueryClient();
+  const createRoute = useCreateRoute();
+  const navigate = useNavigate();
+  const name = useEditorStore((s) => s.name);
+  const description = useEditorStore((s) => s.description);
+  const activityIds = useEditorStore((s) => s.activityIds);
+  const turnWaypointsEnabled = useEditorStore((s) => s.turnWaypointsEnabled);
+  const routingProfile = useEditorStore((s) => s.routingProfile);
+  const pois = useEditorStore((s) => s.pois);
+  const request = useMemo<UpdateRouteRequest>(
+    () => ({
+      name: name.trim() || 'Untitled route',
+      description: description.trim() || null,
+      activityIds,
+      turnWaypointsEnabled,
+      routingProfile,
+      controlPoints: points.map((point, index) => ({
+        lon: point.lon,
+        lat: point.lat,
+        modeToNext: point.mode,
+        segment: index < segments.length ? toWire(segments[index]!) : null,
+      })),
+      pois: pois.map((poi) => ({
+        id: poi.id,
+        name: poi.name.trim() || 'POI',
+        description: poi.description.trim() || null,
+        poiType: poi.poiType,
+        lon: poi.lon,
+        lat: poi.lat,
+        ele: poi.ele,
+      })),
+    }),
+    [name, description, activityIds, turnWaypointsEnabled, routingProfile, points, segments, pois],
+  );
+  const requestKey = useMemo(() => JSON.stringify(request), [request]);
+  const initialRequestKey = useRef(requestKey);
+  const draftSaved = useRef(false);
+  const draftDirty = isDraft && requestKey !== initialRequestKey.current;
+  const blocker = useBlocker(() => draftDirty && !draftSaved.current);
+  const save = isDraft
+    ? {
+        status: draftDirty ? ('pending' as const) : ('saved' as const),
+        error: null,
+        retry: () => {},
+        flush: async () => false,
+      }
+    : autosave;
+
+  useEffect(() => {
+    if (!isDraft || blocker.state !== 'blocked') return;
+    if (window.confirm('You have unsaved changes. If you leave, they will be discarded.')) blocker.proceed();
+    else blocker.reset();
+  }, [blocker, isDraft]);
+
+  useEffect(() => {
+    if (!draftDirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [draftDirty]);
+
+  const saveNow = async () => {
+    if (isDraft) {
+      if (pending || points.length === 0 || createRoute.isPending) return;
+      try {
+        const created = await createRoute.mutateAsync(request);
+        draftSaved.current = true;
+        navigate(`/routes/${created.id}`, { replace: true });
+      } catch (error) {
+        toast(`Couldn't save route: ${error instanceof Error ? error.message : 'Unknown error'}`, { tone: 'error' });
+      }
+      return;
+    }
+    if (!(await autosave.flush())) toast('Your latest changes are still being saved. Try again in a moment.', { tone: 'error' });
+  };
 
   // Freehand legs are the same line backwards, so seed them reversed instead of recomputing; snapped legs are
   // re-routed, because one-way paths make direction matter (especially on bike profiles).
@@ -87,7 +186,6 @@ function Editor({ routeId, hadLine, onReload }: { routeId: string; hadLine: bool
     });
     useEditorStore.getState().reverse();
   };
-  const pois = useEditorStore((s) => s.pois);
   const poiLocations = usePoiLocations(pois, line, cumulative);
   const profilePois = useMemo(
     () =>
@@ -119,7 +217,19 @@ function Editor({ routeId, hadLine, onReload }: { routeId: string; hadLine: bool
 
   return (
     <div className={styles.editor}>
-      <EditorSidebar stats={routeStats} vertexCount={line.length} save={save} poiLocations={poiLocations} onFocus={focusOn} routeId={routeId} onReload={onReload} />
+      <EditorSidebar
+        stats={routeStats}
+        vertexCount={line.length}
+        save={save}
+        poiLocations={poiLocations}
+        onFocus={focusOn}
+        routeId={routeId}
+        onReload={onReload}
+        isDraft={isDraft}
+        onSave={() => void saveNow()}
+        savePending={isDraft ? createRoute.isPending : save.status === 'saving'}
+        canSave={isDraft ? points.length > 0 && !pending : !pending}
+      />
       <div className={styles.mapColumn}>
         <div className={styles.mapWrap}>
           <MapView
@@ -165,7 +275,7 @@ function Editor({ routeId, hadLine, onReload }: { routeId: string; hadLine: bool
               Finding the trail…
             </div>
           ) : null}
-          <SelectedPointBar routeId={routeId} flush={save.flush} onReload={onReload} />
+          {!isDraft && <SelectedPointBar routeId={routeId} flush={save.flush} onReload={onReload} />}
           <div className={styles.hint}>
             <Icon name={tool === 'extend' ? 'routePlus' : tool === 'poi' ? 'pinPlus' : 'cursor'} size={16} />
             {tool === 'extend'

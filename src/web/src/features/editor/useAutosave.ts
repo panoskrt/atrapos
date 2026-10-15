@@ -10,7 +10,7 @@ export type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
 const DEBOUNCE_MS = 800;
 
 /** Saves the route shortly after each change, once every segment's geometry has settled. */
-export function useAutosave(routeId: string, segments: Coord[][], geometryPending: boolean) {
+export function useAutosave(routeId: string, segments: Coord[][], geometryPending: boolean, enabled = true) {
   const qc = useQueryClient();
   const name = useEditorStore((s) => s.name);
   const description = useEditorStore((s) => s.description);
@@ -59,12 +59,13 @@ export function useAutosave(routeId: string, segments: Coord[][], geometryPendin
 
   // The first settled state after loading is what the server already has.
   useEffect(() => {
-    if (lastSaved.current === null && !geometryPending) lastSaved.current = bodyKey;
-  }, [bodyKey, geometryPending]);
+    if (enabled && lastSaved.current === null && !geometryPending) lastSaved.current = bodyKey;
+  }, [bodyKey, enabled, geometryPending]);
 
   /** Resolves true when the server has the latest state (saved now, or nothing to save). */
   const save = async (): Promise<boolean> => {
     const { body: b, bodyKey: k } = latest.current;
+    if (!enabled) return false;
     // No baseline yet (still loading) or nothing changed: saving would only bump the modified time.
     if (lastSaved.current === null || k === lastSaved.current) return lastSaved.current !== null;
     setStatus('saving');
@@ -92,10 +93,11 @@ export function useAutosave(routeId: string, segments: Coord[][], geometryPendin
     if (geometryPending) return;
     const t = window.setTimeout(() => void saveRef.current(), DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [bodyKey, geometryPending]);
+  }, [bodyKey, enabled, geometryPending]);
 
   // Leaving the editor: save what we have; warn on tab close if something is unsaved.
   useEffect(() => {
+    if (!enabled) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (lastSaved.current !== null && latest.current.bodyKey !== lastSaved.current) e.preventDefault();
     };
@@ -104,13 +106,13 @@ export function useAutosave(routeId: string, segments: Coord[][], geometryPendin
       window.removeEventListener('beforeunload', onBeforeUnload);
       void saveRef.current();
     };
-  }, []);
+  }, [enabled]);
 
   return {
     status,
     error,
     retry: () => void saveRef.current(),
     /** Saves right away (used before pushing). False while the route is still being computed or if saving fails. */
-    flush: async (): Promise<boolean> => (geometryPendingRef.current ? false : saveRef.current()),
+    flush: async (): Promise<boolean> => (!enabled || geometryPendingRef.current ? false : saveRef.current()),
   };
 }

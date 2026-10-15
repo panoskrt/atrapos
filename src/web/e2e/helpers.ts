@@ -47,6 +47,12 @@ export async function newRoute(page: Page) {
   await page.getByRole('button', { name: 'Freehand', exact: true }).click();
 }
 
+export async function saveDraft(page: Page) {
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/routes\/new$/);
+  await expectSaved(page);
+}
+
 export async function expectSaved(page: Page) {
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible();
 }

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { blockTiles, clickMap, expectSaved, newRoute, signIn, uniqueUser } from './helpers';
+import { blockTiles, clickMap, newRoute, saveDraft, signIn, uniqueUser } from './helpers';
 
 /** Serious and critical WCAG 2.x A/AA problems fail the test; minor ones are reported in the output. */
 async function expectAccessible(page: Page, label: string) {
@@ -30,7 +30,7 @@ for (const theme of ['dark', 'light'] as const) {
     await clickMap(page, 0.7, 0.6);
     await page.getByRole('button', { name: 'Add POI (click the map)' }).click();
     await clickMap(page, 0.5, 0.6);
-    await expectSaved(page);
+    await saveDraft(page);
     await expectAccessible(page, `editor/${theme}`);
 
     await page.getByRole('link', { name: 'All POIs' }).click();

@@ -6,9 +6,7 @@ const CSRF = { 'X-RPM-CSRF': '1' };
 
 /** Seeds a route (and optional POIs) through the API, as the editor would save it. */
 async function seedRoute(page: Page, name: string, lat: number, pois: string[] = [], activityIds = [11]) {
-  const created = await page.request.post('/api/routes', { data: { name }, headers: CSRF });
-  const { id } = (await created.json()) as { id: string };
-  const res = await page.request.put(`/api/routes/${id}`, {
+  const created = await page.request.post('/api/routes', {
     headers: CSRF,
     data: {
       name,
@@ -31,7 +29,7 @@ async function seedRoute(page: Page, name: string, lat: number, pois: string[] =
       })),
     },
   });
-  expect(res.ok(), await res.text()).toBe(true);
+  expect(created.ok(), `Route creation returned ${created.status()}`).toBe(true);
 }
 
 async function expectNoBlockingA11y(page: Page) {

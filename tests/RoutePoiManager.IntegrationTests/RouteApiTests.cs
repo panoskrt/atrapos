@@ -20,15 +20,32 @@ public sealed class RouteApiTests(PostgresFixture pg)
     };
 
     [Fact]
+    public async Task Create_rejects_a_route_without_map_points()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var http = await TestAuth.SignInAsync(api, suunto, "empty-route");
+
+        var response = await http.PostAsJsonAsync(
+            "/api/routes",
+            RouteTestRequests.NewRoute() with { ControlPoints = [] },
+            Json);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(await http.GetFromJsonAsync<List<RouteSummaryDto>>("/api/routes", Json) ?? []);
+    }
+
+    [Fact]
     public async Task Create_draw_reload_list_delete()
     {
         await using var suunto = new MockSuuntoFactory();
         await using var api = new ApiFactory(pg, suunto);
         var http = await TestAuth.SignInAsync(api, suunto, "hiker");
 
-        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(null)));
+        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute()));
         Assert.Equal("Untitled route", created.Name);
         Assert.Equal(SyncState.LocalOnly, created.SyncState);
+        Assert.Single(created.ControlPoints);
 
         // Two freehand segments, ~1.1 km each, climbing 100 m then descending 40 m.
         var update = new UpdateRouteRequest("Ridge loop", "  Clockwise  ", [ActivityTypes.Hiking, ActivityTypes.TrailRunning], true,
@@ -68,7 +85,7 @@ public sealed class RouteApiTests(PostgresFixture pg)
         var owner = await TestAuth.SignInAsync(api, suunto, "owner");
         var other = await TestAuth.SignInAsync(api, suunto, "other");
 
-        var created = await Read<RouteDetailDto>(await owner.PostAsJsonAsync("/api/routes", new CreateRouteRequest("Mine")));
+        var created = await Read<RouteDetailDto>(await owner.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute("Mine"), Json));
 
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/routes/{created.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"/api/routes/{created.Id}")).StatusCode);
@@ -84,8 +101,8 @@ public sealed class RouteApiTests(PostgresFixture pg)
         var other = await TestAuth.SignInAsync(api, suunto, "bulk-other");
         var ids = new List<Guid>();
         foreach (var name in new[] { "One", "Two", "Three" })
-            ids.Add((await Read<RouteDetailDto>(await owner.PostAsJsonAsync("/api/routes", new CreateRouteRequest(name)))).Id);
-        var theirs = (await Read<RouteDetailDto>(await other.PostAsJsonAsync("/api/routes", new CreateRouteRequest("Theirs")))).Id;
+            ids.Add((await Read<RouteDetailDto>(await owner.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute(name), Json))).Id);
+        var theirs = (await Read<RouteDetailDto>(await other.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute("Theirs"), Json))).Id;
 
         var res = await owner.PostAsJsonAsync("/api/routes/delete", new BulkDeleteRequest([ids[0], ids[1], ids[1], theirs]));
 
@@ -102,7 +119,7 @@ public sealed class RouteApiTests(PostgresFixture pg)
         await using var suunto = new MockSuuntoFactory();
         await using var api = new ApiFactory(pg, suunto);
         var http = await TestAuth.SignInAsync(api, suunto, "validator");
-        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(null)));
+        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute()));
 
         var res = await http.PutAsJsonAsync($"/api/routes/{created.Id}",
             new UpdateRouteRequest(" ", null, [89], false, [new ControlPoint(200, 95, SegmentMode.Freehand)]), Json);
@@ -176,7 +193,7 @@ public sealed class RouteApiTests(PostgresFixture pg)
         await using var suunto = new MockSuuntoFactory();
         await using var api = new ApiFactory(pg, suunto);
         var http = await TestAuth.SignInAsync(api, suunto, "cyclist");
-        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(null)));
+        var created = await Read<RouteDetailDto>(await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute()));
         Assert.Equal(RoutingProfiles.Default, created.RoutingProfile);
 
         var saved = await Read<RouteDetailDto>(await http.PutAsJsonAsync($"/api/routes/{created.Id}",
@@ -212,4 +229,11 @@ public sealed class RouteApiTests(PostgresFixture pg)
             return Task.FromResult(points.Select(p => (double?)Math.Round(p.Lat * 10, 1)).ToArray());
         }
     }
+
+}
+
+internal static class RouteTestRequests
+{
+    public static UpdateRouteRequest NewRoute(string name = "Untitled route") =>
+        new(name, null, [ActivityTypes.Hiking], false, [new ControlPoint(24.5, 60.3, SegmentMode.Freehand)]);
 }

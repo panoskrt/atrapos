@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickMap, expectSaved, newRoute, signIn, uniqueUser } from './helpers';
+import { clickMap, expectSaved, newRoute, saveDraft, signIn, uniqueUser } from './helpers';
 
 const distance = (page: import('@playwright/test').Page) =>
   page.locator('dl div').filter({ hasText: 'Distance' }).locator('dd');
@@ -12,7 +12,7 @@ test('draw, drag, undo, reverse and save a route', async ({ page }) => {
   await clickMap(page, 0.5, 0.5);
   await clickMap(page, 0.7, 0.35);
   await expect(page.locator('.leaflet-marker-icon[title^="Point 3."]')).toBeVisible();
-  await expectSaved(page);
+  await saveDraft(page);
   const drawn = await distance(page).textContent();
   expect(drawn).toMatch(/km$/);
 
@@ -49,7 +49,7 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await newRoute(page);
   await clickMap(page, 0.3, 0.6);
   await clickMap(page, 0.7, 0.6);
-  await expectSaved(page);
+  await saveDraft(page);
 
   // Click right next to the line: the POI snaps onto it and is on the route.
   await page.getByRole('button', { name: 'Add POI (click the map)' }).click();
@@ -79,4 +79,38 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   const cardInLibrary = page.getByRole('listitem').filter({ hasText: 'Untitled route' });
   await expect(cardInLibrary.getByText('Synced', { exact: true })).toBeVisible();
   await expect(cardInLibrary.getByText('1 synced')).toBeVisible();
+});
+
+test('new route drafts require a map point, save explicitly, and warn before discard', async ({ page }) => {
+  await signIn(page, uniqueUser('draft'));
+  await newRoute(page);
+
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeDisabled();
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('Draw your first route')).toBeVisible();
+
+  await newRoute(page);
+  await clickMap(page, 0.4, 0.6);
+  await expect(save).toBeEnabled();
+
+  const cancelledNavigation = page.waitForEvent('dialog');
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  const cancelDialog = await cancelledNavigation;
+  expect(cancelDialog.message()).toBe('You have unsaved changes. If you leave, they will be discarded.');
+  await cancelDialog.dismiss();
+  await expect(page).toHaveURL(/\/routes\/new$/);
+
+  const confirmedNavigation = page.waitForEvent('dialog');
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  await (await confirmedNavigation).accept();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('Draw your first route')).toBeVisible();
+
+  await newRoute(page);
+  await clickMap(page, 0.4, 0.6);
+  await saveDraft(page);
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Untitled route' })).toBeVisible();
 });

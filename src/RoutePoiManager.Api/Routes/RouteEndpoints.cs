@@ -39,8 +39,6 @@ public sealed record RouteDetailDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset LocalModifiedAt);
 
-public sealed record CreateRouteRequest(string? Name);
-
 /// <summary>Ids to delete in one go (routes or POIs). Ids that aren't the caller's are ignored.</summary>
 public sealed record BulkDeleteRequest(List<Guid>? Ids)
 {
@@ -84,25 +82,40 @@ public static class RouteEndpoints
             return rows.Select(x => ToSummary(x.Route, x.PoiCount, x.PoisPending));
         });
 
-        g.MapPost("/", async (HttpContext http, CreateRouteRequest req, AppDbContext db, TimeProvider clock, CancellationToken ct) =>
+        g.MapPost("/", async (HttpContext http, UpdateRouteRequest req, AppDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
-            var name = string.IsNullOrWhiteSpace(req.Name) ? "Untitled route" : req.Name.Trim();
-            if (name.Length > 200)
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is at most 200 characters."] });
+            if ((Validate(req) ?? RoutePois.Validate(req.Pois)) is { } errors)
+                return Results.ValidationProblem(errors);
+            if (req.ControlPoints.Count == 0)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["controlPoints"] = ["Place at least one point on the map before saving a route."] });
 
             var now = clock.GetUtcNow();
             var route = new Route
             {
                 Id = Guid.CreateVersion7(),
                 UserId = http.User.GetUserId(),
-                Name = name,
+                Name = req.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
+                ActivityIds = req.ActivityIds.Distinct().ToArray(),
+                TurnWaypointsEnabled = req.TurnWaypointsEnabled,
+                RoutingProfile = req.RoutingProfile,
                 Source = RouteSource.Drawn,
                 CreatedAt = now,
                 LocalModifiedAt = now,
             };
+            route.ApplyDrawing(req.ControlPoints, now);
             db.Routes.Add(route);
+            List<Poi> pois;
+            try
+            {
+                pois = await RoutePois.ApplyAsync(db, route, req.Pois, now, ct);
+            }
+            catch (PoiIdConflictException)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["pois"] = ["A POI id belongs to another route."] });
+            }
             await db.SaveChangesAsync(ct);
-            return Results.Created($"/api/routes/{route.Id}", ToDetail(route, []));
+            return Results.Created($"/api/routes/{route.Id}", ToDetail(route, pois));
         });
 
         g.MapGet("/{id:guid}", async (Guid id, HttpContext http, AppDbContext db, CancellationToken ct) =>

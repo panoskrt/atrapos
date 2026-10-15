@@ -123,7 +123,7 @@ export function useRoute(id: string) {
 export function useCreateRoute() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name?: string) => api.post<RouteDetail>('/api/routes', { name: name ?? null }),
+    mutationFn: (body: UpdateRouteRequest) => api.post<RouteDetail>('/api/routes', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: routeKeys.all, exact: true }),
   });
 }

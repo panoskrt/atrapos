@@ -12,7 +12,6 @@ import { ImportDialog } from '../import/ImportDialog';
 import {
   routeKeys,
   useActivityTypes,
-  useCreateRoute,
   useDeleteRoute,
   useDeleteRoutes,
   useRoutes,
@@ -42,7 +41,6 @@ const DEFAULT_SORT: RouteSort = { key: 'modified', dir: 'desc' };
 
 export function LibraryPage() {
   const routes = useRoutes();
-  const create = useCreateRoute();
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -86,7 +84,7 @@ export function LibraryPage() {
   const deleteOne = useDeleteRoute();
   const deleteMany = useDeleteRoutes();
 
-  const newRoute = () => create.mutate(undefined, { onSuccess: (r) => navigate(`/routes/${r.id}`) });
+  const newRoute = () => navigate('/routes/new');
 
   const onDelete = async (route: RouteSummary) => {
     if (await confirmRouteDelete([route])) deleteOne.mutate(route.id);
@@ -190,15 +188,15 @@ export function LibraryPage() {
           <Icon name="fileUp" size={18} />
           Import GPX / FIT
         </button>
-        <button type="button" className="btn btn-primary" onClick={newRoute} disabled={create.isPending}>
+        <button type="button" className="btn btn-primary" onClick={newRoute}>
           <Icon name="plus" size={18} />
           New route
         </button>
       </div>
 
-      {(create.isError || fileError) && (
+      {fileError && (
         <p role="alert" className={styles.error}>
-          {fileError ?? `Couldn't create a route: ${create.error?.message}`}
+          {fileError}
         </p>
       )}
       {refresh.isError && (
@@ -241,7 +239,7 @@ export function LibraryPage() {
             them to the Suunto app.
           </p>
           <div className={styles.emptyActions}>
-            <button type="button" className="btn btn-primary" onClick={newRoute} disabled={create.isPending}>
+            <button type="button" className="btn btn-primary" onClick={newRoute}>
               <Icon name="plus" size={18} />
               Draw your first route
             </button>

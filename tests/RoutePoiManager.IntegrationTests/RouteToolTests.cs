@@ -80,7 +80,7 @@ public sealed class RouteToolTests(PostgresFixture pg)
 
     private static async Task<Guid> CreateRoute(HttpClient http, string name, List<PoiInput> pois)
     {
-        var created = await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(name));
+        var created = await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute(name), Json);
         var id = (await created.Content.ReadFromJsonAsync<RouteDetailDto>(Json))!.Id;
         var res = await http.PutAsJsonAsync($"/api/routes/{id}",
             new UpdateRouteRequest(name, null, [ActivityTypes.Hiking], false, ThreeLegs, RoutingProfiles.Default, pois), Json);

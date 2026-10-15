@@ -156,7 +156,7 @@ public sealed class RoutePoiTests(PostgresFixture pg)
 
     private static async Task<Guid> Create(HttpClient http)
     {
-        var res = await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(null));
+        var res = await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute());
         return (await res.Content.ReadFromJsonAsync<RouteDetailDto>(Json))!.Id;
     }
 

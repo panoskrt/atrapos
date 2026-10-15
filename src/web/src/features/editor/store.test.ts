@@ -29,7 +29,50 @@ const lons = () => s().points.map((p) => p.lon);
 describe('editor store', () => {
   beforeEach(() => s().load(route()));
 
-  it('starts a new route in extend mode with empty history', () => {
+  it('starts a new route with clean defaults and empty history', () => {
+    s().load(
+      route(
+        [{ lon: 24, lat: 60, modeToNext: 'freehand' }],
+        [
+          {
+            id: 'poi-1',
+            name: 'Hut',
+            description: null,
+            poiType: 9,
+            lon: 24,
+            lat: 60,
+            ele: null,
+            distanceAlongM: null,
+            syncState: 'synced',
+            suuntoPoiKey: 'key-1',
+          },
+        ],
+      ),
+    );
+    s().setName('Old route');
+    s().setDescription('Old description');
+    s().addPoint({ lon: 25, lat: 61 });
+    s().setDrawMode('freehand');
+    s().setTool('poi');
+
+    s().startNew();
+
+    expect(s()).toMatchObject({
+      routeId: null,
+      name: 'Untitled route',
+      description: '',
+      syncState: 'localOnly',
+      poiServer: {},
+      points: [],
+      pois: [],
+      activityIds: [11],
+      turnWaypointsEnabled: false,
+      routingProfile: 'hiking-mountain',
+      selectedId: null,
+      selectedPoiId: null,
+      tool: 'extend',
+      drawMode: 'snap',
+    });
     expect(s().tool).toBe('extend');
     expect(t().pastStates).toHaveLength(0);
   });

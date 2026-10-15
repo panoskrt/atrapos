@@ -247,7 +247,7 @@ public sealed class SyncTests(PostgresFixture pg)
 
     private static async Task<Guid> CreateRoute(HttpClient http, string name, List<PoiInput> pois)
     {
-        var res = await http.PostAsJsonAsync("/api/routes", new CreateRouteRequest(name));
+        var res = await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute(name), Json);
         var id = (await res.Content.ReadFromJsonAsync<RouteDetailDto>(Json))!.Id;
         await Put(http, id, name, pois);
         return id;

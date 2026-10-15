@@ -25,9 +25,25 @@ interface Props {
   onFocus: (lon: number, lat: number) => void;
   routeId: string;
   onReload: () => void;
+  isDraft: boolean;
+  onSave: () => void;
+  savePending: boolean;
+  canSave: boolean;
 }
 
-export function EditorSidebar({ stats, vertexCount, save, poiLocations, onFocus, routeId, onReload }: Props) {
+export function EditorSidebar({
+  stats,
+  vertexCount,
+  save,
+  poiLocations,
+  onFocus,
+  routeId,
+  onReload,
+  isDraft,
+  onSave,
+  savePending,
+  canSave,
+}: Props) {
   const name = useEditorStore((s) => s.name);
   const setName = useEditorStore((s) => s.setName);
   const poiCount = useEditorStore((s) => s.pois.length);
@@ -49,7 +65,12 @@ export function EditorSidebar({ stats, vertexCount, save, poiLocations, onFocus,
             <Icon name="chevronLeft" size={16} />
             Library
           </Link>
-          <SaveIndicator {...save} />
+          <div className={styles.saveActions}>
+            <button type="button" className="btn btn-primary" onClick={onSave} disabled={!canSave || savePending}>
+              {savePending ? 'Saving…' : 'Save'}
+            </button>
+            <SaveIndicator {...save} />
+          </div>
         </div>
         <label htmlFor={nameId} className={styles.label}>
           Route name
@@ -92,15 +113,15 @@ export function EditorSidebar({ stats, vertexCount, save, poiLocations, onFocus,
       </div>
 
       <div className={styles.sideBody} role="tabpanel">
-        {tab === 'route' ? <RouteTab routeId={routeId} flush={save.flush} /> : <PoiList locations={poiLocations} onFocus={onFocus} />}
+        {tab === 'route' ? <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} /> : <PoiList locations={poiLocations} onFocus={onFocus} />}
       </div>
 
-      <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />
+      {!isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
     </aside>
   );
 }
 
-function RouteTab({ routeId, flush }: { routeId: string; flush: () => Promise<boolean> }) {
+function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => Promise<boolean>; isDraft: boolean }) {
   const hasLine = useEditorStore((s) => s.points.length > 1);
   const [downloading, setDownloading] = useState(false);
   const download = async () => {
@@ -215,16 +236,18 @@ function RouteTab({ routeId, flush }: { routeId: string; flush: () => Promise<bo
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      <button
-        type="button"
-        className={`btn ${styles.downloadBtn}`}
-        onClick={() => void download()}
-        disabled={!hasLine || downloading}
-        title={hasLine ? 'GPX with the route and all its POIs, for other apps' : 'Draw at least two points first'}
-      >
-        <Icon name="download" size={18} />
-        {downloading ? 'Preparing…' : 'Download GPX'}
-      </button>
+      {!isDraft && (
+        <button
+          type="button"
+          className={`btn ${styles.downloadBtn}`}
+          onClick={() => void download()}
+          disabled={!hasLine || downloading}
+          title={hasLine ? 'GPX with the route and all its POIs, for other apps' : 'Draw at least two points first'}
+        >
+          <Icon name="download" size={18} />
+          {downloading ? 'Preparing…' : 'Download GPX'}
+        </button>
+      )}
     </>
   );
 }

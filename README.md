@@ -23,7 +23,8 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Reverse, trim before or after a point, and split into two routes
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
 - **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent
-- Autosave
+- **Save** button; existing routes also autosave
+- New routes are added to the library only after you place at least one map point and save. Leaving an unsaved draft prompts before discarding it.
 
 **Import**
 - **GPX** 1.0/1.1 tracks, routes and waypoints, including Suunto's own route-point extension

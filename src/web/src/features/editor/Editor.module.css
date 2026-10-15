@@ -68,6 +68,13 @@
   margin-bottom: 6px;
 }
 
+.saveActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .back {
   display: inline-flex;
   align-items: center;

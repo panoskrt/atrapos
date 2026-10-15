@@ -47,6 +47,7 @@ interface EditorState extends UndoableDoc {
   drawMode: SegmentMode;
 
   load: (route: RouteDetail) => void;
+  startNew: () => void;
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   toggleActivity: (id: number) => void;
@@ -139,6 +140,25 @@ export const useEditorStore = create<EditorState>()(
           tool: route.controlPoints.length < 2 ? 'extend' : 'select',
         });
         // A freshly opened route starts with an empty history.
+        useEditorStore.temporal.getState().clear();
+      },
+      startNew: () => {
+        set({
+          routeId: null,
+          name: 'Untitled route',
+          description: '',
+          syncState: 'localOnly',
+          poiServer: {},
+          points: [],
+          pois: [],
+          activityIds: [11],
+          turnWaypointsEnabled: false,
+          routingProfile: 'hiking-mountain',
+          selectedId: null,
+          selectedPoiId: null,
+          tool: 'extend',
+          drawMode: 'snap',
+        });
         useEditorStore.temporal.getState().clear();
       },
       setName: (name) => set({ name }),
