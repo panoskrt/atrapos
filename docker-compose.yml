@@ -1,0 +1,51 @@
+name: routepoi
+
+# Real Suunto:     docker compose up --build -d          → http://localhost:5080   (secrets in .env)
+# E2E tests:       docker compose -f docker-compose.yml -f docker-compose.e2e.yml up --build -d   (mock Suunto)
+# Dev (hot reload): docker compose up -d db   then `dotnet run` (api) + `npm run dev` (web)
+
+services:
+  db:
+    platform: linux/amd64
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: routepoi
+      POSTGRES_USER: routepoi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-routepoi}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routepoi -d routepoi"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: src/RoutePoiManager.Api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5080:8080"
+    environment:
+      ConnectionStrings__Db: "Host=db;Port=5432;Database=routepoi;Username=routepoi;Password=${POSTGRES_PASSWORD:-routepoi}"
+      App__PublicBaseUrl: http://localhost:5080
+      App__RequireOAuthState: ${REQUIRE_OAUTH_STATE:-true}
+      Suunto__Mode: Live
+      # Required: the API refuses to start without them. Set them in .env (see .env.example).
+      Suunto__ClientId: ${SUUNTO_CLIENT_ID:-}
+      Suunto__ClientSecret: ${SUUNTO_CLIENT_SECRET:-}
+      Suunto__SubscriptionKey: ${SUUNTO_SUBSCRIPTION_KEY:-}
+      Suunto__AuthorizeBaseUrl: https://cloudapi-oauth.suunto.com
+      Suunto__OAuthBaseUrl: https://cloudapi-oauth.suunto.com
+      Suunto__ApiBaseUrl: https://cloudapi.suunto.com
+      # Must match the redirect URI in the API Zone OAuth settings exactly.
+      Suunto__RedirectUri: http://localhost:5080/auth/callback
+      Suunto__DiagnosticLogging: ${SUUNTO_DIAGNOSTICS:-false}
+
+volumes:
+  db-data:

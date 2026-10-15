@@ -1,0 +1,263 @@
+.label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.badge {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--poi);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.badge svg,
+.badge path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- List ---------- */
+
+.listHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.listHead :global(.btn) {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.addOn {
+  border-color: var(--poi) !important;
+  color: var(--poi) !important;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row,
+.rowOn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.row:hover {
+  background: var(--panel-2);
+}
+
+.rowOn {
+  background: var(--selected-bg);
+  border-color: var(--accent);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rowText strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toneMuted,
+.toneOk,
+.toneWarn,
+.toneDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toneMuted {
+  color: var(--text-muted);
+}
+
+.toneOk {
+  color: var(--ok);
+}
+
+.toneWarn {
+  color: var(--warn);
+}
+
+.toneDanger {
+  color: var(--danger);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---------- Card ---------- */
+
+.card {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  z-index: 1000;
+  width: min(320px, calc(100% - 24px));
+  max-height: calc(100% - 120px);
+  overflow: auto;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* In a narrow map the base-map switcher moves to the bottom; use the space at the top-right. */
+@container (max-width: 900px) {
+  .card {
+    top: 76px;
+    max-height: calc(100% - 160px);
+  }
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.cardTitle {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.iconBtn:hover {
+  background: var(--panel-2);
+}
+
+.input,
+.textarea {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  padding: 0 10px;
+  margin-bottom: 4px;
+}
+
+.input {
+  height: 38px;
+}
+
+.textarea {
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.facts {
+  margin: 4px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.facts div {
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+
+.facts dt {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.syncBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  margin: 4px 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.syncBox div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.deleteBtn {
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

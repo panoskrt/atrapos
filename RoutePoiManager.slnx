@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RoutePoiManager.Api/RoutePoiManager.Api.csproj" />
+    <Project Path="src/RoutePoiManager.Domain/RoutePoiManager.Domain.csproj" />
+    <Project Path="src/RoutePoiManager.Infrastructure/RoutePoiManager.Infrastructure.csproj" />
+    <Project Path="src/RoutePoiManager.MockSuunto/RoutePoiManager.MockSuunto.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RoutePoiManager.IntegrationTests/RoutePoiManager.IntegrationTests.csproj" />
+    <Project Path="tests/RoutePoiManager.UnitTests/RoutePoiManager.UnitTests.csproj" />
+  </Folder>
+</Solution>

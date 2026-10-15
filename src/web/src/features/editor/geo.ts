@@ -1,0 +1,181 @@
+/** Geometry helpers. `stats` mirrors Geo.Stats in RoutePoiManager.Domain/Geo.cs; keep them in step. */
+
+/** [lon, lat, ele] with ele null when unknown. */
+export type Coord = [number, number, number | null];
+
+export interface LonLat {
+  lon: number;
+  lat: number;
+}
+
+const EARTH_RADIUS_M = 6371008.8;
+export const CLIMB_HYSTERESIS_M = 3;
+/** Freehand segments are sampled this often so the elevation profile has detail. */
+export const DENSIFY_STEP_M = 50;
+const MAX_POINTS_PER_SEGMENT = 200;
+
+const rad = (d: number) => (d * Math.PI) / 180;
+
+export function distanceM(a: LonLat, b: LonLat): number {
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+const ll = (c: Coord): LonLat => ({ lon: c[0], lat: c[1] });
+
+/** Straight line from a to b sampled every DENSIFY_STEP_M (both ends included). */
+export function densify(a: LonLat, b: LonLat): Coord[] {
+  const d = distanceM(a, b);
+  const n = Math.min(MAX_POINTS_PER_SEGMENT, Math.max(1, Math.ceil(d / DENSIFY_STEP_M)));
+  const out: Coord[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    out.push([a.lon + (b.lon - a.lon) * t, a.lat + (b.lat - a.lat) * t, null]);
+  }
+  return out;
+}
+
+/** Points closer than this are the same joint (mirrors RouteDrawing.JointToleranceM). */
+export const JOINT_TOLERANCE_M = 1;
+
+/** Joins segments. Consecutive segments usually share their joint point; when they don't (a snapped segment
+ *  ends on the trail, a freehand one at the raw click) the gap is bridged by a straight connector. */
+export function joinSegments(segments: Coord[][]): Coord[] {
+  const line: Coord[] = [];
+  for (const seg of segments) {
+    const last = line.at(-1);
+    const sharesJoint = last && seg[0] && distanceM(ll(last), ll(seg[0])) <= JOINT_TOLERANCE_M;
+    line.push(...(sharesJoint ? seg.slice(1) : seg));
+  }
+  return line;
+}
+
+export function cumulativeDistances(line: Coord[]): number[] {
+  const out = new Array<number>(line.length);
+  let total = 0;
+  line.forEach((c, i) => {
+    if (i > 0) total += distanceM(ll(line[i - 1]!), ll(c));
+    out[i] = total;
+  });
+  return out;
+}
+
+export interface RouteStats {
+  distanceM: number;
+  ascentM: number;
+  descentM: number;
+}
+
+export function stats(line: Coord[]): RouteStats {
+  let ascent = 0;
+  let descent = 0;
+  let anchor: number | null = null;
+  for (const [, , ele] of line) {
+    if (ele === null) continue;
+    if (anchor === null) {
+      anchor = ele;
+      continue;
+    }
+    const diff = ele - anchor;
+    if (Math.abs(diff) < CLIMB_HYSTERESIS_M) continue;
+    if (diff > 0) ascent += diff;
+    else descent -= diff;
+    anchor = ele;
+  }
+  const dist = cumulativeDistances(line);
+  return { distanceM: dist.at(-1) ?? 0, ascentM: ascent, descentM: descent };
+}
+
+/** Position (and elevation, if known on both sides) at a distance along the line. */
+export function positionAtDistance(line: Coord[], cumulative: number[], d: number): Coord | null {
+  if (line.length === 0) return null;
+  if (d <= 0) return line[0]!;
+  const last = cumulative.length - 1;
+  if (d >= cumulative[last]!) return line[last]!;
+
+  let lo = 0;
+  let hi = last;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumulative[mid]! <= d) lo = mid;
+    else hi = mid;
+  }
+  const a = line[lo]!;
+  const b = line[hi]!;
+  const span = cumulative[hi]! - cumulative[lo]!;
+  const t = span > 0 ? (d - cumulative[lo]!) / span : 0;
+  const ele = a[2] !== null && b[2] !== null ? a[2] + (b[2] - a[2]) * t : (a[2] ?? b[2]);
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, ele];
+}
+
+/** Distance along the line of the vertex nearest to p (good enough for hover sync on dense lines). */
+export function nearestDistance(line: Coord[], cumulative: number[], p: LonLat): number | null {
+  let best = Infinity;
+  let bestD: number | null = null;
+  const k = Math.cos(rad(p.lat));
+  line.forEach((c, i) => {
+    const dx = (c[0] - p.lon) * k;
+    const dy = c[1] - p.lat;
+    const sq = dx * dx + dy * dy;
+    if (sq < best) {
+      best = sq;
+      bestD = cumulative[i]!;
+    }
+  });
+  return bestD;
+}
+
+export interface LineLocation {
+  /** Distance along the line to the nearest spot on it. */
+  alongM: number;
+  /** Distance from the point to that spot. */
+  offsetM: number;
+  /** The nearest spot on the line, with interpolated elevation. */
+  point: Coord;
+}
+
+const METRES_PER_DEGREE = (Math.PI * EARTH_RADIUS_M) / 180;
+
+/** Projects a point onto the line (nearest spot on any segment). Mirrors Geo.Locate on the server. */
+export function locateOnLine(line: Coord[], cumulative: number[], p: LonLat): LineLocation | null {
+  if (line.length < 2) return null;
+  const k = Math.cos(rad(p.lat)) * METRES_PER_DEGREE;
+  const px = p.lon * k;
+  const py = p.lat * METRES_PER_DEGREE;
+  let best: { sq: number; i: number; t: number } = { sq: Infinity, i: 1, t: 0 };
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const ax = a[0] * k;
+    const ay = a[1] * METRES_PER_DEGREE;
+    const dx = b[0] * k - ax;
+    const dy = b[1] * METRES_PER_DEGREE - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const ex = ax + t * dx - px;
+    const ey = ay + t * dy - py;
+    const sq = ex * ex + ey * ey;
+    if (sq < best.sq) best = { sq, i, t };
+  }
+  const along = cumulative[best.i - 1]! + best.t * (cumulative[best.i]! - cumulative[best.i - 1]!);
+  return { alongM: along, offsetM: Math.sqrt(best.sq), point: positionAtDistance(line, cumulative, along)! };
+}
+
+/** Midpoint (by distance) of a segment, for the "drag to insert" handles. */
+export function segmentMidpoint(segment: Coord[]): LonLat | null {
+  if (segment.length < 2) return null;
+  const cum = cumulativeDistances(segment);
+  const mid = positionAtDistance(segment, cum, cum.at(-1)! / 2);
+  return mid ? { lon: mid[0], lat: mid[1] } : null;
+}
+
+export function formatDistance(m: number): string {
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(m < 100_000 ? 1 : 0)} km`;
+}
+
+export function formatElevation(m: number): string {
+  return `${Math.round(m).toLocaleString('en-US')} m`;
+}

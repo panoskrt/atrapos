@@ -1,0 +1,259 @@
+.shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+}
+
+.main:focus {
+  outline: none;
+}
+
+/* Visible only when focused with the keyboard. */
+.skip {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 6000;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip:focus {
+  top: 8px;
+}
+
+.loading {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.topbar {
+  position: relative;
+  min-height: var(--topbar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 6px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.navLink,
+.navActive {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.navLink:hover {
+  color: var(--text);
+}
+
+.navActive {
+  color: var(--text);
+  background: var(--panel-2);
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.status strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+@media (max-width: 640px) {
+  .statusLabel {
+    display: none;
+  }
+}
+
+.account {
+  position: relative;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 1000;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItem,
+.menuItemDanger {
+  height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.menuItem:hover,
+.menuItemDanger:hover {
+  background: var(--panel-2);
+}
+
+.menuItemDanger {
+  color: var(--danger);
+}
+
+.fatal {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Suunto activity: the status chip names it, and a thin bar runs along the bottom of the top bar. */
+.statusBusy {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.activityLabel {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .activityLabel {
+    max-width: 150px;
+  }
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  overflow: hidden;
+  background: var(--accent-bg);
+  pointer-events: none;
+}
+
+.progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  background: var(--accent);
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+@keyframes slide {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress::after {
+    left: 0;
+    width: 100%;
+    animation: fade 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes fade {
+  50% {
+    opacity: 0.35;
+  }
+}

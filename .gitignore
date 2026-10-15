@@ -1,0 +1,31 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+
+# Node / web
+node_modules/
+src/web/dist/
+src/web/test-results/
+src/web/playwright-report/
+*.tsbuildinfo
+
+# Served SPA build copied into the API
+src/RoutePoiManager.Api/wwwroot/
+
+# Secrets & local env
+.env
+appsettings.Local.json
+*.pfx
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+src/web/blob-report/
