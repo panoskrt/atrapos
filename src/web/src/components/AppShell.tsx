@@ -58,6 +58,9 @@ function TopBar({ me }: { me: Me }) {
         <NavLink to="/pois" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
           All POIs
         </NavLink>
+        <NavLink to="/gpx-tools" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
+          GPX tools
+        </NavLink>
       </nav>
       <div className={styles.spacer} />
       {/* Doubles as the app-wide indicator for calls to Suunto's servers, which can take a few seconds. */}

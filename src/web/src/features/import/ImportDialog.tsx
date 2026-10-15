@@ -24,9 +24,10 @@ const ON_ROUTE_MAX_OFFSET_M = 200;
 interface Props {
   file: File;
   onClose: () => void;
+  onImported?: () => void;
 }
 
-export function ImportDialog({ file, onClose }: Props) {
+export function ImportDialog({ file, onClose, onImported }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const preview = useQuery({
@@ -72,13 +73,23 @@ export function ImportDialog({ file, onClose }: Props) {
           </button>
         </div>
       ) : (
-        <ImportForm file={file} preview={preview.data} onCancel={() => ref.current?.close()} />
+        <ImportForm file={file} preview={preview.data} onCancel={() => ref.current?.close()} onImported={onImported} />
       )}
     </dialog>
   );
 }
 
-function ImportForm({ file, preview, onCancel }: { file: File; preview: ImportPreview; onCancel: () => void }) {
+function ImportForm({
+  file,
+  preview,
+  onCancel,
+  onImported,
+}: {
+  file: File;
+  preview: ImportPreview;
+  onCancel: () => void;
+  onImported?: () => void;
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const activities = useActivityTypes();
@@ -116,7 +127,8 @@ function ImportForm({ file, preview, onCancel }: { file: File; preview: ImportPr
       }),
     onSuccess: (route) => {
       void qc.invalidateQueries({ queryKey: routeKeys.all, exact: true });
-      navigate(`/routes/${route.id}`);
+      if (onImported) onImported();
+      else navigate(`/routes/${route.id}`);
     },
   });
 

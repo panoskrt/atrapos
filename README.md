@@ -31,6 +31,10 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - A preview with a live **simplification** slider and point count
 - Waypoints and course points become POIs, with a suggested Suunto POI type you can change
 
+**GPX tools**
+- Merge multiple GPX tracks or routes into one ordered route and create it in the app
+- View a GPX track or route on a map and click to add split points; download the parts or create a route for each part
+
 **POIs**
 - Place them on the map; a click near the route snaps onto it
 - All 61 Suunto POI types, with category icons

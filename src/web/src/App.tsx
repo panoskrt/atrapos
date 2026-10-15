@@ -6,6 +6,7 @@ import { LoginPage } from './features/auth/LoginPage';
 import { EditorPage } from './features/editor/EditorPage';
 import { LibraryPage } from './features/library/LibraryPage';
 import { AllPoisPage } from './features/pois/AllPoisPage';
+import { GpxToolsPage } from './features/gpxTools/GpxToolsPage';
 import { ThemeProvider } from './lib/theme';
 
 const queryClient = new QueryClient({
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { index: true, element: <LibraryPage />, errorElement: <ErrorPage /> },
       { path: 'routes/:id', element: <EditorPage />, errorElement: <ErrorPage /> },
       { path: 'pois', element: <AllPoisPage />, errorElement: <ErrorPage /> },
+      { path: 'gpx-tools', element: <GpxToolsPage />, errorElement: <ErrorPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
