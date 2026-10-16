@@ -8,6 +8,10 @@ import { syncStateLabel, useActivityTypes, type RouteSummary, type SyncState } f
 import { formatChanged, SORT_LABELS, type RouteSort, type RouteSortKey } from './dashboard';
 import styles from './LibraryPage.module.css';
 
+const TILE_SIZE = 256;
+const MAX_TILE_ZOOM = 17;
+const MAP_ATTRIBUTION = '© OpenStreetMap contributors';
+
 interface ViewProps {
   routes: RouteSummary[];
   selection: Selection;
@@ -100,10 +104,11 @@ export function RouteCards({ routes, selection, onDelete, deleting, leading }: V
               label={`Select ${route.name}`}
               onToggle={(extend) => selection.toggle(route.id, extend)}
             />
-            <Link to={`/routes/${route.id}`} className={styles.thumb} aria-label={`Open ${route.name}`} tabIndex={-1}>
+            <div className={styles.thumb}>
               <Thumbnail preview={route.preview} />
+              <Link to={`/routes/${route.id}`} className={styles.thumbTarget} aria-label={`Open ${route.name}`} tabIndex={-1} />
               <span className={styles.source}>{sourceLabel[route.source]}</span>
-            </Link>
+            </div>
             <div className={styles.cardBody}>
               <div className={styles.cardTitleRow}>
                 <h2 className={styles.cardTitle}>
@@ -232,12 +237,12 @@ export function RouteTable({
   );
 }
 
-/** Route outline projected into the box (equirectangular with latitude correction). */
+/** Route displayed on OpenStreetMap tiles, fitted to the card or list thumbnail. */
 function Thumbnail({ preview, compact = false }: { preview: [number, number][]; compact?: boolean }) {
   const [w, h, pad] = compact ? [64, 40, 5] : [300, 140, 20];
   if (preview.length < 2) {
     return (
-      <svg viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <svg viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className={compact ? styles.compact : undefined}>
         {!compact && (
           <text x={w / 2} y={h / 2 + 6} textAnchor="middle" className={styles.thumbEmpty}>
             No route drawn yet
@@ -246,24 +251,82 @@ function Thumbnail({ preview, compact = false }: { preview: [number, number][]; 
       </svg>
     );
   }
-  const lons = preview.map((p) => p[0]);
-  const lats = preview.map((p) => p[1]);
-  const k = Math.cos((((Math.min(...lats) + Math.max(...lats)) / 2) * Math.PI) / 180);
-  const minX = Math.min(...lons) * k;
-  const maxX = Math.max(...lons) * k;
-  const minY = Math.min(...lats);
-  const maxY = Math.max(...lats);
-  const scale = Math.min((w - 2 * pad) / Math.max(maxX - minX, 1e-9), (h - pad - 10) / Math.max(maxY - minY, 1e-9));
-  const offX = (w - (maxX - minX) * scale) / 2;
-  const offY = (h - (maxY - minY) * scale) / 2;
-  const d = preview
-    .map(([lon, lat], i) => `${i ? 'L' : 'M'}${(offX + (lon * k - minX) * scale).toFixed(1)},${(offY + (maxY - lat) * scale).toFixed(1)}`)
-    .join(' ');
+  const { path, tiles } = getThumbnailProjection(preview, w, h, pad);
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className={compact ? styles.compact : undefined}>
-      <path d={d} className={styles.thumbCasing} />
-      <path d={d} className={styles.thumbLine} />
-    </svg>
+    <div className={`${styles.thumbMap} ${compact ? styles.compact : ''}`}>
+      <div className={styles.thumbTiles} aria-hidden="true">
+        {tiles.map((tile) => (
+          <img
+            key={tile.key}
+            src={`https://tile.openstreetmap.org/${tile.zoom}/${tile.x}/${tile.y}.png`}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            style={{
+              left: `${(tile.left / w) * 100}%`,
+              top: `${(tile.top / h) * 100}%`,
+              width: `${(TILE_SIZE / w) * 100}%`,
+              height: `${(TILE_SIZE / h) * 100}%`,
+            }}
+          />
+        ))}
+      </div>
+      <svg className={styles.thumbRoute} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+        <path d={path} className={styles.thumbCasing} />
+        <path d={path} className={styles.thumbLine} />
+      </svg>
+      <a
+        className={styles.mapAttribution}
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noreferrer"
+        title="Map data © OpenStreetMap contributors"
+      >
+        {MAP_ATTRIBUTION}
+      </a>
+    </div>
   );
+}
+
+function getThumbnailProjection(preview: [number, number][], width: number, height: number, padding: number) {
+  const projected = preview.map(([lon, lat]) => {
+    const clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+    const sin = Math.sin((clampedLat * Math.PI) / 180);
+    return { x: (lon + 180) / 360, y: 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI) };
+  });
+  const minX = Math.min(...projected.map((point) => point.x));
+  const maxX = Math.max(...projected.map((point) => point.x));
+  const minY = Math.min(...projected.map((point) => point.y));
+  const maxY = Math.max(...projected.map((point) => point.y));
+  const availableWidth = width - 2 * padding;
+  const availableHeight = height - 2 * padding;
+  const zoomForWidth = availableWidth / Math.max((maxX - minX) * TILE_SIZE, 1e-6);
+  const zoomForHeight = availableHeight / Math.max((maxY - minY) * TILE_SIZE, 1e-6);
+  const zoom = Math.max(0, Math.min(MAX_TILE_ZOOM, Math.floor(Math.log2(Math.min(zoomForWidth, zoomForHeight)))));
+  const tileCount = 2 ** zoom;
+  const worldSize = TILE_SIZE * tileCount;
+  const originX = (minX + maxX) * worldSize / 2 - width / 2;
+  const originY = (minY + maxY) * worldSize / 2 - height / 2;
+  const path = projected
+    .map((point, index) => `${index ? 'L' : 'M'}${(point.x * worldSize - originX).toFixed(1)},${(point.y * worldSize - originY).toFixed(1)}`)
+    .join(' ');
+  const firstX = Math.floor(originX / TILE_SIZE);
+  const lastX = Math.floor((originX + width) / TILE_SIZE);
+  const firstY = Math.floor(originY / TILE_SIZE);
+  const lastY = Math.floor((originY + height) / TILE_SIZE);
+  const tiles: { key: string; zoom: number; x: number; y: number; left: number; top: number }[] = [];
+
+  for (let tileY = firstY; tileY <= lastY; tileY++) {
+    if (tileY < 0 || tileY >= tileCount) continue;
+    for (let tileX = firstX; tileX <= lastX; tileX++) {
+      const x = ((tileX % tileCount) + tileCount) % tileCount;
+      tiles.push(
+        { key: `${tileX}:${tileY}`, zoom, x, y: tileY, left: tileX * TILE_SIZE - originX, top: tileY * TILE_SIZE - originY },
+      );
+    }
+  }
+
+  return { path, tiles };
 }
