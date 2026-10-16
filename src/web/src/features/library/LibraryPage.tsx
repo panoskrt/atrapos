@@ -70,6 +70,12 @@ export function LibraryPage() {
   );
   const shownIds = useMemo(() => shown.map((r) => r.id), [shown]);
   const selection = useSelection(shownIds);
+  const selectedStats = useMemo(() => {
+    if (selection.ids.length === 0) return stats;
+    const selectedIds = new Set(selection.ids);
+    return summarize((all ?? []).filter((route) => selectedIds.has(route.id)));
+  }, [all, selection.ids, stats]);
+  const showSelectionTotals = selection.ids.length > 0;
   const filtering = filter !== 'all' || activity !== null || query.trim() !== '';
 
   const qc = useQueryClient();
@@ -252,13 +258,26 @@ export function LibraryPage() {
       ) : (
         <>
           <section className={styles.stats} aria-label="Library summary">
-            <Stat label={stats.routes === 1 ? 'Route' : 'Routes'} value={stats.routes.toLocaleString()} />
-            <Stat label="Distance" value={formatDistance(stats.distanceM)} />
-            <Stat label="Climbing" value={`${Math.round(stats.ascentM).toLocaleString()} m`} />
-            <Stat label="POIs" value={stats.pois.toLocaleString()} />
+            <Stat
+              label={selectedStats.routes === 1 ? 'Route' : 'Routes'}
+              value={selectedStats.routes.toLocaleString()}
+              total={showSelectionTotals ? stats.routes.toLocaleString() : undefined}
+            />
+            <Stat
+              label="Distance"
+              value={formatDistance(selectedStats.distanceM)}
+              total={showSelectionTotals ? formatDistance(stats.distanceM) : undefined}
+            />
+            <Stat
+              label="Climbing"
+              value={`${Math.round(selectedStats.ascentM).toLocaleString()} m`}
+              total={showSelectionTotals ? `${Math.round(stats.ascentM).toLocaleString()} m` : undefined}
+            />
+            <Stat label="POIs" value={selectedStats.pois.toLocaleString()} total={showSelectionTotals ? stats.pois.toLocaleString() : undefined} />
             <FilterStat
               label="Not pushed"
-              value={stats.toPush}
+              value={selectedStats.toPush}
+              total={showSelectionTotals ? stats.toPush : undefined}
               tone="warn"
               active={filter === 'toPush'}
               onClick={() => setFilter(filter === 'toPush' ? 'all' : 'toPush')}
@@ -266,7 +285,8 @@ export function LibraryPage() {
             {stats.attention > 0 && (
               <FilterStat
                 label="Needs attention"
-                value={stats.attention}
+                value={selectedStats.attention}
+                total={showSelectionTotals ? stats.attention : undefined}
                 tone="danger"
                 active={filter === 'attention'}
                 onClick={() => setFilter(filter === 'attention' ? 'all' : 'attention')}
@@ -426,10 +446,12 @@ export function LibraryPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, total }: { label: string; value: string; total?: string }) {
   return (
     <div className={styles.stat}>
-      <span className={styles.statValue}>{value}</span>
+      <span className={styles.statValue}>
+        {value} {total !== undefined && <span className={styles.statTotal}>({total})</span>}
+      </span>
       <span className={styles.statLabel}>{label}</span>
     </div>
   );
@@ -439,12 +461,14 @@ function Stat({ label, value }: { label: string; value: string }) {
 function FilterStat({
   label,
   value,
+  total,
   tone,
   active,
   onClick,
 }: {
   label: string;
   value: number;
+  total?: number;
   tone: 'warn' | 'danger';
   active: boolean;
   onClick: () => void;
@@ -455,9 +479,11 @@ function FilterStat({
       className={`${styles.stat} ${styles.statButton} ${value ? styles[`stat_${tone}`] : ''}`}
       aria-pressed={active}
       onClick={onClick}
-      disabled={value === 0 && !active}
+      disabled={value === 0 && (total ?? value) === 0 && !active}
     >
-      <span className={styles.statValue}>{value.toLocaleString()}</span>
+      <span className={styles.statValue}>
+        {value.toLocaleString()} {total !== undefined && <span className={styles.statTotal}>({total.toLocaleString()})</span>}
+      </span>
       <span className={styles.statLabel}>{label}</span>
     </button>
   );
