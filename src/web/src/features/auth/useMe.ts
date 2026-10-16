@@ -5,6 +5,7 @@ import { withSuunto } from '../../lib/suuntoActivity';
 export interface Me {
   username: string;
   suuntoMode: 'Mock' | 'Live';
+  suuntoConnected: boolean;
 }
 
 export const meQueryKey = ['me'] as const;

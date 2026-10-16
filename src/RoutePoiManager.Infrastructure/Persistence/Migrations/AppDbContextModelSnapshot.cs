@@ -377,8 +377,12 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("refresh_token_protected");
 
+                    b.Property<string>("GoogleSubject")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("google_subject");
+
                     b.Property<string>("SuuntoUsername")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("suunto_username");
@@ -389,6 +393,10 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                     b.HasIndex("SuuntoUsername")
                         .IsUnique()
                         .HasDatabaseName("ix_users_suunto_username");
+
+                    b.HasIndex("GoogleSubject")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_google_subject");
 
                     b.ToTable("users", (string)null);
                 });

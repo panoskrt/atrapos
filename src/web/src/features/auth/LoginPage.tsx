@@ -10,6 +10,8 @@ const errorMessages: Record<string, string> = {
   state_mismatch: 'The sign-in link expired or was opened in another browser. Please try again.',
   token_exchange_failed: "Suunto didn't accept the sign-in. Please try again in a moment.",
   missing_code: "Suunto didn't return a sign-in code. Please try again.",
+  google_not_configured: 'Google sign-in is not configured yet.',
+  google_auth_failed: 'Google sign-in failed. Please try again.',
 };
 
 export function LoginPage() {
@@ -22,11 +24,17 @@ export function LoginPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const payload = event.data;
-      if (!payload || payload.type !== 'rpm-suunto-auth') return;
+      if (!popupRef.current || event.source !== popupRef.current || !payload) return;
+      if (payload.type !== 'rpm-suunto-auth' && payload.type !== 'rpm-google-auth') {
+        return;
+      }
 
       setOpening(false);
       if (payload.status === 'success') {
-        window.location.assign(payload.redirect ?? '/');
+        if (payload.type === 'rpm-google-auth') window.location.reload();
+        else window.location.assign(payload.redirect ?? '/');
+      } else if (payload.type === 'rpm-google-auth') {
+        window.location.assign(`/login?error=${encodeURIComponent(payload.error ?? 'google_auth_failed')}`);
       } else if (payload.redirect) {
         window.location.assign(payload.redirect);
       }
@@ -66,6 +74,17 @@ export function LoginPage() {
     setOpening(true);
   };
 
+  const openGoogleLogin = () => {
+    const popup = window.open('/auth/google', 'google-login', 'width=520,height=720');
+    if (!popup) {
+      window.location.assign('/auth/google');
+      return;
+    }
+
+    popupRef.current = popup;
+    setOpening(true);
+  };
+
   if (me.data) return <Navigate to="/" replace />;
 
   return (
@@ -87,8 +106,8 @@ export function LoginPage() {
             <span className={styles.titleAccent}>Sync to your watch.</span>
           </h1>
           <p className={styles.lede}>
-            Import GPX or FIT files, draw routes along OpenStreetMap trails, mark points of interest, and push both to
-            your Suunto app account.
+            Sign in with Google for your own app account, or use your Suunto account to work with routes and POIs
+            synced to your watch. These are separate accounts.
           </p>
 
           {error && (
@@ -98,29 +117,38 @@ export function LoginPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            className={`btn btn-primary ${styles.cta}`}
-            aria-disabled={opening || undefined}
-            disabled={opening}
-            onClick={openSuuntoLogin}
-          >
-            {opening ? <Spinner size={20} /> : <Icon name="watch" />}
-            {opening ? 'Opening Suunto…' : 'Sign in with Suunto'}
-          </button>
+          <div className={styles.providers}>
+            <button
+              type="button"
+              className={`btn ${styles.googleCta}`}
+              aria-disabled={opening || undefined}
+              disabled={opening}
+              onClick={openGoogleLogin}
+            >
+              <span className={styles.googleMark} aria-hidden="true">G</span>
+              {opening ? 'Opening Google…' : 'Sign in with Google'}
+            </button>
+            <span className={styles.providerDivider}>or</span>
+            <button
+              type="button"
+              className={`btn btn-primary ${styles.cta}`}
+              aria-disabled={opening || undefined}
+              disabled={opening}
+              onClick={openSuuntoLogin}
+            >
+              {opening ? <Spinner size={20} /> : <Icon name="watch" />}
+              {opening ? 'Opening Suunto…' : 'Sign in with Suunto'}
+            </button>
+          </div>
 
           <ul className={styles.points}>
             <li>
               <Icon name="check" size={18} />
-              You approve access on Suunto's own sign-in page. This app never sees your password.
+              Suunto sign-in uses Suunto's own page; this app never sees your Suunto password.
             </li>
             <li>
               <Icon name="check" size={18} />
-              Routes and POIs are uploaded only when you press Push.
-            </li>
-            <li>
-              <Icon name="check" size={18} />
-              Disconnect any time from the account menu.
+              Google and Suunto sign-ins create separate app accounts.
             </li>
           </ul>
         </div>

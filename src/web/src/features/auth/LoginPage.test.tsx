@@ -26,6 +26,15 @@ describe('LoginPage', () => {
     expect(open).toHaveBeenCalledWith('/auth/login', 'suunto-login', 'width=520,height=720');
   });
 
+  it('starts the Google sign-in in a popup window', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => ({ closed: false } as Window));
+
+    renderAt('/login');
+    screen.getByRole('button', { name: /sign in with google/i }).click();
+
+    expect(open).toHaveBeenCalledWith('/auth/google', 'google-login', 'width=520,height=720');
+  });
+
   it('explains a denied consent', () => {
     renderAt('/login?error=access_denied');
     expect(screen.getByRole('alert')).toHaveTextContent(/access was not approved/i);

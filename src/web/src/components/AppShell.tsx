@@ -66,7 +66,7 @@ function TopBar({ me }: { me: Me }) {
       {/* Doubles as the app-wide indicator for calls to Suunto's servers, which can take a few seconds. */}
       <div
         className={activity ? `${styles.status} ${styles.statusBusy}` : styles.status}
-        title={activity ?? (me.suuntoMode === 'Mock' ? 'Connected to the mock Suunto server' : undefined)}
+        title={activity ?? (me.suuntoConnected && me.suuntoMode === 'Mock' ? 'Connected to the mock Suunto server' : undefined)}
         role="status"
       >
         {activity ? (
@@ -76,8 +76,10 @@ function TopBar({ me }: { me: Me }) {
           </>
         ) : (
           <>
-            <span className={styles.dot} />
-            <span className={styles.statusLabel}>{me.suuntoMode === 'Mock' ? 'Mock Suunto' : 'Suunto connected'} ·</span>
+            <span className={me.suuntoConnected ? styles.dot : styles.dotGoogle} />
+            <span className={styles.statusLabel}>
+              {me.suuntoConnected ? (me.suuntoMode === 'Mock' ? 'Mock Suunto' : 'Suunto connected') : 'Google account'} ·
+            </span>
             <strong>{me.username}</strong>
           </>
         )}
@@ -90,12 +92,12 @@ function TopBar({ me }: { me: Me }) {
       >
         <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
       </button>
-      <AccountMenu username={me.username} />
+      <AccountMenu username={me.username} suuntoConnected={me.suuntoConnected} />
     </header>
   );
 }
 
-function AccountMenu({ username }: { username: string }) {
+function AccountMenu({ username, suuntoConnected }: { username: string; suuntoConnected: boolean }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -159,10 +161,12 @@ function AccountMenu({ username }: { username: string }) {
             <Icon name="logout" size={18} />
             Sign out
           </button>
-          <button type="button" role="menuitem" className={styles.menuItemDanger} onClick={() => run('disconnect')}>
-            <Icon name="unlink" size={18} />
-            Disconnect Suunto
-          </button>
+          {suuntoConnected && (
+            <button type="button" role="menuitem" className={styles.menuItemDanger} onClick={() => run('disconnect')}>
+              <Icon name="unlink" size={18} />
+              Disconnect Suunto
+            </button>
+          )}
         </div>
       )}
     </div>

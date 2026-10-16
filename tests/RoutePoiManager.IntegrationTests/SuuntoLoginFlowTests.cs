@@ -25,12 +25,13 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
         var callback = await TestAuth.AuthorizeAtSuuntoAsync(browser, suunto, "alice", allow: true);
         var callbackRes = await browser.GetAsync(callback);
 
-        Assert.Equal(HttpStatusCode.Redirect, callbackRes.StatusCode);
-        Assert.Equal($"{ApiFactory.PublicBaseUrl}/", callbackRes.Headers.Location!.ToString());
+        Assert.Equal(HttpStatusCode.OK, callbackRes.StatusCode);
+        Assert.Contains("\"status\":\"success\"", await callbackRes.Content.ReadAsStringAsync());
 
         var me = await browser.GetFromJsonAsync<MeResponse>("/api/me");
         Assert.Equal("alice", me!.Username);
         Assert.Equal("Mock", me.SuuntoMode);
+        Assert.True(me.SuuntoConnected);
 
         await using var scope = api.Services.CreateAsyncScope();
         var user = scope.ServiceProvider.GetRequiredService<AppDbContext>().Users.Single();
@@ -50,7 +51,8 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
 
         var res = await browser.GetAsync(tampered);
 
-        Assert.Equal($"{ApiFactory.PublicBaseUrl}/login?error=state_mismatch", res.Headers.Location!.ToString());
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("/login?error=state_mismatch", await res.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/me")).StatusCode);
     }
 
@@ -64,7 +66,8 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
         var callback = await TestAuth.AuthorizeAtSuuntoAsync(browser, suunto, "bob", allow: false);
         var res = await browser.GetAsync(callback);
 
-        Assert.Equal($"{ApiFactory.PublicBaseUrl}/login?error=access_denied", res.Headers.Location!.ToString());
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("/login?error=access_denied", await res.Content.ReadAsStringAsync());
     }
 
     [Fact]

@@ -31,6 +31,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.HasIndex(u => u.SuuntoUsername).IsUnique();
             e.Property(u => u.SuuntoUsername).HasMaxLength(200);
+            e.HasIndex(u => u.GoogleSubject).IsUnique();
+            e.Property(u => u.GoogleSubject).HasMaxLength(255);
         });
 
         b.Entity<Route>(e =>

@@ -43,6 +43,10 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Shown in route order and on the elevation profile
 - An **All POIs** page that includes standalone POIs pulled from Suunto
 
+**Account sign-in**
+- Sign in with Google for a separate app account, or sign in with Suunto to use your existing Suunto-backed account
+- Google and Suunto sign-ins are not linked or merged
+
 **Suunto sync**
 - Sign in with your Suunto account (OAuth 2). The app never sees your password.
 - Push routes (create, or update on the current revision) and POIs (create or update), with a result for each POI and a Retry for failures
@@ -61,6 +65,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 ```mermaid
 flowchart LR
   B[Browser<br/>React SPA] -- cookie session --> A[ASP.NET Core API<br/>BFF]
+  A -- Google OAuth 2 --> G[Google]
   A -- OAuth 2 code flow --> O[cloudapi-oauth.suunto.com]
   A -- Route API / POI API --> S[cloudapi.suunto.com]
   A -- snap-to-trail --> R[BRouter]
@@ -102,7 +107,7 @@ http://localhost:5080/auth/callback
 cp .env.example .env
 ```
 
-Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`. `.env` is git-ignored; never commit it. The API refuses to start if one of them is missing, and the log names which.
+Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`. To enable Google sign-in, also create a Google OAuth web client with redirect URI `http://localhost:5080/auth/google-callback` and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Google sign-in is optional; without these values, Suunto sign-in continues to work. `.env` is git-ignored; never commit it. The API refuses to start if a required Suunto credential is missing, and the log names which.
 
 ### 3. Run
 
@@ -110,7 +115,7 @@ Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`
 docker compose up --build -d
 ```
 
-Open **http://localhost:5080** and choose **Sign in with Suunto**.
+Open **http://localhost:5080** and choose Google or Suunto sign-in. They create separate app accounts; signing in with Google does not link or merge Suunto account data.
 
 | Service | Address |
 |---|---|
@@ -128,6 +133,8 @@ Set these in `.env` for Docker Compose:
 | `SUUNTO_CLIENT_ID` | ✔ | OAuth client id from the API Zone |
 | `SUUNTO_CLIENT_SECRET` | ✔ | OAuth client secret you set in the API Zone |
 | `SUUNTO_SUBSCRIPTION_KEY` | ✔ | Developer API subscription key (`Ocp-Apim-Subscription-Key`) |
+| `GOOGLE_CLIENT_ID` | | Google OAuth web client id; enables Google app sign-in |
+| `GOOGLE_CLIENT_SECRET` | | Google OAuth web client secret |
 | `SUUNTO_DIAGNOSTICS` | | `true` logs the shape of Suunto responses (never tokens or keys); for troubleshooting |
 | `REQUIRE_OAUTH_STATE` | | Default `true`: OAuth callbacks must carry the matching `state` |
 | `POSTGRES_PASSWORD` | | Database password; only takes effect before the database volume is first created |

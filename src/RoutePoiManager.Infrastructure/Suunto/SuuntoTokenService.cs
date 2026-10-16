@@ -11,6 +11,9 @@ namespace RoutePoiManager.Infrastructure.Suunto;
 /// <summary>The user must sign in with Suunto again (tokens revoked, missing or refresh rejected).</summary>
 public sealed class SuuntoReauthRequiredException(string message) : Exception(message);
 
+/// <summary>This app account has no linked Suunto connection.</summary>
+public sealed class SuuntoNotConnectedException(string message) : Exception(message);
+
 /// <summary>Stores Suunto tokens encrypted at rest and hands out a valid access token, refreshing when needed.</summary>
 public sealed class SuuntoTokenService(
     AppDbContext db,
@@ -119,9 +122,12 @@ public sealed class SuuntoTokenService(
     private async Task<User> LoadConnectedUserAsync(Guid userId, CancellationToken ct)
     {
         var user = await db.Users.SingleOrDefaultAsync(u => u.Id == userId, ct);
-        return user is null || user.RefreshTokenProtected.Length == 0
-            ? throw new SuuntoReauthRequiredException("Not connected to Suunto.")
-            : user;
+        if (user is null)
+            throw new SuuntoReauthRequiredException("Suunto account not found. Sign in again.");
+        if (user.RefreshTokenProtected.Length == 0)
+            throw new SuuntoNotConnectedException(
+                "This app account isn't connected to Suunto. Suunto sign-in uses a separate app account.");
+        return user;
     }
 
     private bool NeedsRefresh(User user) =>

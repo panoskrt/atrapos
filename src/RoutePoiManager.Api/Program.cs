@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using RoutePoiManager.Api;
 using RoutePoiManager.Api.Auth;
@@ -25,11 +27,18 @@ builder.Services.AddOptions<AppOptions>()
     .ValidateOnStart();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<GoogleAccountService>();
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
-builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+var authentication = builder.Services
+    .AddAuthentication(o =>
+    {
+        o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddCookie(o =>
     {
         o.Cookie.Name = "rpm.session";
@@ -42,6 +51,48 @@ builder.Services
         o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
         o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
     });
+
+var googleClientId = builder.Configuration["Google:ClientId"];
+var googleClientSecret = builder.Configuration["Google:ClientSecret"];
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authentication.AddGoogle(GoogleDefaults.AuthenticationScheme, o =>
+    {
+        o.ClientId = googleClientId;
+        o.ClientSecret = googleClientSecret;
+        o.CallbackPath = "/auth/google-callback";
+        o.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.Events.OnCreatingTicket = async context =>
+        {
+            var subject = context.Identity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(subject))
+                throw new InvalidOperationException("Google did not return a stable account identifier.");
+
+            var email = context.Identity?.FindFirst(ClaimTypes.Email)?.Value;
+            var name = context.Identity?.FindFirst(ClaimTypes.Name)?.Value;
+            var accounts = context.HttpContext.RequestServices.GetRequiredService<GoogleAccountService>();
+            var user = await accounts.GetOrCreateAsync(subject, context.HttpContext.RequestAborted);
+            var displayName = !string.IsNullOrWhiteSpace(name) ? name : email;
+            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, displayName ?? "Google user"),
+            ], CookieAuthenticationDefaults.AuthenticationScheme));
+        };
+        o.Events.OnRemoteFailure = context =>
+        {
+            context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>()
+                .LogWarning(context.Failure, "Google sign-in failed");
+            context.HandleResponse();
+            var home = context.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>()
+                .Value.PublicBaseUrl;
+            context.Response.ContentType = "text/html; charset=utf-8";
+            return context.Response.WriteAsync(
+                AuthEndpoints.GoogleAuthPopupHtml(home, "/login?error=google_auth_failed", false, "google_auth_failed"),
+                context.HttpContext.RequestAborted);
+        };
+    });
+}
 builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
