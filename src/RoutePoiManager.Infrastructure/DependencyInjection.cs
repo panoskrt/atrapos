@@ -9,6 +9,7 @@ using RoutePoiManager.Infrastructure.Persistence;
 using RoutePoiManager.Infrastructure.Routing;
 using RoutePoiManager.Infrastructure.Suunto;
 using RoutePoiManager.Infrastructure.Sync;
+using RoutePoiManager.Infrastructure.Weather;
 
 namespace RoutePoiManager.Infrastructure;
 
@@ -74,6 +75,20 @@ public static class DependencyInjection
         }
 
         services.AddScoped<ImportService>();
+
+        services.AddHttpClient<IWeatherProvider, OpenMeteoWeatherProvider>(OpenMeteoWeatherProvider.HttpClientName, c =>
+            {
+                c.BaseAddress = new Uri("https://api.open-meteo.com/");
+                c.Timeout = TimeSpan.FromSeconds(15);
+                c.DefaultRequestHeaders.UserAgent.ParseAdd("RoutePoiManager/0.1 (route weather forecast)");
+            })
+            .AddStandardResilienceHandler(o =>
+            {
+                o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(8);
+                o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(25);
+                o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+            });
+        services.AddScoped<RouteWeatherService>();
 
         services.AddOptions<RoutingOptions>().Bind(config.GetSection(RoutingOptions.Section));
         services.AddSingleton<RoutingConcurrencyGate>();

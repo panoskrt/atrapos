@@ -1,0 +1,175 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.description,
+.disclaimer,
+.attribution,
+.timezone {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.day {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.daySummary {
+  display: block;
+  padding: 10px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.dayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dayMetrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.date {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.condition {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.condition > span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.temperature {
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.details {
+  display: flex;
+  gap: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hourly {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.hour {
+  display: grid;
+  grid-template-columns: 1fr auto 34px 42px 48px;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hour:first-child {
+  border-top: none;
+}
+
+.hourTime {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.hourCondition {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.hour strong {
+  color: var(--text);
+  font-size: 13px;
+  text-align: right;
+}
+
+.hour > span:last-child,
+.hour > span:nth-last-child(2) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.details span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.attribution a {
+  color: var(--accent);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.message p {
+  margin: 0;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

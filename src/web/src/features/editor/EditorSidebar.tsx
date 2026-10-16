@@ -15,6 +15,7 @@ import {
 import { formatDistance, type RouteStats } from './geo';
 import { useEditorStore } from './store';
 import type { SaveStatus } from './useManualSave';
+import { WeatherPanel } from '../weather/WeatherPanel';
 import styles from './Editor.module.css';
 
 interface Props {
@@ -49,7 +50,7 @@ export function EditorSidebar({
   const poiCount = useEditorStore((s) => s.pois.length);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const tool = useEditorStore((s) => s.tool);
-  const [tab, setTab] = useState<'route' | 'pois'>('route');
+  const [tab, setTab] = useState<'route' | 'pois' | 'weather'>('route');
 
   // Placing or selecting a POI shows the POI list.
   useEffect(() => {
@@ -110,10 +111,25 @@ export function EditorSidebar({
         <button type="button" role="tab" aria-selected={tab === 'pois'} className={tab === 'pois' ? styles.tabOn : styles.tab} onClick={() => setTab('pois')}>
           POIs <span className={styles.tabCount}>{poiCount}</span>
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'weather'}
+          className={tab === 'weather' ? styles.tabOn : styles.tab}
+          onClick={() => setTab('weather')}
+        >
+          Weather
+        </button>
       </div>
 
       <div className={styles.sideBody} role="tabpanel">
-        {tab === 'route' ? <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} /> : <PoiList locations={poiLocations} onFocus={onFocus} />}
+        {tab === 'route' ? (
+          <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} />
+        ) : tab === 'pois' ? (
+          <PoiList locations={poiLocations} onFocus={onFocus} />
+        ) : (
+          <WeatherPanel routeId={routeId} isDraft={isDraft} />
+        )}
       </div>
 
       {!isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}

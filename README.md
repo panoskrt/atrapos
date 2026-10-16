@@ -23,6 +23,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Reverse, trim before or after a point, and split into two routes
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
 - **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent
+- **7-day weather forecast** along a saved route, with daily summaries and expandable three-hour forecasts in the route’s local time
 - Routes are saved only when you press **Save**. Leaving with unsaved changes asks whether to save them or discard them.
 - New routes are added to the library only after you place at least one map point and save.
 
@@ -64,11 +65,13 @@ flowchart LR
   A -- Route API / POI API --> S[cloudapi.suunto.com]
   A -- snap-to-trail --> R[BRouter]
   A -- elevation --> E[Open Topo Data]
+  A -- weather --> W[Open-Meteo]
   A --> D[(PostgreSQL + PostGIS)]
 ```
 
 - **Backend for frontend:** the API runs the OAuth flow and keeps Suunto tokens encrypted at rest, using ASP.NET Data Protection with its keys in the database. The browser only holds an HttpOnly session cookie and never sees a Suunto token.
 - **Local first:** routes and POIs live in your database, and nothing goes to Suunto until you press **Push**. Suunto forbids polling, so syncing *from* Suunto happens only when you click **Refresh from Suunto**.
+- **Weather:** daily summaries and three-hour forecasts are requested from Open-Meteo only when opened, cached for 30 minutes, and aggregated from the start, midpoint and end of the saved route. Three-hour times use the route midpoint’s local time zone. Free API use is limited to non-commercial projects; commercial deployments need an Open-Meteo API subscription. Forecasts are estimates and are attributed in the app under CC BY 4.0.
 - **POIs and route waypoints:** each POI is pushed as a standalone Suunto POI. When it lies within 200 m of the route line, it's also written into the route's GPX as a `suunto:routePoint` at its spot on the line.
 - **Deleting:** Suunto's APIs have no delete, so deleting a route or POI here removes it only locally. A deleted route that's still on Suunto can return on the next refresh. The app tells you, and you remove it in the Suunto app if you want it gone there too.
 

@@ -33,6 +33,8 @@ const paths = {
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   arrowUp: 'M12 19V5M6 11l6-6 6 6',
   arrowDown: 'M12 5v14M18 13l-6 6-6-6',
+  umbrella: 'M12 2v20M4 11a8 8 0 0 1 16 0H4zM12 22a2 2 0 0 0 2-2',
+  wind: 'M3 8h12a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 16h7a3 3 0 1 1-3 3',
 } as const;
 
 export type IconName = keyof typeof paths;

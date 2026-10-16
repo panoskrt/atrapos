@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { routeKeys, saveRoute, type UpdateRouteRequest } from '../routes/api';
+import { routeWeatherKeys } from '../weather/api';
 import { useEditorStore } from './store';
 
 export type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
@@ -35,6 +36,7 @@ export function useManualSave(routeId: string, body: UpdateRouteRequest, bodyKey
       setPoiServerState(Object.fromEntries(saved.pois.map((p) => [p.id, { syncState: p.syncState, suuntoPoiKey: p.suuntoPoiKey }])));
       void qc.invalidateQueries({ queryKey: routeKeys.detail(routeId), exact: true, refetchType: 'none' });
       void qc.invalidateQueries({ queryKey: routeKeys.all, exact: true });
+      void qc.invalidateQueries({ queryKey: routeWeatherKeys.detail(routeId), exact: true });
       return latest.current.bodyKey === currentKey;
     })();
     inFlight.current = operation;
