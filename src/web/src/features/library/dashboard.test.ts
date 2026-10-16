@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RouteSummary } from '../routes/api';
-import { activityOptions, filterAndSort, formatChanged, isRouteSort, nextSort, summarize } from './dashboard';
+import { activityOptions, filterAndSort, formatChanged, isRouteSort, nextSort, routesForSummary, summarize } from './dashboard';
 
 const route = (over: Partial<RouteSummary>): RouteSummary => ({
   id: over.name ?? 'r',
@@ -83,6 +83,40 @@ describe('activity filter', () => {
 describe('summarize', () => {
   it('totals the library', () => {
     expect(summarize(routes)).toEqual({ routes: 4, distanceM: 45_000, ascentM: 630, pois: 3, toPush: 2, attention: 1 });
+  });
+});
+
+describe('routesForSummary', () => {
+  it('uses the filtered routes when a filter is active and nothing is selected', () => {
+    const shown = filterAndSort(routes, {
+      query: '',
+      filter: 'toPush',
+      sort: { key: 'name', dir: 'asc' },
+    });
+
+    expect(routesForSummary(routes, shown, [], true)).toEqual(shown);
+    expect(summarize(routesForSummary(routes, shown, [], true))).toEqual({
+      routes: 2,
+      distanceM: 13_000,
+      ascentM: 20,
+      pois: 3,
+      toPush: 2,
+      attention: 0,
+    });
+  });
+
+  it('uses selected visible routes when selection and filters are both active', () => {
+    const shown = filterAndSort(routes, {
+      query: '',
+      filter: 'toPush',
+      sort: { key: 'name', dir: 'asc' },
+    });
+
+    expect(routesForSummary(routes, shown, ['Ridge 10'], true)).toEqual([routes[2]]);
+  });
+
+  it('uses all routes when no selection or filter is active', () => {
+    expect(routesForSummary(routes, routes, [], false)).toBe(routes);
   });
 });
 

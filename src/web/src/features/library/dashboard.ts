@@ -155,6 +155,20 @@ export function summarize(routes: readonly RouteSummary[]): LibraryStats {
   );
 }
 
+/** Uses the selected routes when any are selected; otherwise summarizes the current filtered result. */
+export function routesForSummary(
+  all: readonly RouteSummary[],
+  shown: readonly RouteSummary[],
+  selectedIds: readonly string[],
+  filtering: boolean,
+): readonly RouteSummary[] {
+  if (selectedIds.length > 0) {
+    const selected = new Set(selectedIds);
+    return shown.filter((route) => selected.has(route.id));
+  }
+  return filtering ? shown : all;
+}
+
 /** "14:05" today, "12 Oct" this year, "12 Oct 2025" before that. */
 export function formatChanged(iso: string, now = new Date()): string {
   const d = new Date(iso);

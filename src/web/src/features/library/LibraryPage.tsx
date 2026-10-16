@@ -26,6 +26,7 @@ import {
   isRouteSort,
   isRouteView,
   nextSort,
+  routesForSummary,
   SORT_LABELS,
   summarize,
   type RouteFilter,
@@ -70,13 +71,12 @@ export function LibraryPage() {
   );
   const shownIds = useMemo(() => shown.map((r) => r.id), [shown]);
   const selection = useSelection(shownIds);
-  const selectedStats = useMemo(() => {
-    if (selection.ids.length === 0) return stats;
-    const selectedIds = new Set(selection.ids);
-    return summarize((all ?? []).filter((route) => selectedIds.has(route.id)));
-  }, [all, selection.ids, stats]);
-  const showSelectionTotals = selection.ids.length > 0;
   const filtering = filter !== 'all' || activity !== null || query.trim() !== '';
+  const selectedStats = useMemo(
+    () => summarize(routesForSummary(all ?? [], shown, selection.ids, filtering)),
+    [all, shown, selection.ids, filtering],
+  );
+  const showSelectionTotals = selection.ids.length > 0 || filtering;
 
   const qc = useQueryClient();
   // Only on click: Suunto prohibits polling.
