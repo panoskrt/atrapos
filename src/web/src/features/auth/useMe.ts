@@ -6,6 +6,7 @@ export interface Me {
   username: string;
   suuntoMode: 'Mock' | 'Live';
   suuntoConnected: boolean;
+  googleAccount: boolean;
 }
 
 export const meQueryKey = ['me'] as const;
@@ -30,14 +31,21 @@ export function useMe() {
 export function useSignOut() {
   const qc = useQueryClient();
   return useMutation({
-    // Disconnect revokes the app's access at Suunto; sign-out only ends the local session.
-    mutationFn: (mode: 'logout' | 'disconnect') =>
-      mode === 'disconnect'
-        ? withSuunto('Disconnecting from Suunto…', () => api.post<void>('/auth/disconnect'))
-        : api.post<void>('/auth/logout'),
-    onSuccess: () => {
-      qc.setQueryData(meQueryKey, null);
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== meQueryKey[0] });
+    // Disconnect revokes Suunto access; logout ends the app session.
+    mutationFn: async (mode: 'logout' | 'disconnect') => {
+      if (mode === 'disconnect')
+        return withSuunto('Disconnecting from Suunto…', () => api.post<{ sessionPreserved: boolean }>('/auth/disconnect'));
+      await api.post<void>('/auth/logout');
+      return { sessionPreserved: false };
+    },
+    onSuccess: (result) => {
+      if (result.sessionPreserved) {
+        qc.setQueryData<Me | null>(meQueryKey, (current) => (current ? { ...current, suuntoConnected: false } : current));
+        void qc.invalidateQueries({ queryKey: meQueryKey });
+      } else {
+        qc.setQueryData(meQueryKey, null);
+        qc.removeQueries({ predicate: (q) => q.queryKey[0] !== meQueryKey[0] });
+      }
     },
   });
 }

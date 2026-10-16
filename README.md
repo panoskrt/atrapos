@@ -44,8 +44,9 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - An **All POIs** page that includes standalone POIs pulled from Suunto
 
 **Account sign-in**
-- Sign in with Google for a separate app account, or sign in with Suunto to use your existing Suunto-backed account
-- Google and Suunto sign-ins are not linked or merged
+- Sign in with Google for an app account, or sign in with Suunto to use your existing Suunto-backed account
+- From a Google account, choose **Connect Suunto** in the account menu to associate your Suunto account; existing Suunto routes and POIs are merged into the Google account, keeping the Suunto account's copy if a route or POI is already present
+- **Disconnect Suunto** revokes this app's access while keeping you signed in with Google; a Suunto-only account is signed out when disconnected
 
 **Suunto sync**
 - Sign in with your Suunto account (OAuth 2). The app never sees your password.
@@ -115,7 +116,7 @@ Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`
 docker compose up --build -d
 ```
 
-Open **http://localhost:5080** and choose Google or Suunto sign-in. They create separate app accounts; signing in with Google does not link or merge Suunto account data.
+Open **http://localhost:5080** and choose Google or Suunto sign-in. A Google account can later be associated with Suunto from the account menu; existing Suunto account data is merged into the Google account.
 
 | Service | Address |
 |---|---|

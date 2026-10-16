@@ -93,7 +93,7 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
     }
 
     [Fact]
-    public async Task Disconnect_revokes_at_suunto_and_ends_session()
+    public async Task Disconnect_revokes_at_suunto_and_ends_suunto_only_session()
     {
         await using var suunto = new MockSuuntoFactory();
         await using var api = new ApiFactory(pg, suunto);
@@ -104,9 +104,38 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
         req.Headers.Add("X-RPM-CSRF", "1");
         var res = await browser.SendAsync(req);
 
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.False((await res.Content.ReadFromJsonAsync<DisconnectResponse>())!.SessionPreserved);
         Assert.Empty(suunto.Services.GetRequiredService<MockStore>().AccessTokens);
         Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Disconnect_revokes_suunto_but_keeps_google_session()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var browser = api.CreateBrowser();
+        await browser.GetAsync(await TestAuth.AuthorizeAtSuuntoAsync(browser, suunto, "linked-user", allow: true));
+
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.Single();
+            user.GoogleSubject = "google-linked-subject";
+            await db.SaveChangesAsync();
+        }
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/auth/disconnect");
+        req.Headers.Add("X-RPM-CSRF", "1");
+        var res = await browser.SendAsync(req);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.True((await res.Content.ReadFromJsonAsync<DisconnectResponse>())!.SessionPreserved);
+        Assert.Empty(suunto.Services.GetRequiredService<MockStore>().AccessTokens);
+        var me = await browser.GetFromJsonAsync<MeResponse>("/api/me");
+        Assert.False(me!.SuuntoConnected);
+        Assert.True(me.GoogleAccount);
     }
 
     [Fact]
