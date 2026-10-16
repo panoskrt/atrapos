@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickMap, expectSaved, newRoute, saveDraft, signIn, uniqueUser } from './helpers';
+import { clickMap, newRoute, saveChanges, saveDraft, signIn, uniqueUser } from './helpers';
 
 const distance = (page: import('@playwright/test').Page) =>
   page.locator('dl div').filter({ hasText: 'Distance' }).locator('dd');
@@ -13,6 +13,7 @@ test('draw, drag, undo, reverse and save a route', async ({ page }) => {
   await clickMap(page, 0.7, 0.35);
   await expect(page.locator('.leaflet-marker-icon[title^="Point 3."]')).toBeVisible();
   await saveDraft(page);
+  const routeUrl = page.url();
   const drawn = await distance(page).textContent();
   expect(drawn).toMatch(/km$/);
 
@@ -38,10 +39,19 @@ test('draw, drag, undo, reverse and save a route', async ({ page }) => {
   expect(startAfter!.x).toBeGreaterThan(startBefore!.x + 50);
 
   await page.getByLabel('Route name').fill('E2E ridge');
-  await expectSaved(page);
+  await expect(page.getByRole('status').filter({ hasText: /^Unsaved changes$/ })).toBeVisible();
+  await saveChanges(page);
   await page.reload();
   await expect(page.getByLabel('Route name')).toHaveValue('E2E ridge');
   await expect(distance(page)).toHaveText(drawn!);
+
+  await page.getByLabel('Route name').fill('Discard this edit');
+  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
+  const leaveDialog = page.getByRole('dialog', { name: 'Unsaved changes' });
+  await leaveDialog.getByRole('button', { name: 'No', exact: true }).click();
+  await expect(page).toHaveURL('/');
+  await page.goto(routeUrl);
+  await expect(page.getByLabel('Route name')).toHaveValue('E2E ridge');
 });
 
 test('POIs: place on the route, rename, push route and POIs to Suunto', async ({ page }) => {
@@ -63,7 +73,7 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await page.keyboard.press('Tab');
   await expect(page.getByRole('tab', { name: /POIs 1/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Kettle spring/ })).toBeVisible();
-  await expectSaved(page);
+  await saveChanges(page);
 
   await page.getByRole('button', { name: 'Push route' }).click();
   await expect(page.getByText('Synced', { exact: true })).toBeVisible();
@@ -81,7 +91,7 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await expect(cardInLibrary.getByText('1 synced')).toBeVisible();
 });
 
-test('new route drafts require a map point, save explicitly, and warn before discard', async ({ page }) => {
+test('new route drafts require a map point and offer cancel, discard, and save when leaving', async ({ page }) => {
   await signIn(page, uniqueUser('draft'));
   await newRoute(page);
 
@@ -95,22 +105,14 @@ test('new route drafts require a map point, save explicitly, and warn before dis
   await clickMap(page, 0.4, 0.6);
   await expect(save).toBeEnabled();
 
-  const cancelledNavigation = page.waitForEvent('dialog');
   await page.getByRole('link', { name: 'Library', exact: true }).first().click();
-  const cancelDialog = await cancelledNavigation;
-  expect(cancelDialog.message()).toBe('You have unsaved changes. If you leave, they will be discarded.');
-  await cancelDialog.dismiss();
+  const leaveDialog = page.getByRole('dialog', { name: 'Unsaved changes' });
+  await expect(leaveDialog.getByText('Do you want to save your changes before returning to the dashboard?')).toBeVisible();
+  await leaveDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page).toHaveURL(/\/routes\/new$/);
 
-  const confirmedNavigation = page.waitForEvent('dialog');
   await page.getByRole('link', { name: 'Library', exact: true }).first().click();
-  await (await confirmedNavigation).accept();
+  await page.getByRole('dialog', { name: 'Unsaved changes' }).getByRole('button', { name: 'Yes', exact: true }).click();
   await expect(page).toHaveURL('/');
-  await expect(page.getByText('Draw your first route')).toBeVisible();
-
-  await newRoute(page);
-  await clickMap(page, 0.4, 0.6);
-  await saveDraft(page);
-  await page.getByRole('link', { name: 'Library', exact: true }).first().click();
   await expect(page.getByRole('heading', { name: 'Untitled route' })).toBeVisible();
 });

@@ -48,7 +48,7 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
     setError(null);
     try {
       if (!(await flush())) {
-        setError({ message: 'Your latest changes are still being saved. Try again in a moment.', signIn: false });
+        setError({ message: 'Save your changes before syncing with Suunto.', signIn: false });
         return;
       }
       await action();

@@ -53,6 +53,11 @@ export async function saveDraft(page: Page) {
   await expectSaved(page);
 }
 
+export async function saveChanges(page: Page) {
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expectSaved(page);
+}
+
 export async function expectSaved(page: Page) {
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible();
 }

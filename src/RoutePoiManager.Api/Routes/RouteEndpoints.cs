@@ -158,6 +158,12 @@ public static class RouteEndpoints
             if (await FindAsync(db, http, id, ct) is not { } route)
                 return Results.NotFound();
             // Local only: Suunto's Route API has no delete (PLAN.md §5.6).
+            if (route.SuuntoRouteId is not null)
+            {
+                var user = await db.Users.SingleAsync(u => u.Id == route.UserId, ct);
+                // The next explicit refresh must include this route even if Suunto hasn't modified it recently.
+                user.LastSuuntoRefreshAt = null;
+            }
             db.Routes.Remove(route);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
@@ -169,8 +175,19 @@ public static class RouteEndpoints
                 return Results.ValidationProblem(errors);
             var userId = http.User.GetUserId();
             var ids = req.Ids!.Distinct().ToList();
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var deletesSuuntoRoute = await db.Routes.AnyAsync(
+                r => r.UserId == userId && ids.Contains(r.Id) && r.SuuntoRouteId != null, ct);
+            if (deletesSuuntoRoute)
+            {
+                var user = await db.Users.SingleAsync(u => u.Id == userId, ct);
+                // Rewind the incremental cursor so a still-existing remote route can be fetched again.
+                user.LastSuuntoRefreshAt = null;
+            }
             // POIs and sync records go with their route (FK cascade). Local only, like the single delete.
             var deleted = await db.Routes.Where(r => r.UserId == userId && ids.Contains(r.Id)).ExecuteDeleteAsync(ct);
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
             return Results.Ok(new BulkDeleteResponse(deleted));
         });
     }

@@ -23,8 +23,8 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Reverse, trim before or after a point, and split into two routes
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
 - **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent
-- **Save** button; existing routes also autosave
-- New routes are added to the library only after you place at least one map point and save. Leaving an unsaved draft prompts before discarding it.
+- Routes are saved only when you press **Save**. Leaving with unsaved changes asks whether to save them or discard them.
+- New routes are added to the library only after you place at least one map point and save.
 
 **Import**
 - **GPX** 1.0/1.1 tracks, routes and waypoints, including Suunto's own route-point extension
@@ -46,7 +46,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Sign in with your Suunto account (OAuth 2). The app never sees your password.
 - Push routes (create, or update on the current revision) and POIs (create or update), with a result for each POI and a Retry for failures
 - **Conflict handling:** if a route changed in the Suunto app since your last sync, you choose *keep mine*, *take theirs* or *save mine as a copy*. Nothing is overwritten silently.
-- **Refresh from Suunto** pulls routes and POIs created in the app, without duplicating ones you already have
+- **Refresh from Suunto** pulls routes and POIs created in the app, without duplicating ones you already have. Route waypoints stay part of the route; a waypoint is associated as a POI only when it matches a POI returned separately by Suunto's POI API. GPX imports still keep explicitly defined POIs
 - GPX download of any route, with all its POIs
 
 **Quality**
@@ -70,7 +70,7 @@ flowchart LR
 - **Backend for frontend:** the API runs the OAuth flow and keeps Suunto tokens encrypted at rest, using ASP.NET Data Protection with its keys in the database. The browser only holds an HttpOnly session cookie and never sees a Suunto token.
 - **Local first:** routes and POIs live in your database, and nothing goes to Suunto until you press **Push**. Suunto forbids polling, so syncing *from* Suunto happens only when you click **Refresh from Suunto**.
 - **POIs and route waypoints:** each POI is pushed as a standalone Suunto POI. When it lies within 200 m of the route line, it's also written into the route's GPX as a `suunto:routePoint` at its spot on the line.
-- **Deleting:** Suunto's APIs have no delete, so deleting a route or POI here removes it only locally. The app tells you, and you remove it in the Suunto app if you want it gone there too.
+- **Deleting:** Suunto's APIs have no delete, so deleting a route or POI here removes it only locally. A deleted route that's still on Suunto can return on the next refresh. The app tells you, and you remove it in the Suunto app if you want it gone there too.
 
 ---
 

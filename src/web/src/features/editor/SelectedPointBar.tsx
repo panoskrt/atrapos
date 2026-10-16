@@ -46,7 +46,7 @@ export function SelectedPointBar({ routeId, flush, onReload }: Props) {
     if (!ok) return;
     setSplitting(true);
     try {
-      if (!(await flush())) throw new Error('Your latest changes are still being saved. Try again in a moment.');
+      if (!(await flush())) throw new Error('Save your changes before splitting the route.');
       const res = await splitRoute(routeId, index);
       toast(`Split done. The second part is "${res.created.name}".`, { link: { to: `/routes/${res.created.id}`, label: 'Open it' } });
       onReload();

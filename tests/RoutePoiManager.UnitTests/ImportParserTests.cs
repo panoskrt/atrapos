@@ -34,6 +34,7 @@ public sealed class ImportParserTests
         Assert.Equal(3, track.Points.Count);   // segments are joined
         Assert.Equal(30, track.Points[2].Ele);
         Assert.Equal(PoiTypes.Water, parsed.Waypoints[0].PoiType);   // from <sym>
+        Assert.True(parsed.Waypoints[0].IsExplicitPoi);
         Assert.Equal(22, parsed.Waypoints[1].PoiType);               // "view" keyword → Sight
     }
 
@@ -47,6 +48,7 @@ public sealed class ImportParserTests
                 <rtept lat="51.500866" lon="-0.12611513"><ele>5.05</ele>
                   <extensions><suunto:routePoint><suunto:name>Big Ben</suunto:name><suunto:type>Sight</suunto:type></suunto:routePoint></extensions>
                 </rtept>
+                <rtept lat="51.5008" lon="-0.120"><name>Trail marker</name></rtept>
                 <rtept lat="51.50072" lon="-0.11992768"><ele>2.74</ele></rtept>
               </rte>
             </gpx>
@@ -54,9 +56,11 @@ public sealed class ImportParserTests
 
         var parsed = ImportService.Parse(Encoding.UTF8.GetBytes(gpx), "suunto.gpx");
 
-        Assert.Equal(2, parsed.Tracks[0].Points.Count);
+        Assert.Equal(3, parsed.Tracks[0].Points.Count);
         var bigBen = parsed.Waypoints.Single(w => w.Name == "Big Ben");
         Assert.Equal(22, bigBen.PoiType);
+        Assert.True(bigBen.IsExplicitPoi);
+        Assert.False(parsed.Waypoints.Single(w => w.Name == "Trail marker").IsExplicitPoi);
         Assert.False(parsed.Waypoints.Single(w => w.Name == "Begin").IncludeByDefault);
     }
 

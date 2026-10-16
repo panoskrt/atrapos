@@ -50,7 +50,7 @@ public static class GpxParser
                 if (ReadPoint(rtept) is not { } p)
                     continue;
                 points.Add(p);
-                // Named route points (and Suunto's routePoint extension) are waypoints too.
+                // Named rtept values remain selectable in regular GPX imports; only extensions explicitly mark POIs.
                 var ext = rtept.Descendants(SuuntoNs + "routePoint").FirstOrDefault();
                 var name = ext?.Element(SuuntoNs + "name")?.Value ?? Text(rtept, "name");
                 if (!string.IsNullOrWhiteSpace(name))
@@ -58,7 +58,8 @@ public static class GpxParser
                     var type = ext?.Element(SuuntoNs + "type")?.Value ?? Text(rtept, "type");
                     waypoints.Add(new ParsedWaypoint(name.Trim(), type ?? "Route point",
                         PoiTypeMapping.FromGpx(type, Text(rtept, "sym"), name), true, p,
-                        ext?.Element(SuuntoNs + "description")?.Value ?? Text(rtept, "desc")));
+                            ext?.Element(SuuntoNs + "description")?.Value ?? Text(rtept, "desc"),
+                            IsExplicitPoi: ext is not null));
                 }
             }
             if (points.Count > 0)
@@ -109,7 +110,7 @@ public static class GpxParser
     private static List<ParsedWaypoint> Dedupe(List<ParsedWaypoint> waypoints) =>
         waypoints
             .GroupBy(w => (w.Name, Math.Round(w.Position.Lat, 5), Math.Round(w.Position.Lon, 5)))
-            .Select(g => g.First())
+            .Select(g => g.OrderByDescending(w => w.IsExplicitPoi).First())
             .ToList();
 
     private static IEnumerable<XElement> Children(XElement e, string localName) =>

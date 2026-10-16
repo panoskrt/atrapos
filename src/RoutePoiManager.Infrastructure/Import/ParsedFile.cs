@@ -11,7 +11,8 @@ public sealed record ParsedWaypoint(
     int PoiType,
     bool IncludeByDefault,
     GeoPosition Position,
-    string? Description = null);
+    string? Description = null,
+    bool IsExplicitPoi = true);
 
 public sealed record ParsedFile(
     RouteSource Kind,

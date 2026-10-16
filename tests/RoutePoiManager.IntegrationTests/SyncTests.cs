@@ -200,6 +200,9 @@ public sealed class SyncTests(PostgresFixture pg)
                 <rtept lat="60.30" lon="24.505"><ele>40</ele>
                   <extensions><suunto:routePoint><suunto:name>Shelter</suunto:name><suunto:type>Lodging</suunto:type></suunto:routePoint></extensions>
                 </rtept>
+                <rtept lat="60.30" lon="24.507">
+                  <extensions><suunto:routePoint><suunto:name>Trail marker</suunto:name><suunto:type>Waypoint</suunto:type></suunto:routePoint></extensions>
+                </rtept>
                 <rtept lat="60.30" lon="24.51"><ele>50</ele></rtept>
               </rte>
             </gpx>
@@ -214,15 +217,61 @@ public sealed class SyncTests(PostgresFixture pg)
         Assert.Equal(("Made in the app", RouteSource.Suunto, SyncState.Synced), (summary.Name, summary.Source, summary.SyncState));
         var detail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{summary.Id}", Json))!;
         var shelter = Assert.Single(detail.Pois);   // the waypoint reused the pulled POI instead of duplicating it
+        Assert.Equal("Shelter", shelter.Name);
         Assert.NotNull(shelter.SuuntoPoiKey);
         Assert.NotNull(shelter.DistanceAlongM);
 
+        // Older refreshes persisted route waypoints as POIs. They share the route's last-import timestamp and have no
+        // Suunto POI key, unlike POIs pulled separately from the POI API or added later by the user.
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.AppDbContext>();
+            var route = await db.Routes.FindAsync(summary.Id);
+            Assert.NotNull(route);
+            db.Pois.Add(new Poi
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = route.UserId,
+                RouteId = route.Id,
+                Name = "Trail marker",
+                PoiType = PoiTypes.Poi,
+                Location = PoiBehaviour.CreateLocation(24.507, 60.3),
+                ActivityId = ActivityTypes.Hiking,
+                CreatedAt = route.LocalModifiedAt,
+                LocalModifiedAt = route.LocalModifiedAt,
+            });
+            await db.SaveChangesAsync();
+        }
+
         var again = await Refresh(http);
-        Assert.Equal((0, 0, 0, 0), (again.RoutesAdded, again.RoutesUpdated, again.PoisAdded, again.PoisUpdated));
+        Assert.Equal((0, 1, 0, 0), (again.RoutesAdded, again.RoutesUpdated, again.PoisAdded, again.PoisUpdated));
+        detail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{summary.Id}", Json))!;
+        Assert.Equal("Shelter", Assert.Single(detail.Pois).Name);
 
         // Edited in the app while our copy is unchanged → our copy follows.
         await TouchOnSuunto(suunto, suuntoId);
         Assert.Equal(1, (await Refresh(http)).RoutesUpdated);
+    }
+
+    [Fact]
+    public async Task Refresh_restores_a_locally_deleted_route_while_it_still_exists_on_suunto()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var http = await TestAuth.SignInAsync(api, suunto, "restore-deleted-route");
+        var id = await CreateRoute(http, "Still on Suunto", []);
+        var pushed = await Push(http, id);
+        var suuntoId = pushed.Route.SuuntoRouteId!;
+
+        await Refresh(http);
+        Assert.Equal(HttpStatusCode.NoContent, (await http.DeleteAsync($"/api/routes/{id}")).StatusCode);
+
+        var refreshed = await Refresh(http);
+
+        Assert.Equal(1, refreshed.RoutesAdded);
+        var restored = Assert.Single((await http.GetFromJsonAsync<List<RouteSummaryDto>>("/api/routes", Json))!);
+        var detail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{restored.Id}", Json))!;
+        Assert.Equal(("Still on Suunto", suuntoId, RouteSource.Suunto), (detail.Name, detail.SuuntoRouteId, detail.Source));
     }
 
     // ---------- helpers ----------

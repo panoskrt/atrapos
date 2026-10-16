@@ -10,26 +10,34 @@ export interface ConfirmOptions {
   facts?: [string, string, 'danger'?][];
   confirmLabel: string;
   cancelLabel?: string;
+  alternativeLabel?: string;
   tone?: 'danger' | 'primary';
   icon?: IconName;
 }
 
+export type ConfirmChoice = 'cancel' | 'confirm' | 'alternative';
+
 interface ConfirmState {
-  current: (ConfirmOptions & { resolve: (ok: boolean) => void }) | null;
-  ask: (options: ConfirmOptions) => Promise<boolean>;
+  current: (ConfirmOptions & { resolve: (choice: ConfirmChoice) => void }) | null;
+  ask: (options: ConfirmOptions) => Promise<ConfirmChoice>;
 }
 
 const useConfirmStore = create<ConfirmState>()((set, get) => ({
   current: null,
   ask: (options) =>
-    new Promise<boolean>((resolve) => {
-      get().current?.resolve(false);
+    new Promise<ConfirmChoice>((resolve) => {
+      get().current?.resolve('cancel');
       set({ current: { ...options, resolve } });
     }),
 }));
 
 /** Shows the styled confirmation dialog and resolves true when the user confirms. */
 export function confirmAction(options: ConfirmOptions): Promise<boolean> {
+  return useConfirmStore.getState().ask(options).then((choice) => choice === 'confirm');
+}
+
+/** Shows the styled dialog and returns which of its actions the user chose. */
+export function chooseAction(options: ConfirmOptions): Promise<ConfirmChoice> {
   return useConfirmStore.getState().ask(options);
 }
 
@@ -45,10 +53,10 @@ function ConfirmDialogView({ options }: { options: NonNullable<ConfirmState['cur
   const titleId = useId();
   const answered = useRef(false);
 
-  const finish = (ok: boolean) => {
+  const finish = (choice: ConfirmChoice) => {
     if (answered.current) return;
     answered.current = true;
-    options.resolve(ok);
+    options.resolve(choice);
     useConfirmStore.setState({ current: null });
   };
 
@@ -62,7 +70,7 @@ function ConfirmDialogView({ options }: { options: NonNullable<ConfirmState['cur
 
   const tone = options.tone ?? 'primary';
   return (
-    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onClose={() => finish(false)}>
+    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onClose={() => finish('cancel')}>
       <div className={tone === 'danger' ? styles.iconWarn : styles.iconInfo} aria-hidden="true">
         <Icon name={options.icon ?? (tone === 'danger' ? 'trash' : 'alert')} size={24} />
       </div>
@@ -81,10 +89,15 @@ function ConfirmDialogView({ options }: { options: NonNullable<ConfirmState['cur
         </dl>
       )}
       <div className={styles.actions}>
-        <button type="button" className="btn" onClick={() => finish(false)} autoFocus>
+        <button type="button" className="btn" onClick={() => finish('cancel')} autoFocus>
           {options.cancelLabel ?? 'Cancel'}
         </button>
-        <button type="button" className={tone === 'danger' ? `btn ${styles.danger}` : 'btn btn-primary'} onClick={() => finish(true)}>
+        {options.alternativeLabel && (
+          <button type="button" className="btn" onClick={() => finish('alternative')}>
+            {options.alternativeLabel}
+          </button>
+        )}
+        <button type="button" className={tone === 'danger' ? `btn ${styles.danger}` : 'btn btn-primary'} onClick={() => finish('confirm')}>
           {options.confirmLabel}
         </button>
       </div>

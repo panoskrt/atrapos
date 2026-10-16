@@ -80,6 +80,28 @@ public sealed class RouteGpxTests
     }
 
     [Fact]
+    public void Read_keeps_route_waypoints_separate_from_explicit_pois()
+    {
+        const string gpx = """
+            <gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:suunto="http://www.suunto.com/xmlschemas/RouteExtension/v1">
+              <wpt lat="60.3" lon="24.505"><name>Spring</name><sym>Drinking Water</sym></wpt>
+              <rte><name>Ridge</name>
+                <rtept lat="60.3" lon="24.5"><name>Trail marker</name></rtept>
+                <rtept lat="60.3" lon="24.505">
+                  <extensions><suunto:routePoint><suunto:name>Big Ben</suunto:name><suunto:type>Sight</suunto:type></suunto:routePoint></extensions>
+                </rtept>
+                <rtept lat="60.3" lon="24.51"/>
+              </rte>
+            </gpx>
+            """;
+
+        var read = RouteGpx.Read(gpx);
+
+        Assert.Equal(["Trail marker", "Big Ben", "Spring"], read.Waypoints.Select(w => w.Name));
+        Assert.Equal([false, true, true], read.Waypoints.Select(w => w.IsExplicitPoi));
+    }
+
+    [Fact]
     public void Poi_result_with_error_code_or_without_key_is_a_failure()
     {
         // Verbatim shape of the live refusal (2026-10-15).

@@ -14,7 +14,7 @@ import {
 } from '../routes/api';
 import { formatDistance, type RouteStats } from './geo';
 import { useEditorStore } from './store';
-import type { SaveStatus } from './useAutosave';
+import type { SaveStatus } from './useManualSave';
 import styles from './Editor.module.css';
 
 interface Props {
@@ -128,7 +128,7 @@ function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => P
     setDownloading(true);
     try {
       if (!(await flush())) {
-        toast('Your latest changes are still being saved. Try again in a moment.', { tone: 'error' });
+        toast('Save your changes before downloading the route.', { tone: 'error' });
         return;
       }
       // A plain link download keeps the server's file name (Content-Disposition).

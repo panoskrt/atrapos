@@ -179,12 +179,19 @@ public sealed class SuuntoRefreshService(
             };
             SyncSupport.ApplyRemote(route, content, revision, [], now);
             db.Routes.Add(route);
-            await AttachWaypointsAsync(userId, route, content.Waypoints, now, ct);
+            await AttachWaypointsAsync(userId, route, content.Waypoints, ct);
             return PullResult.Added;
         }
 
         if (revision == local.SuuntoRevision)
-            return PullResult.Unchanged;
+        {
+            var existingPois = await db.Pois.Where(p => p.RouteId == local.Id).ToListAsync(ct);
+            var legacyWaypoints = existingPois.Where(p => IsLegacyWaypointPoi(local, p, content.Waypoints)).ToList();
+            if (legacyWaypoints.Count == 0)
+                return PullResult.Unchanged;
+            db.Pois.RemoveRange(legacyWaypoints);
+            return PullResult.Updated;
+        }
 
         if (local.SyncState is SyncState.LocalChanges or SyncState.Conflict)
         {
@@ -193,14 +200,25 @@ public sealed class SuuntoRefreshService(
         }
 
         var pois = await db.Pois.Where(p => p.RouteId == local.Id).ToListAsync(ct);
+        var legacyWaypointPois = pois.Where(p => IsLegacyWaypointPoi(local, p, content.Waypoints)).ToList();
+        db.Pois.RemoveRange(legacyWaypointPois);
+        pois.RemoveAll(p => legacyWaypointPois.Contains(p));
         SyncSupport.ApplyRemote(local, content, revision, pois, now);
         return PullResult.Updated;
     }
 
-    /// <summary>Waypoints of a route new from Suunto become its POIs, reusing a POI pulled from the POI API when
-    /// it's the same place (same name within a few metres) rather than creating a duplicate.</summary>
-    private async Task AttachWaypointsAsync(Guid userId, Route route, List<Import.ParsedWaypoint> waypoints, DateTimeOffset now,
-        CancellationToken ct)
+    private static bool IsLegacyWaypointPoi(Route route, Poi poi, IReadOnlyCollection<Import.ParsedWaypoint> waypoints) =>
+        route.Source == RouteSource.Suunto &&
+        poi.SuuntoPoiKey is null &&
+        poi.CreatedAt == route.LocalModifiedAt &&
+        poi.LocalModifiedAt == route.LocalModifiedAt &&
+        waypoints.Any(w =>
+            string.Equals(w.Name, poi.Name, StringComparison.OrdinalIgnoreCase) &&
+            Geo.DistanceM(new GeoPosition(poi.Location.X, poi.Location.Y), w.Position) <= SamePoiM);
+
+    /// <summary>Associates route waypoints with POIs pulled separately from Suunto's POI API when they identify
+    /// the same place. A route waypoint alone does not create a POI.</summary>
+    private async Task AttachWaypointsAsync(Guid userId, Route route, List<Import.ParsedWaypoint> waypoints, CancellationToken ct)
     {
         if (waypoints.Count == 0)
             return;
@@ -218,25 +236,7 @@ public sealed class SuuntoRefreshService(
                 match.RouteId = route.Id;
                 match.Relocate(line);
                 standalone.Remove(match);
-                continue;
             }
-
-            var poi = new Poi
-            {
-                Id = Guid.CreateVersion7(),
-                UserId = userId,
-                RouteId = route.Id,
-                Name = wp.Name.Length > 200 ? wp.Name[..200] : wp.Name,
-                Description = wp.Description,
-                PoiType = wp.PoiType,
-                Location = PoiBehaviour.CreateLocation(wp.Position.Lon, wp.Position.Lat),
-                ElevationM = wp.Position.Ele,
-                ActivityId = route.ActivityIds.FirstOrDefault(),
-                CreatedAt = now,
-                LocalModifiedAt = now,
-            };
-            poi.Relocate(line);
-            db.Pois.Add(poi);
         }
     }
 }

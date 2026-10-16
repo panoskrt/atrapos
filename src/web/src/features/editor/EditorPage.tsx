@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { chooseAction } from '../../components/ConfirmDialog';
 import { toast } from '../../components/Toast';
 import { ApiError } from '../../lib/api';
 import { routeKeys, useCreateRoute, useRoute, type RouteDetail, type UpdateRouteRequest } from '../routes/api';
@@ -16,7 +17,7 @@ import { PoiCard } from '../pois/PoiCard';
 import { usePoiLocations } from '../pois/placement';
 import { SelectedPointBar } from './SelectedPointBar';
 import { useEditorStore, useHoverStore } from './store';
-import { useAutosave } from './useAutosave';
+import { useManualSave } from './useManualSave';
 import { useEditorShortcuts } from './useEditorShortcuts';
 import styles from './Editor.module.css';
 
@@ -44,7 +45,7 @@ function ExistingRouteEditor({ id }: { id: string }) {
     );
 
   // Keyed by the server's modified time too: a reload after taking the Suunto version remounts the editor with a
-  // fresh undo history and autosave baseline. Autosave itself never refetches the route, so editing doesn't remount.
+  // fresh undo history and saved-state baseline.
   return <LoadedEditor key={`${id}:${route.data.localModifiedAt}`} route={route.data} />;
 }
 
@@ -99,7 +100,6 @@ function Editor({
   const cumulative = useMemo(() => cumulativeDistances(line), [line]);
   const routeStats = useMemo(() => stats(line), [line]);
   const markerPositions = useMemo(() => displayPositions(points, segments, snapped), [points, segments, snapped]);
-  const autosave = useAutosave(routeId, segments, pending, !isDraft);
   const qc = useQueryClient();
   const createRoute = useCreateRoute();
   const navigate = useNavigate();
@@ -134,11 +134,21 @@ function Editor({
     }),
     [name, description, activityIds, turnWaypointsEnabled, routingProfile, points, segments, pois],
   );
-  const requestKey = useMemo(() => JSON.stringify(request), [request]);
+  const requestKey = useMemo(
+    () =>
+      JSON.stringify({
+        ...request,
+        controlPoints: request.controlPoints.map(({ lon, lat, modeToNext }) => ({ lon, lat, modeToNext })),
+      }),
+    [request],
+  );
   const initialRequestKey = useRef(requestKey);
   const draftSaved = useRef(false);
   const draftDirty = isDraft && requestKey !== initialRequestKey.current;
-  const blocker = useBlocker(() => draftDirty && !draftSaved.current);
+  const manualSave = useManualSave(routeId, request, requestKey, pending, !isDraft);
+  const isDirty = isDraft ? draftDirty : manualSave.isDirty;
+  const blocker = useBlocker(() => isDirty && !draftSaved.current);
+  const blockerHandled = useRef(false);
   const save = isDraft
     ? {
         status: draftDirty ? ('pending' as const) : ('saved' as const),
@@ -146,35 +156,66 @@ function Editor({
         retry: () => {},
         flush: async () => false,
       }
-    : autosave;
+    : manualSave;
 
-  useEffect(() => {
-    if (!isDraft || blocker.state !== 'blocked') return;
-    if (window.confirm('You have unsaved changes. If you leave, they will be discarded.')) blocker.proceed();
-    else blocker.reset();
-  }, [blocker, isDraft]);
-
-  useEffect(() => {
-    if (!draftDirty) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', beforeUnload);
-    return () => window.removeEventListener('beforeunload', beforeUnload);
-  }, [draftDirty]);
-
-  const saveNow = async () => {
+  const saveNow = async (navigateAfterCreate = true): Promise<boolean> => {
     if (isDraft) {
-      if (pending || points.length === 0 || createRoute.isPending) return;
+      if (points.length === 0) {
+        toast('Add at least one map point before saving this route.', { tone: 'error' });
+        return false;
+      }
+      if (pending || createRoute.isPending) {
+        toast('Wait for route geometry to finish before saving.', { tone: 'error' });
+        return false;
+      }
       try {
         const created = await createRoute.mutateAsync(request);
         draftSaved.current = true;
-        navigate(`/routes/${created.id}`, { replace: true });
+        if (navigateAfterCreate) navigate(`/routes/${created.id}`, { replace: true });
+        return true;
       } catch (error) {
         toast(`Couldn't save route: ${error instanceof Error ? error.message : 'Unknown error'}`, { tone: 'error' });
+        return false;
       }
+    }
+    const saved = await manualSave.save();
+    if (!saved) toast('Could not save all changes. Check the save status and try again.', { tone: 'error' });
+    return saved;
+  };
+  const saveNowRef = useRef(saveNow);
+  saveNowRef.current = saveNow;
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') {
+      blockerHandled.current = false;
       return;
     }
-    if (!(await autosave.flush())) toast('Your latest changes are still being saved. Try again in a moment.', { tone: 'error' });
-  };
+    if (blockerHandled.current) return;
+    blockerHandled.current = true;
+    void chooseAction({
+      title: 'Unsaved changes',
+      body: 'Do you want to save your changes before returning to the dashboard?',
+      cancelLabel: 'Cancel',
+      alternativeLabel: 'No',
+      confirmLabel: 'Yes',
+      icon: 'alert',
+    }).then((choice) => {
+      if (choice === 'cancel') {
+        blocker.reset();
+      } else if (choice === 'alternative') {
+        blocker.proceed();
+      } else {
+        void saveNowRef.current(false).then((saved) => (saved ? blocker.proceed() : blocker.reset()));
+      }
+    });
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [isDirty]);
 
   // Freehand legs are the same line backwards, so seed them reversed instead of recomputing; snapped legs are
   // re-routed, because one-way paths make direction matter (especially on bike profiles).
@@ -227,8 +268,8 @@ function Editor({
         onReload={onReload}
         isDraft={isDraft}
         onSave={() => void saveNow()}
-        savePending={isDraft ? createRoute.isPending : save.status === 'saving'}
-        canSave={isDraft ? points.length > 0 && !pending : !pending}
+        savePending={isDraft ? createRoute.isPending : manualSave.status === 'saving'}
+        canSave={isDraft ? points.length > 0 && !pending : manualSave.isDirty && !pending}
       />
       <div className={styles.mapColumn}>
         <div className={styles.mapWrap}>
