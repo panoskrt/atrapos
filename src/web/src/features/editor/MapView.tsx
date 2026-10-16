@@ -76,7 +76,7 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
       center={saved ? [saved.lat, saved.lon] : [50, 10]}
       zoom={saved?.zoom ?? 4}
       zoomControl={false}
-      doubleClickZoom={false}
+      doubleClickZoom
       // Respect "reduce motion": no animated zoom/pan.
       zoomAnimation={!prefersReducedMotion}
       fadeAnimation={!prefersReducedMotion}
