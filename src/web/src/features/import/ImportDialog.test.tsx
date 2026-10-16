@@ -28,19 +28,21 @@ const preview: ImportPreview = {
   ],
 };
 
-function renderDialog() {
+function renderDialog(suuntoConnected = false) {
   const fetch = vi.fn(async (url: string) => {
-    const body = url.includes('/api/imports/preview')
-      ? preview
-      : url.includes('poi-types')
-        ? [
-            { id: 9, name: 'Lodging' },
-            { id: 12, name: 'Water' },
-            { id: 26, name: 'POI' },
-          ]
-        : url.includes('activity-types')
-          ? [{ id: 11, name: 'Hiking', watchSupported: true }]
-          : [];
+    const body = url === '/api/me'
+      ? { username: 'test-user', suuntoMode: 'Live', suuntoConnected }
+      : url.includes('/api/imports/preview')
+        ? preview
+        : url.includes('poi-types')
+          ? [
+              { id: 9, name: 'Lodging' },
+              { id: 12, name: 'Water' },
+              { id: 26, name: 'POI' },
+            ]
+          : url.includes('activity-types')
+            ? [{ id: 11, name: 'Hiking', watchSupported: true }]
+            : [];
     return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
   });
   vi.stubGlobal('fetch', fetch);
@@ -51,13 +53,14 @@ function renderDialog() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return fetch;
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ImportDialog', () => {
   it('shows the parsed file, live simplification and POI choices', async () => {
-    renderDialog();
+    const fetch = renderDialog();
 
     expect(await screen.findByText('lapland-day2.fit')).toBeInTheDocument();
     expect(screen.getByLabelText(/route name/i)).toHaveValue('Lapland day 2');
@@ -72,5 +75,17 @@ describe('ImportDialog', () => {
     expect(screen.getByLabelText('Import Rova spring')).toBeChecked();
     expect(screen.getByText(/2 of 3 selected/)).toBeInTheDocument();
     expect(screen.getByText(/km off route/)).toBeInTheDocument();
+    expect(screen.queryByText('Suunto activities')).not.toBeInTheDocument();
+    expect(screen.queryByText('Suunto type')).not.toBeInTheDocument();
+    const requestedUrls = fetch.mock.calls.map(([url]) => url);
+    expect(requestedUrls).not.toContain('/api/lookups/activity-types');
+    expect(requestedUrls).not.toContain('/api/lookups/poi-types');
+  });
+
+  it('keeps the Suunto-specific import options when connected', async () => {
+    renderDialog(true);
+
+    expect(await screen.findByText('Suunto activities')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Suunto type for Rova spring' })).toBeInTheDocument();
   });
 });

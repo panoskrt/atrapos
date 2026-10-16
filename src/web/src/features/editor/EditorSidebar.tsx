@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { useMe } from '../auth/useMe';
 import type { PoiLocation } from '../pois/placement';
 import { PoiList } from '../pois/PoiList';
 import { SyncPanel } from '../sync/SyncPanel';
@@ -45,6 +46,8 @@ export function EditorSidebar({
   savePending,
   canSave,
 }: Props) {
+  const me = useMe();
+  const suuntoConnected = me.data?.suuntoConnected ?? false;
   const name = useEditorStore((s) => s.name);
   const setName = useEditorStore((s) => s.setName);
   const poiCount = useEditorStore((s) => s.pois.length);
@@ -124,20 +127,30 @@ export function EditorSidebar({
 
       <div className={styles.sideBody} role="tabpanel">
         {tab === 'route' ? (
-          <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} />
+          <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} suuntoConnected={suuntoConnected} />
         ) : tab === 'pois' ? (
-          <PoiList locations={poiLocations} onFocus={onFocus} />
+          <PoiList locations={poiLocations} onFocus={onFocus} suuntoConnected={suuntoConnected} />
         ) : (
           <WeatherPanel routeId={routeId} isDraft={isDraft} />
         )}
       </div>
 
-      {!isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
+      {suuntoConnected && !isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
     </aside>
   );
 }
 
-function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => Promise<boolean>; isDraft: boolean }) {
+function RouteTab({
+  routeId,
+  flush,
+  isDraft,
+  suuntoConnected,
+}: {
+  routeId: string;
+  flush: () => Promise<boolean>;
+  isDraft: boolean;
+  suuntoConnected: boolean;
+}) {
   const hasLine = useEditorStore((s) => s.points.length > 1);
   const [downloading, setDownloading] = useState(false);
   const download = async () => {
@@ -164,7 +177,7 @@ function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => P
   const setTurnWaypoints = useEditorStore((s) => s.setTurnWaypoints);
   const description = useEditorStore((s) => s.description);
   const setDescription = useEditorStore((s) => s.setDescription);
-  const activities = useActivityTypes();
+  const activities = useActivityTypes(suuntoConnected);
   const routingProfile = useEditorStore((s) => s.routingProfile);
   const setRoutingProfile = useEditorStore((s) => s.setRoutingProfile);
   const profiles = useRoutingProfiles();
@@ -181,40 +194,42 @@ function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => P
 
   return (
     <>
-      <fieldset className={styles.fieldset}>
-        <legend className={styles.label}>Suunto activities</legend>
-        <div className={styles.chips}>
-          {chipIds.map((id) => {
-            const on = activityIds.includes(id);
-            return (
-              <label key={id} className={on ? styles.chipOn : styles.chip}>
-                <input type="checkbox" checked={on} onChange={() => toggleActivity(id)} />
-                {nameOf(id)}
+      {suuntoConnected && (
+        <fieldset className={styles.fieldset}>
+          <legend className={styles.label}>Suunto activities</legend>
+          <div className={styles.chips}>
+            {chipIds.map((id) => {
+              const on = activityIds.includes(id);
+              return (
+                <label key={id} className={on ? styles.chipOn : styles.chip}>
+                  <input type="checkbox" checked={on} onChange={() => toggleActivity(id)} />
+                  {nameOf(id)}
+                </label>
+              );
+            })}
+          </div>
+          {others.length > 0 && (
+            <>
+              <label htmlFor={moreId} className="visually-hidden">
+                Add another activity
               </label>
-            );
-          })}
-        </div>
-        {others.length > 0 && (
-          <>
-            <label htmlFor={moreId} className="visually-hidden">
-              Add another activity
-            </label>
-            <select
-              id={moreId}
-              className={styles.select}
-              value=""
-              onChange={(e) => e.target.value && toggleActivity(Number(e.target.value))}
-            >
-              <option value="">More activities…</option>
-              {others.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-      </fieldset>
+              <select
+                id={moreId}
+                className={styles.select}
+                value=""
+                onChange={(e) => e.target.value && toggleActivity(Number(e.target.value))}
+              >
+                <option value="">More activities…</option>
+                {others.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+        </fieldset>
+      )}
 
       <label className={styles.field}>
         <span className={styles.label}>Routing profile (BRouter)</span>
@@ -232,13 +247,15 @@ function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => P
         <span className={styles.muted}>Used by snapped segments. Changing it re-routes them.</span>
       </label>
 
-      <div className={styles.toggleRow}>
-        <label htmlFor={turnId} className={styles.toggleText}>
-          <strong>Turn-by-turn waypoints</strong>
-          <span className={styles.muted}>Suunto adds turn alerts on the watch</span>
-        </label>
-        <input id={turnId} type="checkbox" checked={turnWaypoints} onChange={(e) => setTurnWaypoints(e.target.checked)} />
-      </div>
+      {suuntoConnected && (
+        <div className={styles.toggleRow}>
+          <label htmlFor={turnId} className={styles.toggleText}>
+            <strong>Turn-by-turn waypoints</strong>
+            <span className={styles.muted}>Suunto adds turn alerts on the watch</span>
+          </label>
+          <input id={turnId} type="checkbox" checked={turnWaypoints} onChange={(e) => setTurnWaypoints(e.target.checked)} />
+        </div>
+      )}
 
       <label htmlFor={descId} className={styles.label}>
         Description

@@ -40,7 +40,8 @@ export function AppShell() {
 
 function TopBar({ me }: { me: Me }) {
   const { theme, toggle } = useTheme();
-  const activity = useSuuntoActivity();
+  const suuntoActivity = useSuuntoActivity();
+  const activity = me.suuntoConnected ? suuntoActivity : null;
 
   return (
     <header className={styles.topbar}>

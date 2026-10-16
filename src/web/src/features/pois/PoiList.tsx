@@ -17,14 +17,22 @@ const syncTone: Record<SyncState, string> = {
 };
 
 /** The route's POIs in route order (off-route ones last). Picking one selects it and pans the map. */
-export function PoiList({ locations, onFocus }: { locations: Map<string, PoiLocation>; onFocus: (lon: number, lat: number) => void }) {
+export function PoiList({
+  locations,
+  onFocus,
+  suuntoConnected,
+}: {
+  locations: Map<string, PoiLocation>;
+  onFocus: (lon: number, lat: number) => void;
+  suuntoConnected: boolean;
+}) {
   const pois = useEditorStore((s) => s.pois);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const selectPoi = useEditorStore((s) => s.selectPoi);
   const setTool = useEditorStore((s) => s.setTool);
   const tool = useEditorStore((s) => s.tool);
   const server = useEditorStore((s) => s.poiServer);
-  const types = usePoiTypes();
+  const types = usePoiTypes(suuntoConnected);
   const typeName = (id: number) => humanizeType(types.data?.find((t) => t.id === id)?.name ?? 'POI');
 
   const sorted = [...pois].sort((a, b) => {
@@ -67,32 +75,39 @@ export function PoiList({ locations, onFocus }: { locations: Map<string, PoiLoca
                     onFocus(p.lon, p.lat);
                   }}
                 >
-                  <span className={styles.badge} aria-hidden="true">
-                    <svg viewBox="0 0 16 16" width="16" height="16">
-                      <path d={poiGlyph(p.poiType)} />
-                    </svg>
-                  </span>
+                  {suuntoConnected && (
+                    <span className={styles.badge} aria-hidden="true">
+                      <svg viewBox="0 0 16 16" width="16" height="16">
+                        <path d={poiGlyph(p.poiType)} />
+                      </svg>
+                    </span>
+                  )}
                   <span className={styles.rowText}>
                     <strong>{p.name}</strong>
                     <span className={styles.muted}>
-                      {typeName(p.poiType)} · {loc?.alongM != null ? formatDistance(loc.alongM) : 'off route'}
+                      {suuntoConnected && `${typeName(p.poiType)} · `}
+                      {loc?.alongM != null ? formatDistance(loc.alongM) : 'off route'}
                       {p.ele !== null && ` · ${formatElevation(p.ele)}`}
                     </span>
                   </span>
-                  <span className={syncTone[state]}>
-                    <span className={styles.dot} />
-                    {state === 'localOnly' ? 'Not pushed' : syncStateLabel[state]}
-                  </span>
+                  {suuntoConnected && (
+                    <span className={syncTone[state]}>
+                      <span className={styles.dot} />
+                      {state === 'localOnly' ? 'Not pushed' : syncStateLabel[state]}
+                    </span>
+                  )}
                 </button>
               </li>
             );
           })}
         </ul>
       )}
-      <p className={styles.muted}>
-        Each POI is pushed to Suunto as a standalone POI and, when it's on the route, added as a waypoint to the route
-        on the next route push.
-      </p>
+      {suuntoConnected && (
+        <p className={styles.muted}>
+          Each POI is pushed to Suunto as a standalone POI and, when it's on the route, added as a waypoint to the route
+          on the next route push.
+        </p>
+      )}
     </>
   );
 }

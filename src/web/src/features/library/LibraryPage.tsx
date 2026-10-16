@@ -7,6 +7,7 @@ import { toast } from '../../components/Toast';
 import { usePersistentState } from '../../lib/usePersistentState';
 import { useSelection } from '../../lib/useSelection';
 import { formatDistance } from '../editor/geo';
+import { useMe } from '../auth/useMe';
 import { ACCEPTED_EXTENSIONS, isImportable, MAX_FILE_BYTES } from '../import/api';
 import { ImportDialog } from '../import/ImportDialog';
 import {
@@ -42,6 +43,8 @@ const DEFAULT_SORT: RouteSort = { key: 'modified', dir: 'desc' };
 
 export function LibraryPage() {
   const routes = useRoutes();
+  const me = useMe();
+  const suuntoConnected = me.data?.suuntoConnected ?? false;
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -55,7 +58,7 @@ export function LibraryPage() {
   const [query, setQuery] = useState('');
   const [chosenActivity, setActivity] = useState<number | null>(null);
   const ids = { search: useId(), filter: useId(), activity: useId(), sort: useId() };
-  const activityTypes = useActivityTypes();
+  const activityTypes = useActivityTypes(suuntoConnected);
 
   const all = routes.data;
   const stats = useMemo(() => summarize(all ?? []), [all]);
@@ -65,13 +68,15 @@ export function LibraryPage() {
   );
   // If the last route with that activity is deleted, fall back to all activities rather than an empty list.
   const activity = activities.some((a) => a.id === chosenActivity) ? chosenActivity : null;
+  const effectiveFilter: RouteFilter = suuntoConnected ? filter : 'all';
+  const effectiveSort = !suuntoConnected && sort.key === 'status' ? DEFAULT_SORT : sort;
   const shown = useMemo(
-    () => filterAndSort(all ?? [], { query, filter, sort, activity }),
-    [all, query, filter, sort, activity],
+    () => filterAndSort(all ?? [], { query, filter: effectiveFilter, sort: effectiveSort, activity: suuntoConnected ? activity : null }),
+    [all, query, effectiveFilter, effectiveSort, activity, suuntoConnected],
   );
   const shownIds = useMemo(() => shown.map((r) => r.id), [shown]);
   const selection = useSelection(shownIds);
-  const filtering = filter !== 'all' || activity !== null || query.trim() !== '';
+  const filtering = effectiveFilter !== 'all' || (suuntoConnected && activity !== null) || query.trim() !== '';
   const selectedStats = useMemo(
     () => summarize(routesForSummary(all ?? [], shown, selection.ids, filtering)),
     [all, shown, selection.ids, filtering],
@@ -180,16 +185,18 @@ export function LibraryPage() {
         <div className={styles.heading}>
           <h1 className={`display ${styles.title}`}>My routes</h1>
         </div>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          aria-busy={refresh.isPending}
-        >
-          {refresh.isPending ? <Spinner /> : <Icon name="refresh" size={18} />}
-          {refresh.isPending ? 'Refreshing…' : 'Refresh from Suunto'}
-        </button>
+        {suuntoConnected && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => refresh.mutate()}
+            disabled={refresh.isPending}
+            aria-busy={refresh.isPending}
+          >
+            {refresh.isPending ? <Spinner /> : <Icon name="refresh" size={18} />}
+            {refresh.isPending ? 'Refreshing…' : 'Refresh from Suunto'}
+          </button>
+        )}
         <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
           <Icon name="fileUp" size={18} />
           Import GPX / FIT
@@ -205,7 +212,7 @@ export function LibraryPage() {
           {fileError}
         </p>
       )}
-      {refresh.isError && (
+      {suuntoConnected && refresh.isError && (
         <p role="alert" className={styles.error}>
           Couldn't refresh from Suunto: {syncErrorMessage(refresh.error).message}{' '}
           {syncErrorMessage(refresh.error).signIn && (
@@ -222,7 +229,7 @@ export function LibraryPage() {
           )}
         </p>
       )}
-      {refresh.isSuccess && (
+      {suuntoConnected && refresh.isSuccess && (
         <p role="status" className={styles.sub}>
           {summarizeRefresh(refresh.data)}
         </p>
@@ -241,8 +248,9 @@ export function LibraryPage() {
           <Icon name="logo" size={40} />
           <h2 className={styles.emptyTitle}>Your library is empty</h2>
           <p className={styles.emptyText}>
-            Draw a route on the map, or drop a GPX or FIT file here. Routes and their POIs stay here until you push
-            them to the Suunto app.
+            {suuntoConnected
+              ? 'Draw a route on the map, or drop a GPX or FIT file here. Routes and their POIs stay here until you push them to the Suunto app.'
+              : 'Draw a route on the map, or drop a GPX or FIT file here. Your routes and POIs are saved to your account.'}
           </p>
           <div className={styles.emptyActions}>
             <button type="button" className="btn btn-primary" onClick={newRoute}>
@@ -274,15 +282,17 @@ export function LibraryPage() {
               total={showSelectionTotals ? `${Math.round(stats.ascentM).toLocaleString()} m` : undefined}
             />
             <Stat label="POIs" value={selectedStats.pois.toLocaleString()} total={showSelectionTotals ? stats.pois.toLocaleString() : undefined} />
-            <FilterStat
-              label="Not pushed"
-              value={selectedStats.toPush}
-              total={showSelectionTotals ? stats.toPush : undefined}
-              tone="warn"
-              active={filter === 'toPush'}
-              onClick={() => setFilter(filter === 'toPush' ? 'all' : 'toPush')}
-            />
-            {stats.attention > 0 && (
+            {suuntoConnected && (
+              <FilterStat
+                label="Not pushed"
+                value={selectedStats.toPush}
+                total={showSelectionTotals ? stats.toPush : undefined}
+                tone="warn"
+                active={filter === 'toPush'}
+                onClick={() => setFilter(filter === 'toPush' ? 'all' : 'toPush')}
+              />
+            )}
+            {suuntoConnected && stats.attention > 0 && (
               <FilterStat
                 label="Needs attention"
                 value={selectedStats.attention}
@@ -321,29 +331,35 @@ export function LibraryPage() {
             <label htmlFor={ids.filter} className="visually-hidden">
               Show
             </label>
-            <select id={ids.filter} className={toolbar.select} value={filter} onChange={(e) => setFilter(e.target.value as RouteFilter)}>
-              {Object.entries(FILTER_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+            <select id={ids.filter} className={toolbar.select} value={effectiveFilter} onChange={(e) => setFilter(e.target.value as RouteFilter)}>
+              {Object.entries(FILTER_LABELS)
+                .filter(([value]) => suuntoConnected || value === 'all')
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
             </select>
-            <label htmlFor={ids.activity} className="visually-hidden">
-              Activity
-            </label>
-            <select
-              id={ids.activity}
-              className={toolbar.select}
-              value={activity ?? ''}
-              onChange={(e) => setActivity(e.target.value === '' ? null : Number(e.target.value))}
-            >
-              <option value="">All activities</option>
-              {activities.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} ({a.count})
-                </option>
-              ))}
-            </select>
+            {suuntoConnected && (
+              <>
+                <label htmlFor={ids.activity} className="visually-hidden">
+                  Activity
+                </label>
+                <select
+                  id={ids.activity}
+                  className={toolbar.select}
+                  value={activity ?? ''}
+                  onChange={(e) => setActivity(e.target.value === '' ? null : Number(e.target.value))}
+                >
+                  <option value="">All activities</option>
+                  {activities.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({a.count})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <div className={styles.sortGroup}>
               <label htmlFor={ids.sort} className={styles.inlineLabel}>
                 Sort by
@@ -351,23 +367,25 @@ export function LibraryPage() {
               <select
                 id={ids.sort}
                 className={toolbar.select}
-                value={sort.key}
+                value={effectiveSort.key}
                 onChange={(e) => onSort(e.target.value as RouteSortKey)}
               >
-                {Object.entries(SORT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                {Object.entries(SORT_LABELS)
+                  .filter(([value]) => suuntoConnected || value !== 'status')
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
               </select>
               <button
                 type="button"
                 className={styles.toolBtn}
-                onClick={() => setSort({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
-                aria-label={sort.dir === 'asc' ? 'Ascending; switch to descending' : 'Descending; switch to ascending'}
-                title={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
+                onClick={() => setSort({ ...effectiveSort, dir: effectiveSort.dir === 'asc' ? 'desc' : 'asc' })}
+                aria-label={effectiveSort.dir === 'asc' ? 'Ascending; switch to descending' : 'Descending; switch to ascending'}
+                title={effectiveSort.dir === 'asc' ? 'Ascending' : 'Descending'}
               >
-                <Icon name={sort.dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={18} />
+                <Icon name={effectiveSort.dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={18} />
               </button>
             </div>
             <div className={styles.viewToggle} role="group" aria-label="Layout">
@@ -421,6 +439,7 @@ export function LibraryPage() {
               selection={selection}
               onDelete={onDelete}
               deleting={deleteOne.isPending}
+              suuntoConnected={suuntoConnected}
               leading={filtering ? undefined : dropCard}
             />
           ) : (
@@ -429,8 +448,9 @@ export function LibraryPage() {
               selection={selection}
               onDelete={onDelete}
               deleting={deleteOne.isPending}
-              sort={sort}
+              sort={effectiveSort}
               onSort={onSort}
+              suuntoConnected={suuntoConnected}
             />
           )}
         </>

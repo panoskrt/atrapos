@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { useMe } from '../auth/useMe';
 import { formatDistance, formatElevation, locateOnLine, type Coord } from '../editor/geo';
 import { syncStateLabel } from '../routes/api';
 import { useEditorStore, type EditorPoi } from '../editor/store';
@@ -20,18 +21,41 @@ interface Props {
 
 /** Editor for the selected POI, floating over the map. */
 export function PoiCard({ line, cumulative, locations }: Props) {
+  const me = useMe();
+  const suuntoConnected = me.data?.suuntoConnected ?? false;
   const poi = useEditorStore((s) => s.pois.find((p) => p.id === s.selectedPoiId));
   if (!poi) return null;
   // Keyed so the draft text fields reset when another POI is selected.
-  return <PoiCardFor key={poi.id} poi={poi} line={line} cumulative={cumulative} location={locations.get(poi.id)} />;
+  return (
+    <PoiCardFor
+      key={poi.id}
+      poi={poi}
+      line={line}
+      cumulative={cumulative}
+      location={locations.get(poi.id)}
+      suuntoConnected={suuntoConnected}
+    />
+  );
 }
 
-function PoiCardFor({ poi, line, cumulative, location }: { poi: EditorPoi; line: Coord[]; cumulative: number[]; location?: PoiLocation }) {
+function PoiCardFor({
+  poi,
+  line,
+  cumulative,
+  location,
+  suuntoConnected,
+}: {
+  poi: EditorPoi;
+  line: Coord[];
+  cumulative: number[];
+  location?: PoiLocation;
+  suuntoConnected: boolean;
+}) {
   const updatePoi = useEditorStore((s) => s.updatePoi);
   const deletePoi = useEditorStore((s) => s.deletePoi);
   const selectPoi = useEditorStore((s) => s.selectPoi);
   const server = useEditorStore((s) => s.poiServer[poi.id]);
-  const types = usePoiTypes();
+  const types = usePoiTypes(suuntoConnected);
   const nameId = useId();
   const typeId = useId();
   const descId = useId();
@@ -65,11 +89,13 @@ function PoiCardFor({ poi, line, cumulative, location }: { poi: EditorPoi; line:
   return (
     <section className={styles.card} aria-label={`Edit POI ${poi.name}`}>
       <div className={styles.cardHead}>
-        <span className={styles.badge} aria-hidden="true">
-          <svg viewBox="0 0 16 16" width="16" height="16">
-            <path d={poiGlyph(poi.poiType)} />
-          </svg>
-        </span>
+        {suuntoConnected && (
+          <span className={styles.badge} aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="16" height="16">
+              <path d={poiGlyph(poi.poiType)} />
+            </svg>
+          </span>
+        )}
         <h2 className={`display ${styles.cardTitle}`}>Edit POI</h2>
         <button type="button" className={styles.iconBtn} onClick={() => selectPoi(null)} aria-label="Close POI editor">
           <Icon name="close" size={18} />
@@ -89,26 +115,30 @@ function PoiCardFor({ poi, line, cumulative, location }: { poi: EditorPoi; line:
         onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), e.preventDefault())}
       />
 
-      <label htmlFor={typeId} className={styles.label}>
-        Suunto POI type (watch icon)
-      </label>
-      <select id={typeId} className={styles.input} value={poi.poiType} onChange={(e) => updatePoi(poi.id, { poiType: Number(e.target.value) })}>
-        {all.length === 0 && <option value={poi.poiType}>Type {poi.poiType}</option>}
-        <optgroup label="Common">
-          {common.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="All types">
-          {rest.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </optgroup>
-      </select>
+      {suuntoConnected && (
+        <>
+          <label htmlFor={typeId} className={styles.label}>
+            Suunto POI type (watch icon)
+          </label>
+          <select id={typeId} className={styles.input} value={poi.poiType} onChange={(e) => updatePoi(poi.id, { poiType: Number(e.target.value) })}>
+            {all.length === 0 && <option value={poi.poiType}>Type {poi.poiType}</option>}
+            <optgroup label="Common">
+              {common.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="All types">
+              {rest.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </>
+      )}
 
       <label htmlFor={descId} className={styles.label}>
         Description
@@ -139,16 +169,18 @@ function PoiCardFor({ poi, line, cumulative, location }: { poi: EditorPoi; line:
         </button>
       )}
 
-      <div className={styles.syncBox}>
-        <div>
-          <span>Suunto POI</span>
-          <strong>{server ? syncStateLabel[server.syncState] : 'Not saved yet'}</strong>
+      {suuntoConnected && (
+        <div className={styles.syncBox}>
+          <div>
+            <span>Suunto POI</span>
+            <strong>{server ? syncStateLabel[server.syncState] : 'Not saved yet'}</strong>
+          </div>
+          <div>
+            <span>Waypoint in route</span>
+            <strong>{onRoute ? 'With the next route push' : 'Off route: POI only'}</strong>
+          </div>
         </div>
-        <div>
-          <span>Waypoint in route</span>
-          <strong>{onRoute ? 'With the next route push' : 'Off route: POI only'}</strong>
-        </div>
-      </div>
+      )}
 
       <button
         type="button"
