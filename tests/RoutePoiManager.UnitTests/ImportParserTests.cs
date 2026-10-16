@@ -10,6 +10,35 @@ namespace RoutePoiManager.UnitTests;
 public sealed class ImportParserTests
 {
     [Fact]
+    public void Route_file_conversion_preserves_track_elevation_and_waypoints()
+    {
+        const string gpx = """
+            <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+              <metadata><name>Forest route</name></metadata>
+              <wpt lat="60.31" lon="24.51"><ele>29</ele><name>Water</name></wpt>
+              <trk><name>Forest route</name><trkseg>
+                <trkpt lat="60.30" lon="24.50"><ele>10</ele></trkpt>
+                <trkpt lat="60.31" lon="24.512"><ele>20</ele></trkpt>
+                <trkpt lat="60.32" lon="24.52"><ele>30</ele></trkpt>
+              </trkseg></trk>
+            </gpx>
+            """;
+        var parsed = ImportService.Parse(Encoding.UTF8.GetBytes(gpx), "forest.gpx");
+
+        var fit = RouteFileConverter.ToFit(parsed);
+        var fromFit = ImportService.Parse(fit, "forest.fit");
+        Assert.Equal(3, fromFit.Tracks[0].Points.Count);
+        Assert.Equal(20, fromFit.Tracks[0].Points[1].Ele);
+        Assert.Contains(fromFit.Waypoints, waypoint => waypoint.Name == "Water");
+
+        var gpxAgain = RouteFileConverter.ToGpx(fromFit);
+        var fromGpx = ImportService.Parse(gpxAgain, "forest.gpx");
+        Assert.Equal(3, fromGpx.Tracks[0].Points.Count);
+        Assert.Equal(20, fromGpx.Tracks[0].Points[1].Ele);
+        Assert.Contains(fromGpx.Waypoints, waypoint => waypoint.Name == "Water");
+    }
+
+    [Fact]
     public void Gpx_track_waypoints_and_activity_hint_are_read()
     {
         const string gpx = """

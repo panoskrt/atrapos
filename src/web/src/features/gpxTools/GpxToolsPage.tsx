@@ -16,6 +16,7 @@ import styles from './GpxToolsPage.module.css';
 export function GpxToolsPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const splitInputRef = useRef<HTMLInputElement>(null);
+  const convertInputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const [files, setFiles] = useState<File[]>([]);
   const [routeName, setRouteName] = useState('Merged route');
@@ -34,6 +35,9 @@ export function GpxToolsPage() {
   const [mapHint, setMapHint] = useState('Click the route to add a split point.');
   const [dragging, setDragging] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [convertFile, setConvertFile] = useState<File | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
 
   const addFiles = (list: FileList | File[]) => {
     const selected = Array.from(list);
@@ -165,6 +169,41 @@ export function GpxToolsPage() {
     anchor.download = file.name;
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const convert = async () => {
+    if (!convertFile) return;
+    setConverting(true);
+    setConvertError(null);
+    try {
+      const form = new FormData();
+      form.append('file', convertFile);
+      const response = await fetch('/api/imports/convert', {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+        headers: { 'X-RPM-CSRF': '1' },
+      });
+      if (!response.ok) {
+        let message = `Conversion failed (${response.status}).`;
+        try {
+          const body = await response.json() as { title?: string };
+          if (body.title) message = body.title;
+        } catch {
+          // Keep the HTTP status message when the server doesn't return JSON.
+        }
+        throw new Error(message);
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition');
+      const fileName = disposition?.match(/filename="?([^";]+)"?/i)?.[1]
+        ?? `${safeFileName(convertFile.name.replace(/\.(gpx|fit)$/i, ''))}.${convertFile.name.toLowerCase().endsWith('.fit') ? 'gpx' : 'fit'}`;
+      downloadPart(new File([blob], fileName, { type: blob.type }));
+    } catch (error) {
+      setConvertError(error instanceof Error ? error.message : 'The file could not be converted.');
+    } finally {
+      setConverting(false);
+    }
   };
 
   const displayLine = useMemo(() => {
@@ -493,6 +532,59 @@ export function GpxToolsPage() {
           <p role="alert" className={styles.error}>
             <Icon name="alert" size={18} />
             {splitError}
+          </p>
+        )}
+      </section>
+
+      <section className={styles.tool} aria-labelledby="convert-title">
+        <div className={styles.toolHeader}>
+          <span className={styles.toolIcon}><Icon name="routePlus" size={22} /></span>
+          <div>
+            <h2 id="convert-title">Convert FIT and GPX</h2>
+            <p>Convert a route file between GPX and FIT formats and download the result.</p>
+          </div>
+        </div>
+        <input
+          ref={convertInputRef}
+          type="file"
+          accept=".gpx,.fit,application/gpx+xml,application/vnd.ant.fit"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            setConvertError(null);
+            setConvertFile(file);
+            event.target.value = '';
+          }}
+        />
+        <div className={styles.controls}>
+          <p className={styles.note}>
+            {convertFile ? `${convertFile.name} · ${formatBytes(convertFile.size)}` : 'Choose one GPX or FIT file (up to 20 MB).'}
+          </p>
+          <button type="button" className="btn" onClick={() => convertInputRef.current?.click()}>
+            <Icon name="fileUp" size={18} />
+            {convertFile ? 'Choose another file' : 'Choose GPX or FIT'}
+          </button>
+        </div>
+        <div className={styles.footer}>
+          <p className={styles.note}>The first track is converted. Route points, elevation, and waypoints are retained where supported.</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!convertFile || convertFile.size > MAX_FILE_BYTES || converting}
+            aria-busy={converting}
+            onClick={() => void convert()}
+          >
+            {converting ? <Spinner /> : <Icon name="download" size={18} />}
+            {converting ? 'Converting…' : 'Convert and download'}
+          </button>
+        </div>
+        {convertFile && convertFile.size > MAX_FILE_BYTES && (
+          <p role="alert" className={styles.error}>This file is larger than 20 MB.</p>
+        )}
+        {convertError && (
+          <p role="alert" className={styles.error}>
+            <Icon name="alert" size={18} />
+            {convertError}
           </p>
         )}
       </section>

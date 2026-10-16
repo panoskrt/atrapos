@@ -77,6 +77,40 @@ public static class ImportEndpoints
                     Math.Round(w.Position.Lon, 6), Math.Round(w.Position.Lat, 6), w.Position.Ele, w.Description)).ToList()));
         });
 
+        g.MapPost("/convert", async (IFormFile? file, CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, ct);
+            if (error is not null)
+                return error;
+
+            var extension = Path.GetExtension(file!.FileName);
+            if (!extension.Equals(".fit", StringComparison.OrdinalIgnoreCase) &&
+                !extension.Equals(".gpx", StringComparison.OrdinalIgnoreCase))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a .fit or .gpx file."] });
+
+            var isFit = extension.Equals(".fit", StringComparison.OrdinalIgnoreCase);
+            var outputExtension = isFit ? ".gpx" : ".fit";
+            ParsedFile parsed;
+            try
+            {
+                parsed = ImportService.Parse(content!, file.FileName);
+                var output = isFit ? RouteFileConverter.ToGpx(parsed) : RouteFileConverter.ToFit(parsed);
+                var name = Path.GetFileNameWithoutExtension(file.FileName);
+                var safeName = string.Concat(name.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '-')).Trim('-');
+                if (string.IsNullOrWhiteSpace(safeName))
+                    safeName = "converted-route";
+                return Results.File(output, isFit ? "application/gpx+xml" : "application/vnd.ant.fit", safeName + outputExtension);
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "conversion_failed" });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.Problem(title: "The route could not be converted.", statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "conversion_failed" });
+            }
+        });
+
         g.MapPost("/", async (HttpContext http, IFormFile? file, [FromForm] string? options, ImportService imports, AppDbContext db,
             CancellationToken ct) =>
         {
