@@ -16,6 +16,7 @@ import { formatDistance, type RouteStats } from './geo';
 import { useEditorStore } from './store';
 import type { SaveStatus } from './useManualSave';
 import { WeatherPanel } from '../weather/WeatherPanel';
+import { SurfacePanel } from '../surface/SurfacePanel';
 import styles from './Editor.module.css';
 
 interface Props {
@@ -181,6 +182,7 @@ function RouteTab({ routeId, flush, isDraft }: { routeId: string; flush: () => P
 
   return (
     <>
+      <SurfacePanel routeId={routeId} isDraft={isDraft} />
       <fieldset className={styles.fieldset}>
         <legend className={styles.label}>Suunto activities</legend>
         <div className={styles.chips}>

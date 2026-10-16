@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { routeKeys, saveRoute, type UpdateRouteRequest } from '../routes/api';
 import { routeWeatherKeys } from '../weather/api';
+import { routeSurfaceKeys } from '../surface/api';
 import { useEditorStore } from './store';
 
 export type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
@@ -37,6 +38,7 @@ export function useManualSave(routeId: string, body: UpdateRouteRequest, bodyKey
       void qc.invalidateQueries({ queryKey: routeKeys.detail(routeId), exact: true, refetchType: 'none' });
       void qc.invalidateQueries({ queryKey: routeKeys.all, exact: true });
       void qc.invalidateQueries({ queryKey: routeWeatherKeys.detail(routeId), exact: true });
+      void qc.invalidateQueries({ queryKey: routeSurfaceKeys.detail(routeId), exact: true });
       return latest.current.bodyKey === currentKey;
     })();
     inFlight.current = operation;

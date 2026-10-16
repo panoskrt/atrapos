@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using System.Net.Http.Headers;
 using RoutePoiManager.Infrastructure.Elevation;
 using RoutePoiManager.Infrastructure.Import;
 using RoutePoiManager.Infrastructure.Persistence;
 using RoutePoiManager.Infrastructure.Routing;
+using RoutePoiManager.Infrastructure.Surface;
 using RoutePoiManager.Infrastructure.Suunto;
 using RoutePoiManager.Infrastructure.Sync;
 using RoutePoiManager.Infrastructure.Weather;
@@ -89,6 +91,16 @@ public static class DependencyInjection
                 o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
             });
         services.AddScoped<RouteWeatherService>();
+
+        services.AddSingleton<OverpassConcurrencyGate>();
+        services.AddHttpClient<IOsmSurfaceProvider, OverpassSurfaceProvider>(OverpassSurfaceProvider.HttpClientName, c =>
+            {
+                c.BaseAddress = new Uri("https://overpass-api.de/");
+                c.Timeout = TimeSpan.FromSeconds(30);
+                c.DefaultRequestHeaders.UserAgent.ParseAdd("RoutePoiManager/0.1 (OpenStreetMap route surface summary)");
+                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            });
+        services.AddScoped<RouteSurfaceService>();
 
         services.AddOptions<RoutingOptions>().Bind(config.GetSection(RoutingOptions.Section));
         services.AddSingleton<RoutingConcurrencyGate>();
