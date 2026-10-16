@@ -1,10 +1,26 @@
 .shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100%;
   display: flex;
   flex-direction: column;
 }
 
+.shell::before {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 10%, transparent), color-mix(in srgb, var(--bg) 35%, transparent)),
+    url('/route-atmosphere.svg') center / cover no-repeat;
+  opacity: 0.23;
+}
+
 .main {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
 }
@@ -51,10 +67,21 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   padding: 8px 16px;
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 10px 24px rgb(3 10 17 / 0.12);
-  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 700px) {
+  .shell::before {
+    background-position: 62% center;
+    opacity: 0.16;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .shell::before {
+    opacity: 0.12;
+  }
 }
 
 .brand {
