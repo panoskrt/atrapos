@@ -22,12 +22,12 @@ export function mergeGpxFiles(inputs: GpxInput[], routeName: string): GpxMergeRe
   if (!points.length) throw new Error('The selected files do not contain any track or route points.');
 
   const name = routeName.trim() || 'Merged route';
-  const routePoints = points
+  const timedPoints = addMissingTimes(points);
+  const trackPoints = timedPoints
     .map((point) => {
       const attrs = `lat="${point.lat}" lon="${point.lon}"`;
       const elevation = point.elevation === null ? '' : `<ele>${escapeXml(point.elevation)}</ele>`;
-      const time = point.time === null ? '' : `<time>${escapeXml(point.time)}</time>`;
-      return `    <rtept ${attrs}>${elevation}${time}</rtept>`;
+      return `      <trkpt ${attrs}>${elevation}<time>${escapeXml(point.time)}</time></trkpt>`;
     })
     .join('\n');
 
@@ -35,15 +35,52 @@ export function mergeGpxFiles(inputs: GpxInput[], routeName: string): GpxMergeRe
     xml: [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<gpx version="1.1" creator="Route &amp; POI Manager" xmlns="http://www.topografix.com/GPX/1/1">',
-      '  <rte>',
+      '  <trk>',
       `    <name>${escapeXml(name)}</name>`,
-      routePoints,
-      '  </rte>',
+      '    <trkseg>',
+      trackPoints,
+      '    </trkseg>',
+      '  </trk>',
       '</gpx>',
       '',
     ].join('\n'),
     pointCount: points.length,
   };
+}
+
+function addMissingTimes(points: GpxPoint[]): (GpxPoint & { time: string })[] {
+  const result: (GpxPoint & { time: string })[] = points.map((point) => ({ ...point, time: point.time ?? '' }));
+  const lastIndex = points.length - 1;
+  const fallbackStart = Date.now() - (lastIndex + 60) * 1000;
+
+  for (let index = 0; index < result.length; index++) {
+    if (result[index]!.time !== '') continue;
+
+    let nextTimedIndex = index + 1;
+    while (nextTimedIndex < result.length && result[nextTimedIndex]!.time === '') nextTimedIndex++;
+
+    let previousTimedIndex = index - 1;
+    while (previousTimedIndex >= 0 && result[previousTimedIndex]!.time === '') previousTimedIndex--;
+
+    const previousTime = previousTimedIndex >= 0 ? Date.parse(result[previousTimedIndex]!.time!) : null;
+    const nextTime = nextTimedIndex < result.length ? Date.parse(result[nextTimedIndex]!.time!) : null;
+    let timestamp: number;
+
+    if (previousTime !== null && nextTime !== null && nextTime > previousTime) {
+      const gap = nextTimedIndex - previousTimedIndex;
+      timestamp = previousTime + ((nextTime - previousTime) * (index - previousTimedIndex)) / gap;
+    } else if (previousTime !== null) {
+      timestamp = previousTime + 1000;
+    } else if (nextTime !== null) {
+      timestamp = nextTime - (nextTimedIndex - index) * 1000;
+    } else {
+      timestamp = fallbackStart + index * 1000;
+    }
+
+    result[index]!.time = new Date(timestamp).toISOString();
+  }
+
+  return result;
 }
 
 export function readGpxPoints(input: GpxInput): GpxPoint[] {
@@ -85,7 +122,12 @@ export function readGpxPoints(input: GpxInput): GpxPoint[] {
       throw new Error(`${input.fileName} has an invalid elevation at point ${index + 1}.`);
     }
 
-    return { lat, lon, elevation, time: directChildText(element, 'time') };
+    const time = directChildText(element, 'time');
+    if (time !== null && (time.length === 0 || !Number.isFinite(Date.parse(time)))) {
+      throw new Error(`${input.fileName} has an invalid time at point ${index + 1}.`);
+    }
+
+    return { lat, lon, elevation, time };
   });
 }
 

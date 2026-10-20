@@ -103,6 +103,12 @@
   overflow: hidden;
 }
 
+.orderPrompt {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .file {
   min-height: 64px;
   display: flex;
@@ -110,6 +116,15 @@
   gap: 12px;
   padding: 8px 12px;
   background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.orderPosition {
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .file + .file {

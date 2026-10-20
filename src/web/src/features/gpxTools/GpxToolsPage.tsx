@@ -217,7 +217,13 @@ export function GpxToolsPage() {
           event.target.value = '';
         }}
       />
-      {mergedFile && <ImportDialog file={mergedFile} onClose={() => setMergedFile(null)} />}
+      {mergedFile && (
+        <ImportDialog
+          file={mergedFile}
+          onClose={() => setMergedFile(null)}
+          onDownload={() => downloadPart(mergedFile)}
+        />
+      )}
       {routeQueue[0] && (
         <ImportDialog
           key={`${routeQueue[0].name}-${routeQueue[0].size}`}
@@ -243,7 +249,7 @@ export function GpxToolsPage() {
           <span className={styles.toolIcon}><Icon name="routePlus" size={22} /></span>
           <div>
             <h2 id="merge-title">Merge GPX files</h2>
-            <p>Combine multiple files into one continuous route, in the order shown below.</p>
+            <p>Add files, then set the order they will be joined in the merged route.</p>
           </div>
         </div>
 
@@ -259,45 +265,51 @@ export function GpxToolsPage() {
         </div>
 
         {files.length ? (
-          <ol className={styles.fileList} aria-label="GPX files in merge order">
-            {files.map((file, index) => (
-              <li className={styles.file} key={`${file.name}-${file.size}-${file.lastModified}-${index}`}>
-                <span className={styles.fileIcon}><Icon name="fit" size={18} /></span>
-                <span className={styles.fileInfo}>
-                  <strong>{file.name}</strong>
-                  <span>{formatBytes(file.size)}</span>
-                </span>
-                <div className={styles.fileActions}>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    aria-label={`Move ${file.name} up`}
-                    disabled={index === 0}
-                    onClick={() => moveFile(index, -1)}
-                  >
-                    <Icon name="arrowUp" size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    aria-label={`Move ${file.name} down`}
-                    disabled={index === files.length - 1}
-                    onClick={() => moveFile(index, 1)}
-                  >
-                    <Icon name="arrowDown" size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    aria-label={`Remove ${file.name}`}
-                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                  >
-                    <Icon name="close" size={17} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <>
+            <p className={styles.orderPrompt}>Set merge order: use the up and down buttons. Files are joined from top to bottom.</p>
+            <ol className={styles.fileList} aria-label="GPX files in merge order">
+              {files.map((file, index) => (
+                <li className={styles.file} key={`${file.name}-${file.size}-${file.lastModified}-${index}`}>
+                  <span className={styles.orderPosition} aria-label={`Merge position ${index + 1}`}>
+                    {index + 1}
+                  </span>
+                  <span className={styles.fileIcon}><Icon name="fit" size={18} /></span>
+                  <span className={styles.fileInfo}>
+                    <strong>{file.name}</strong>
+                    <span>{formatBytes(file.size)}</span>
+                  </span>
+                  <div className={styles.fileActions}>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      aria-label={`Move ${file.name} up`}
+                      disabled={index === 0}
+                      onClick={() => moveFile(index, -1)}
+                    >
+                      <Icon name="arrowUp" size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      aria-label={`Move ${file.name} down`}
+                      disabled={index === files.length - 1}
+                      onClick={() => moveFile(index, 1)}
+                    >
+                      <Icon name="arrowDown" size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      aria-label={`Remove ${file.name}`}
+                      onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                    >
+                      <Icon name="close" size={17} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
         ) : (
           <button type="button" className={styles.dropTarget} onClick={() => inputRef.current?.click()}>
             <Icon name="fileUp" size={30} />
@@ -309,6 +321,7 @@ export function GpxToolsPage() {
         <div className={styles.footer}>
           <p className={styles.note}>
             Files are processed in your browser. Track points are joined in order; GPX routes are used when a file has no track points.
+            Missing timestamps are generated at one-second intervals for activity uploads; generated times won't reflect the actual recording pace.
           </p>
           <button
             type="button"
