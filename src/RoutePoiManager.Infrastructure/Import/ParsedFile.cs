@@ -2,7 +2,8 @@ using RoutePoiManager.Domain;
 
 namespace RoutePoiManager.Infrastructure.Import;
 
-public sealed record ParsedTrack(string? Name, List<GeoPosition> Points);
+/// <summary><paramref name="Times"/>, when present, holds each point's UTC recording time (null where the file has none).</summary>
+public sealed record ParsedTrack(string? Name, List<GeoPosition> Points, List<DateTime?>? Times = null);
 
 /// <summary>A point of interest found in the file: GPX waypoint, named route point, FIT course point or lap.</summary>
 public sealed record ParsedWaypoint(

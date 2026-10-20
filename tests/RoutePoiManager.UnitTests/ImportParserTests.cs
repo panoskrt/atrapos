@@ -39,6 +39,65 @@ public sealed class ImportParserTests
     }
 
     [Fact]
+    public void Gpx_to_fit_writes_a_complete_course_with_course_points_at_their_place()
+    {
+        const string gpx = """
+            <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+              <wpt lat="60.3201" lon="24.52"><name>Water</name></wpt>
+              <wpt lat="60.30" lon="24.50"><name>Start</name><type>Begin</type></wpt>
+              <trk><name>Forest route</name><trkseg>
+                <trkpt lat="60.30" lon="24.50"><time>2026-10-01T08:00:00Z</time></trkpt>
+                <trkpt lat="60.31" lon="24.51"><time>2026-10-01T08:05:00Z</time></trkpt>
+                <trkpt lat="60.32" lon="24.52"><time>2026-10-01T08:10:00Z</time></trkpt>
+              </trkseg></trk>
+            </gpx>
+            """;
+
+        var fit = RouteFileConverter.ToFit(ImportService.Parse(Encoding.UTF8.GetBytes(gpx), "forest.gpx"));
+        var m = Decode(fit);
+
+        var lap = Assert.Single(m.LapMesgs);
+        Assert.Equal(600f, lap.GetTotalElapsedTime());
+        Assert.True(lap.GetTotalDistance() > 2000);
+        Assert.Equal([EventType.Start, EventType.StopDisableAll], m.EventMesgs.Select(e => e.GetEventType()!.Value));
+        Assert.Equal(lap.GetTotalDistance(), m.RecordMesgs[^1].GetDistance());
+        Assert.Equal(new System.DateTime(2026, 10, 1, 8, 5, 0, DateTimeKind.Utc), m.RecordMesgs[1].GetTimestamp().GetDateTime());
+
+        // Only the included waypoint becomes a course point, timed and placed at the end of the track, not the start.
+        var coursePoint = Assert.Single(m.CoursePointMesgs);
+        Assert.Equal("Water", coursePoint.GetNameAsString());
+        Assert.Equal(m.RecordMesgs[^1].GetTimestamp().GetTimeStamp(), coursePoint.GetTimestamp().GetTimeStamp());
+        Assert.Equal(m.RecordMesgs[^1].GetDistance(), coursePoint.GetDistance());
+    }
+
+    [Fact]
+    public void Fit_to_gpx_keeps_every_point_and_its_time_but_not_lap_markers()
+    {
+        var bytes = FitFixtures.Activity(Sport.Running, SubSport.Trail,
+            [(60.30, 24.50, 10f), (60.305, 24.50, 10f), (60.31, 24.50, 10f)],
+            laps: [(60.305, 24.50), (60.31, 24.50)]);
+
+        var gpx = RouteFileConverter.ToGpx(ImportService.Parse(bytes, "run.fit"));
+        var doc = System.Xml.Linq.XDocument.Parse(Encoding.UTF8.GetString(gpx));
+
+        // The middle point is collinear, so a simplified conversion would drop it.
+        var times = doc.Descendants().Where(e => e.Name.LocalName == "trkpt")
+            .Select(p => p.Elements().Single(e => e.Name.LocalName == "time").Value).ToArray();
+        Assert.Equal(["2026-10-01T08:00:00Z", "2026-10-01T08:00:10Z", "2026-10-01T08:00:20Z"], times);
+        Assert.DoesNotContain(doc.Descendants(), e => e.Name.LocalName == "wpt");
+    }
+
+    private static FitMessages Decode(byte[] fit)
+    {
+        var decoder = new Decode();
+        var listener = new FitListener();
+        decoder.MesgEvent += listener.OnMesg;
+        using var stream = new MemoryStream(fit);
+        Assert.True(decoder.Read(stream));
+        return listener.FitMessages;
+    }
+
+    [Fact]
     public void Gpx_track_waypoints_and_activity_hint_are_read()
     {
         const string gpx = """

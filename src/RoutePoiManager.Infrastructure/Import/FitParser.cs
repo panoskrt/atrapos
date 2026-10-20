@@ -34,10 +34,15 @@ public static class FitParser
         var fileType = m.FileIdMesgs.FirstOrDefault()?.GetType();
         var isCourse = fileType == FitFile.Course || (fileType is null && m.CourseMesgs.Count > 0);
 
-        var points = m.RecordMesgs
-            .Select(r => ToPosition(r.GetPositionLat(), r.GetPositionLong(), r.GetEnhancedAltitude() ?? r.GetAltitude()))
-            .OfType<GeoPosition>()
-            .ToList();
+        var points = new List<GeoPosition>();
+        var times = new List<System.DateTime?>();
+        foreach (var r in m.RecordMesgs)
+        {
+            if (ToPosition(r.GetPositionLat(), r.GetPositionLong(), r.GetEnhancedAltitude() ?? r.GetAltitude()) is not { } p)
+                continue;
+            points.Add(p);
+            times.Add(r.GetTimestamp()?.GetDateTime());
+        }
         if (points.Count == 0)
             throw new ImportException(isCourse
                 ? "The FIT course has no track points."
@@ -84,7 +89,7 @@ public static class FitParser
             isCourse ? RouteSource.FitCourse : RouteSource.FitActivity,
             string.IsNullOrWhiteSpace(name) ? null : name.Trim(),
             ActivityMapping.FromSport(sport?.ToString(), subSport?.ToString()),
-            [new ParsedTrack(name, points)],
+            [new ParsedTrack(name, points, times)],
             waypoints);
     }
 

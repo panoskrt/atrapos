@@ -566,7 +566,7 @@ export function GpxToolsPage() {
           </button>
         </div>
         <div className={styles.footer}>
-          <p className={styles.note}>The first track is converted. Route points, elevation, and waypoints are retained where supported.</p>
+          <p className={styles.note}>The first track is converted point for point, keeping elevation, recorded times, and waypoints where supported.</p>
           <button
             type="button"
             className="btn btn-primary"

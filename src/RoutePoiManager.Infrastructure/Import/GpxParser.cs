@@ -36,20 +36,30 @@ public static class GpxParser
 
         foreach (var trk in Children(root, "trk"))
         {
-            var points = Children(trk, "trkseg").SelectMany(seg => Children(seg, "trkpt")).Select(ReadPoint).OfType<GeoPosition>().ToList();
+            var points = new List<GeoPosition>();
+            var times = new List<DateTime?>();
+            foreach (var trkpt in Children(trk, "trkseg").SelectMany(seg => Children(seg, "trkpt")))
+            {
+                if (ReadPoint(trkpt) is not { } p)
+                    continue;
+                points.Add(p);
+                times.Add(ReadTime(trkpt));
+            }
             if (points.Count > 0)
-                tracks.Add(new ParsedTrack(Text(trk, "name"), points));
+                tracks.Add(new ParsedTrack(Text(trk, "name"), points, times));
             firstType ??= Text(trk, "type");
         }
 
         foreach (var rte in Children(root, "rte"))
         {
             var points = new List<GeoPosition>();
+            var times = new List<DateTime?>();
             foreach (var rtept in Children(rte, "rtept"))
             {
                 if (ReadPoint(rtept) is not { } p)
                     continue;
                 points.Add(p);
+                times.Add(ReadTime(rtept));
                 // Named rtept values remain selectable in regular GPX imports; only extensions explicitly mark POIs.
                 var ext = rtept.Descendants(SuuntoNs + "routePoint").FirstOrDefault();
                 var name = ext?.Element(SuuntoNs + "name")?.Value ?? Text(rtept, "name");
@@ -63,7 +73,7 @@ public static class GpxParser
                 }
             }
             if (points.Count > 0)
-                tracks.Add(new ParsedTrack(Text(rte, "name"), points));
+                tracks.Add(new ParsedTrack(Text(rte, "name"), points, times));
             firstType ??= Text(rte, "type");
         }
 
@@ -105,6 +115,13 @@ public static class GpxParser
             : null;
         return new GeoPosition(lon, lat, ele);
     }
+
+    /// <summary>GPX times are UTC; a time without an offset is read as UTC, not local time.</summary>
+    private static DateTime? ReadTime(XElement e) =>
+        DateTimeOffset.TryParse(Text(e, "time"), CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var t)
+            ? t.UtcDateTime
+            : null;
 
     /// <summary>Suunto-style files list the same point as a named rtept and a matching wpt.</summary>
     private static List<ParsedWaypoint> Dedupe(List<ParsedWaypoint> waypoints) =>

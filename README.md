@@ -36,7 +36,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 **GPX tools**
 - Merge multiple GPX tracks or routes into one ordered route and create it in the app
 - View a GPX track or route on a map and click to add split points; download the parts or create a route for each part
-- Convert a GPX file to FIT or a FIT file to GPX and download the converted file; the first track is converted, with elevation and waypoints preserved where supported
+- Convert a GPX file to FIT or a FIT file to GPX and download the converted file; the first track is converted point for point, with elevation, recorded times and waypoints preserved where supported (GPX→FIT produces a FIT course with lap, timer events and course points placed along the track)
 
 **POIs**
 - Place them on the map; a click near the route snaps onto it
