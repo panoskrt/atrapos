@@ -121,6 +121,13 @@ test('loaders show while Suunto is being called', async ({ page }) => {
   });
 
   await page.getByRole('button', { name: 'Refresh from Suunto' }).click();
+  const refreshDialog = page.getByRole('dialog', { name: 'Import all changes from Suunto?' });
+  await expect(refreshDialog).toContainText('imports new and updated items into this library');
+  await refreshDialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(refreshDialog).toBeHidden();
+
+  await page.getByRole('button', { name: 'Refresh from Suunto' }).click();
+  await page.getByRole('dialog', { name: 'Import all changes from Suunto?' }).getByRole('button', { name: 'Import changes' }).click();
   const busyButton = page.getByRole('button', { name: 'Refreshing…' });
   await expect(busyButton).toBeDisabled();
   await expect(page.getByRole('progressbar', { name: 'Fetching routes and POIs from Suunto…' })).toBeVisible();

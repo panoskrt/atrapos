@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { confirmAction } from '../../components/ConfirmDialog';
 import { SelectionBar, TriCheckbox } from '../../components/SelectionBar';
 import { toast } from '../../components/Toast';
 import { usePersistentState } from '../../lib/usePersistentState';
@@ -101,6 +102,28 @@ export function LibraryPage() {
     if (await confirmRouteDelete([route])) deleteOne.mutate(route.id);
   };
 
+  const onRefresh = async () => {
+    if (
+      await confirmAction({
+        title: 'Import all changes from Suunto?',
+        body: (
+          <p>
+            This fetches your routes and POIs from Suunto and imports new and updated items into this library. Locally
+            edited items are kept and marked as conflicts instead of being overwritten.
+          </p>
+        ),
+        facts: [
+          ['New routes and POIs', 'Imported'],
+          ['Locally edited items', 'Kept as conflicts'],
+        ],
+        confirmLabel: 'Import changes',
+        icon: 'refresh',
+      })
+    ) {
+      refresh.mutate();
+    }
+  };
+
   const deleteSelected = async () => {
     const chosen = shown.filter((r) => selection.has(r.id));
     if (!chosen.length || !(await confirmRouteDelete(chosen))) return;
@@ -189,7 +212,7 @@ export function LibraryPage() {
           <button
             type="button"
             className="btn"
-            onClick={() => refresh.mutate()}
+            onClick={() => void onRefresh()}
             disabled={refresh.isPending}
             aria-busy={refresh.isPending}
           >
