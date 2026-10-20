@@ -17,6 +17,7 @@ interface ViewProps {
   selection: Selection;
   onDelete: (route: RouteSummary) => void;
   deleting: boolean;
+  suuntoConnected: boolean;
 }
 
 const sourceLabel: Record<RouteSummary['source'], string> = {
@@ -36,8 +37,9 @@ const stateTone: Record<SyncState, string> = {
   error: 'danger',
 };
 
-function useActivityNames() {
-  const activities = useActivityTypes();
+function useActivityNames(suuntoConnected: boolean) {
+  const activities = useActivityTypes(suuntoConnected);
+  if (!suuntoConnected) return () => '';
   return (route: RouteSummary) =>
     route.activityIds
       .map((id) => activities.data?.find((a) => a.id === id)?.name)
@@ -88,8 +90,8 @@ function DeleteButton({ route, onDelete, disabled }: { route: RouteSummary; onDe
 }
 
 /** Boxes with a route outline: the visual overview. */
-export function RouteCards({ routes, selection, onDelete, deleting, leading }: ViewProps & { leading?: ReactNode }) {
-  const activityNames = useActivityNames();
+export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnected, leading }: ViewProps & { leading?: ReactNode }) {
+  const activityNames = useActivityNames(suuntoConnected);
   return (
     <ul className={styles.grid} data-selecting={selection.count > 0 || undefined}>
       {leading && <li>{leading}</li>}
@@ -107,7 +109,9 @@ export function RouteCards({ routes, selection, onDelete, deleting, leading }: V
             <div className={styles.thumb}>
               <Thumbnail preview={route.preview} />
               <Link to={`/routes/${route.id}`} className={styles.thumbTarget} aria-label={`Open ${route.name}`} tabIndex={-1} />
-              <span className={styles.source}>{sourceLabel[route.source]}</span>
+              <span className={styles.source}>
+                {route.source === 'suunto' && !suuntoConnected ? 'Imported' : sourceLabel[route.source]}
+              </span>
             </div>
             <div className={styles.cardBody}>
               <div className={styles.cardTitleRow}>
@@ -119,14 +123,18 @@ export function RouteCards({ routes, selection, onDelete, deleting, leading }: V
               <p className={styles.meta}>
                 {formatDistance(route.distanceM)} · +{Math.round(route.ascentM)} m{names && ` · ${names}`}
               </p>
-              <div className={styles.statusRow}>
-                <span className={styles.statusLabel}>Route</span>
-                <RouteStatus route={route} />
-              </div>
-              <div className={styles.statusRow}>
-                <span className={styles.statusLabel}>POIs</span>
-                <PoiStatus route={route} />
-              </div>
+              {suuntoConnected && (
+                <>
+                  <div className={styles.statusRow}>
+                    <span className={styles.statusLabel}>Route</span>
+                    <RouteStatus route={route} />
+                  </div>
+                  <div className={styles.statusRow}>
+                    <span className={styles.statusLabel}>POIs</span>
+                    <PoiStatus route={route} />
+                  </div>
+                </>
+              )}
             </div>
           </li>
         );
@@ -143,8 +151,9 @@ export function RouteTable({
   deleting,
   sort,
   onSort,
+  suuntoConnected,
 }: ViewProps & { sort: RouteSort; onSort: (key: RouteSortKey) => void }) {
-  const activityNames = useActivityNames();
+  const activityNames = useActivityNames(suuntoConnected);
   const header = (key: RouteSortKey, className?: string) => {
     const active = sort.key === key;
     return (
@@ -175,13 +184,15 @@ export function RouteTable({
               />
             </th>
             {header('name')}
-            <th scope="col" className={styles.colWide}>
-              Activity
-            </th>
+            {suuntoConnected && (
+              <th scope="col" className={styles.colWide}>
+                Activity
+              </th>
+            )}
             {header('distance', styles.num)}
             {header('ascent', `${styles.num} ${styles.colMid}`)}
-            {header('status')}
-            {header('pois', styles.colMid)}
+            {suuntoConnected && header('status')}
+            {suuntoConnected && header('pois', styles.colMid)}
             {header('modified', styles.colWide)}
             <th scope="col" className={styles.actionCol}>
               <span className="visually-hidden">Actions</span>
@@ -207,19 +218,25 @@ export function RouteTable({
                     </span>
                     <span className={styles.nameText}>
                       <Link to={`/routes/${route.id}`}>{route.name}</Link>
-                      <span className={styles.meta}>{sourceLabel[route.source]}</span>
+                      <span className={styles.meta}>
+                        {route.source === 'suunto' && !suuntoConnected ? 'Imported' : sourceLabel[route.source]}
+                      </span>
                     </span>
                   </div>
                 </td>
-                <td className={`${styles.colWide} ${styles.muted}`}>{activityNames(route) || '–'}</td>
+                {suuntoConnected && <td className={`${styles.colWide} ${styles.muted}`}>{activityNames(route) || '–'}</td>}
                 <td className={styles.num}>{formatDistance(route.distanceM)}</td>
                 <td className={`${styles.num} ${styles.colMid}`}>+{Math.round(route.ascentM).toLocaleString()} m</td>
-                <td>
-                  <RouteStatus route={route} />
-                </td>
-                <td className={styles.colMid}>
-                  <PoiStatus route={route} />
-                </td>
+                {suuntoConnected && (
+                  <>
+                    <td>
+                      <RouteStatus route={route} />
+                    </td>
+                    <td className={styles.colMid}>
+                      <PoiStatus route={route} />
+                    </td>
+                  </>
+                )}
                 <td className={`${styles.colWide} ${styles.muted}`}>
                   <time dateTime={route.localModifiedAt} title={new Date(route.localModifiedAt).toLocaleString()}>
                     {formatChanged(route.localModifiedAt)}

@@ -35,6 +35,8 @@ services:
       ConnectionStrings__Db: "Host=db;Port=5432;Database=routepoi;Username=routepoi;Password=${POSTGRES_PASSWORD:-routepoi}"
       App__PublicBaseUrl: http://localhost:5080
       App__RequireOAuthState: ${REQUIRE_OAUTH_STATE:-true}
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       Suunto__Mode: Live
       # Required: the API refuses to start without them. Set them in .env (see .env.example).
       Suunto__ClientId: ${SUUNTO_CLIENT_ID:-}

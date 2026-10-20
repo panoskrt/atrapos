@@ -8,16 +8,18 @@ public sealed class SuuntoReauthExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        if (exception is not SuuntoReauthRequiredException)
+        var notConnected = exception is SuuntoNotConnectedException;
+        if (!notConnected && exception is not SuuntoReauthRequiredException)
             return false;
 
-        httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        var status = notConnected ? StatusCodes.Status409Conflict : StatusCodes.Status401Unauthorized;
+        httpContext.Response.StatusCode = status;
         await httpContext.Response.WriteAsJsonAsync(new
         {
             type = "about:blank",
             title = exception.Message,
-            status = 401,
-            code = "suunto_reauth",
+            status,
+            code = notConnected ? "suunto_not_connected" : "suunto_reauth",
         }, cancellationToken);
         return true;
     }

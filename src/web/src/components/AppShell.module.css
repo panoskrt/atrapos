@@ -165,6 +165,13 @@
   background: var(--ok);
 }
 
+.dotGoogle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
 @media (max-width: 640px) {
   .statusLabel {
     display: none;

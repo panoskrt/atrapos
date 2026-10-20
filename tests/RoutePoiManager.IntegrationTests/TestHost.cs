@@ -40,7 +40,8 @@ public sealed class MockSuuntoFactory(int accessTokenLifetimeSeconds = 86400) : 
 public sealed class ApiFactory(
     PostgresFixture pg,
     MockSuuntoFactory suunto,
-    Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
+    Action<IServiceCollection>? configureServices = null,
+    bool enableGoogle = false) : WebApplicationFactory<Program>
 {
     public const string MockHost = "http://mock-suunto";
     public const string PublicBaseUrl = "http://localhost:5173";
@@ -54,6 +55,11 @@ public sealed class ApiFactory(
         builder.UseSetting("ConnectionStrings:Db", pg.ConnectionString(_database));
         builder.UseSetting("Database:MigrateOnStartup", "true");
         builder.UseSetting("App:PublicBaseUrl", PublicBaseUrl);
+        if (enableGoogle)
+        {
+            builder.UseSetting("Google:ClientId", "test-google-client");
+            builder.UseSetting("Google:ClientSecret", "test-google-secret");
+        }
         // The app defaults to the real Suunto; tests always run against the in-memory mock.
         builder.UseSetting("Suunto:Mode", "Mock");
         builder.UseSetting("Suunto:ClientId", "mock-client");

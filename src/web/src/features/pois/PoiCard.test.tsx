@@ -51,22 +51,26 @@ function loadRouteWithPoi(suuntoPoiKey: string | null = null) {
   useEditorStore.getState().selectPoi('poi-1');
 }
 
-function renderCard(location: PoiLocation) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () =>
-      new Response(JSON.stringify([{ id: 12, name: 'Water' }, { id: 22, name: 'Sight' }, { id: 26, name: 'POI' }]), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    ),
+function renderCard(location: PoiLocation, suuntoConnected = true) {
+  const fetch = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url === '/api/me'
+            ? { username: 'test-user', suuntoMode: 'Live', suuntoConnected }
+            : [{ id: 12, name: 'Water' }, { id: 22, name: 'Sight' }, { id: 26, name: 'POI' }],
+        ),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
   );
+  vi.stubGlobal('fetch', fetch);
   render(
     <QueryClientProvider client={new QueryClient()}>
       <PoiCard line={line} cumulative={cumulativeDistances(line)} locations={new Map([['poi-1', location]])} />
       <ConfirmHost />
     </QueryClientProvider>,
   );
+  return fetch;
 }
 
 beforeEach(() => loadRouteWithPoi());
@@ -121,5 +125,16 @@ describe('PoiCard', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: /delete poi/i }));
 
     expect(useEditorStore.getState().pois).toHaveLength(0);
+  });
+
+  it('hides Suunto POI settings and skips the Suunto type lookup when disconnected', async () => {
+    const fetch = renderCard({ alongM: 500, offsetM: 10 }, false);
+
+    expect(await screen.findByText('Edit POI')).toBeInTheDocument();
+    expect(screen.queryByText('Suunto POI type (watch icon)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Suunto POI')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waypoint in route')).not.toBeInTheDocument();
+    const requestedUrls = fetch.mock.calls.map(([url]) => url);
+    expect(requestedUrls).not.toContain('/api/lookups/poi-types');
   });
 });

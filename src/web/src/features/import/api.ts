@@ -66,10 +66,11 @@ export function commitImport(file: File, options: ImportOptions) {
   return apiFetch<RouteDetail>('/api/imports', { method: 'POST', body: form(file, options) });
 }
 
-export function usePoiTypes() {
+export function usePoiTypes(enabled = true) {
   return useQuery({
     queryKey: ['lookups', 'poi-types'],
     queryFn: () => api.get<PoiType[]>('/api/lookups/poi-types'),
     staleTime: Infinity,
+    enabled,
   });
 }

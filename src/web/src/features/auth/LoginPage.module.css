@@ -99,6 +99,42 @@
   font-size: 16px;
 }
 
+.providers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.googleCta {
+  height: 52px;
+  padding: 0 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.googleCta:hover {
+  background: var(--panel-elevated);
+}
+
+.googleMark {
+  color: #4285f4;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.providerDivider {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .points {
   margin: 0;
   padding: 0;

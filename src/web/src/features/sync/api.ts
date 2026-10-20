@@ -94,6 +94,7 @@ export function useAllPois() {
 /** Human message for sync errors, including "sign in again". */
 export function syncErrorMessage(e: unknown): { message: string; signIn: boolean } {
   if (e instanceof ApiError) {
+    if (e.code === 'suunto_not_connected') return { message: e.message, signIn: false };
     if (e.code === 'suunto_reauth' || e.status === 401) return { message: 'Your Suunto sign-in has expired.', signIn: true };
     return { message: e.message, signIn: false };
   }

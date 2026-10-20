@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { useMe } from '../auth/useMe';
 import { formatDistance, type Coord } from '../editor/geo';
 import { COMMON_ACTIVITY_IDS, routeKeys, useActivityTypes, type RouteSource } from '../routes/api';
 import { commitImport, previewImport, usePoiTypes, type ImportPreview, type ImportWaypoint } from './api';
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function ImportDialog({ file, onClose, onImported }: Props) {
+  const me = useMe();
+  const suuntoConnected = me.data?.suuntoConnected ?? false;
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const preview = useQuery({
@@ -73,7 +76,13 @@ export function ImportDialog({ file, onClose, onImported }: Props) {
           </button>
         </div>
       ) : (
-        <ImportForm file={file} preview={preview.data} onCancel={() => ref.current?.close()} onImported={onImported} />
+        <ImportForm
+          file={file}
+          preview={preview.data}
+          onCancel={() => ref.current?.close()}
+          onImported={onImported}
+          suuntoConnected={suuntoConnected}
+        />
       )}
     </dialog>
   );
@@ -84,16 +93,18 @@ function ImportForm({
   preview,
   onCancel,
   onImported,
+  suuntoConnected,
 }: {
   file: File;
   preview: ImportPreview;
   onCancel: () => void;
   onImported?: () => void;
+  suuntoConnected: boolean;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const activities = useActivityTypes();
-  const poiTypes = usePoiTypes();
+  const activities = useActivityTypes(suuntoConnected);
+  const poiTypes = usePoiTypes(suuntoConnected);
   const nameId = useId();
   const tolId = useId();
   const trackId = useId();
@@ -152,7 +163,7 @@ function ImportForm({
           <div className={styles.fileText}>
             <strong>{preview.fileName}</strong>
             <span className={styles.muted}>
-              {kindLabel[preview.kind]} · {(file.size / 1024).toFixed(0)} KB · {preview.tracks.length}{' '}
+              {preview.kind === 'suunto' && !suuntoConnected ? 'Imported route' : kindLabel[preview.kind]} · {(file.size / 1024).toFixed(0)} KB · {preview.tracks.length}{' '}
               {preview.tracks.length === 1 ? 'track' : 'tracks'} · {preview.waypoints.length}{' '}
               {preview.kind === 'fitCourse' ? 'course points' : preview.kind === 'fitActivity' ? 'laps' : 'waypoints'}
             </span>
@@ -221,20 +232,22 @@ function ImportForm({
               <input id={nameId} className={styles.input} value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
             </label>
 
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.label}>Suunto activities</legend>
-              <div className={styles.chips}>
-                {chipIds.map((id) => {
-                  const on = activityIds.includes(id);
-                  return (
-                    <label key={id} className={on ? styles.chipOn : styles.chip}>
-                      <input type="checkbox" checked={on} onChange={() => toggleActivity(id)} />
-                      {activityName(id)}
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
+            {suuntoConnected && (
+              <fieldset className={styles.fieldset}>
+                <legend className={styles.label}>Suunto activities</legend>
+                <div className={styles.chips}>
+                  {chipIds.map((id) => {
+                    const on = activityIds.includes(id);
+                    return (
+                      <label key={id} className={on ? styles.chipOn : styles.chip}>
+                        <input type="checkbox" checked={on} onChange={() => toggleActivity(id)} />
+                        {activityName(id)}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
 
             {preview.waypoints.length > 0 ? (
               <div className={styles.field}>
@@ -255,7 +268,7 @@ function ImportForm({
                         </th>
                         <th scope="col">Name</th>
                         <th scope="col">In file</th>
-                        <th scope="col">Suunto type</th>
+                        {suuntoConnected && <th scope="col">Suunto type</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -266,6 +279,7 @@ function ImportForm({
                           offsetM={offsets[i]!}
                           choice={choices[i]!}
                           poiTypes={poiTypes.data ?? []}
+                          suuntoConnected={suuntoConnected}
                           onChange={(c) => setChoices((all) => all.map((x, j) => (j === i ? { ...x, ...c } : x)))}
                         />
                       ))}
@@ -273,8 +287,9 @@ function ImportForm({
                   </table>
                 </div>
                 <p className={styles.muted}>
-                  Selected points become Suunto POIs and are added as waypoints to the route. Points more than 200 m off
-                  the track can only be POIs.
+                  {suuntoConnected
+                    ? 'Selected points become Suunto POIs and are added as waypoints to the route. Points more than 200 m off the track can only be POIs.'
+                    : 'Selected points become POIs in this app and are included in the route when they are within 200 m of the track.'}
                 </p>
               </div>
             ) : (
@@ -290,7 +305,11 @@ function ImportForm({
             Import failed: {create.error.message}
           </span>
         ) : (
-          <span className={styles.muted}>Nothing is uploaded to Suunto yet. You review in the editor, then push.</span>
+          <span className={styles.muted}>
+            {suuntoConnected
+              ? 'Nothing is uploaded to Suunto yet. You review in the editor, then push.'
+              : 'The imported route and POIs are saved only to your account.'}
+          </span>
         )}
         <button type="button" className="btn" onClick={onCancel}>
           Cancel
@@ -308,12 +327,14 @@ function WaypointRow({
   offsetM,
   choice,
   poiTypes,
+  suuntoConnected,
   onChange,
 }: {
   waypoint: ImportWaypoint;
   offsetM: number;
   choice: { include: boolean; name: string; poiType: number };
   poiTypes: { id: number; name: string }[];
+  suuntoConnected: boolean;
   onChange: (c: Partial<{ include: boolean; name: string; poiType: number }>) => void;
 }) {
   const far = offsetM > ON_ROUTE_MAX_OFFSET_M;
@@ -339,21 +360,23 @@ function WaypointRow({
         {far && <span className={styles.far}>{formatDistance(offsetM)} off route</span>}
       </td>
       <td className={styles.muted}>{waypoint.sourceType}</td>
-      <td>
-        <select
-          className={styles.cellInput}
-          value={choice.poiType}
-          onChange={(e) => onChange({ poiType: Number(e.target.value) })}
-          aria-label={`Suunto type for ${choice.name}`}
-        >
-          {poiTypes.length === 0 && <option value={choice.poiType}>{choice.poiType}</option>}
-          {poiTypes.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </td>
+      {suuntoConnected && (
+        <td>
+          <select
+            className={styles.cellInput}
+            value={choice.poiType}
+            onChange={(e) => onChange({ poiType: Number(e.target.value) })}
+            aria-label={`Suunto type for ${choice.name}`}
+          >
+            {poiTypes.length === 0 && <option value={choice.poiType}>{choice.poiType}</option>}
+            {poiTypes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </td>
+      )}
     </tr>
   );
 }

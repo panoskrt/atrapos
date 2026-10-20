@@ -160,11 +160,12 @@ export function saveRoute(id: string, body: UpdateRouteRequest) {
   return api.put<RouteDetail>(`/api/routes/${id}`, body);
 }
 
-export function useActivityTypes() {
+export function useActivityTypes(enabled = true) {
   return useQuery({
     queryKey: ['lookups', 'activity-types'],
     queryFn: () => api.get<ActivityType[]>('/api/lookups/activity-types'),
     staleTime: Infinity,
+    enabled,
   });
 }
 

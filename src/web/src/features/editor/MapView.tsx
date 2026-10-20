@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
 import { nearestDistance, positionAtDistance, segmentMidpoint, type Coord, type LonLat } from './geo';
+import { useMe } from '../auth/useMe';
 import { lookupElevation, placePoi } from '../pois/placement';
 import { poiGlyph } from '../pois/poiTypes';
 import { useEditorStore, useHoverStore, type EditorPoi, type EditorPoint } from './store';
@@ -370,15 +371,17 @@ function InsertHandle({ position, index, onDrag }: { position: LonLat; index: nu
   );
 }
 
-function poiIcon(type: number) {
+function poiIcon(type: number | null) {
   return L.divIcon({
     className: styles.poiMarker,
     iconSize: [30, 30],
-    html: `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="${poiGlyph(type)}"/></svg>`,
+    html: type === null ? '' : `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="${poiGlyph(type)}"/></svg>`,
   });
 }
 
 function PoiLayer({ line, cumulative }: { line: Coord[]; cumulative: number[] }) {
+  const me = useMe();
+  const suuntoConnected = me.data?.suuntoConnected ?? false;
   const pois = useEditorStore((s) => s.pois);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const tool = useEditorStore((s) => s.tool);
@@ -386,7 +389,15 @@ function PoiLayer({ line, cumulative }: { line: Coord[]; cumulative: number[] })
   return (
     <>
       {pois.map((p) => (
-        <PoiMarker key={p.id} poi={p} selected={p.id === selectedPoiId} draggable={tool !== 'extend'} line={line} cumulative={cumulative} />
+        <PoiMarker
+          key={p.id}
+          poi={p}
+          selected={p.id === selectedPoiId}
+          draggable={tool !== 'extend'}
+          line={line}
+          cumulative={cumulative}
+          suuntoConnected={suuntoConnected}
+        />
       ))}
     </>
   );
@@ -398,17 +409,19 @@ function PoiMarker({
   draggable,
   line,
   cumulative,
+  suuntoConnected,
 }: {
   poi: EditorPoi;
   selected: boolean;
   draggable: boolean;
   line: Coord[];
   cumulative: number[];
+  suuntoConnected: boolean;
 }) {
   const map = useMap();
   const markerRef = useRef<L.Marker>(null);
   // The type can't change mid-drag (it's edited in the card), so it's safe in the icon; selection is a class.
-  const icon = useMemo(() => poiIcon(poi.poiType), [poi.poiType]);
+  const icon = useMemo(() => poiIcon(suuntoConnected ? poi.poiType : null), [poi.poiType, suuntoConnected]);
   useMarkerClass(markerRef, styles.poiMarkerSelected, selected, icon);
   const title = `${poi.name}. Click to edit${draggable ? ', drag to move' : ''}.`;
   useMarkerTitle(markerRef, title, icon);

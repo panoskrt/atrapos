@@ -38,8 +38,11 @@ public sealed class User
 {
     public Guid Id { get; set; }
 
-    /// <summary>The Suunto app username from the access token's <c>user</c> claim.</summary>
-    public required string SuuntoUsername { get; set; }
+    /// <summary>The Suunto app username from the access token's <c>user</c> claim, when connected.</summary>
+    public string? SuuntoUsername { get; set; }
+
+    /// <summary>Stable Google subject identifier for Google-authenticated app accounts.</summary>
+    public string? GoogleSubject { get; set; }
 
     /// <summary>Access token encrypted with ASP.NET Data Protection.</summary>
     public required string AccessTokenProtected { get; set; }
