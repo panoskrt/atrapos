@@ -28,7 +28,7 @@ const preview: ImportPreview = {
   ],
 };
 
-function renderDialog(suuntoConnected = false) {
+function renderDialog(suuntoConnected = false, onDownload?: () => void) {
   const fetch = vi.fn(async (url: string) => {
     const body = url === '/api/me'
       ? { username: 'test-user', suuntoMode: 'Live', suuntoConnected }
@@ -47,7 +47,9 @@ function renderDialog(suuntoConnected = false) {
   });
   vi.stubGlobal('fetch', fetch);
   const file = new File(['x'], 'lapland-day2.fit');
-  const router = createMemoryRouter([{ path: '/', element: <ImportDialog file={file} onClose={() => undefined} /> }]);
+  const router = createMemoryRouter([
+    { path: '/', element: <ImportDialog file={file} onClose={() => undefined} onDownload={onDownload} /> },
+  ]);
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -87,5 +89,14 @@ describe('ImportDialog', () => {
 
     expect(await screen.findByText('Suunto activities')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Suunto type for Rova spring' })).toBeInTheDocument();
+  });
+
+  it('offers the optional GPX download action', async () => {
+    const onDownload = vi.fn();
+    renderDialog(false, onDownload);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Download GPX' }));
+
+    expect(onDownload).toHaveBeenCalledOnce();
   });
 });

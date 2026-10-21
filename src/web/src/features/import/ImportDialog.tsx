@@ -26,9 +26,10 @@ interface Props {
   file: File;
   onClose: () => void;
   onImported?: () => void;
+  onDownload?: () => void;
 }
 
-export function ImportDialog({ file, onClose, onImported }: Props) {
+export function ImportDialog({ file, onClose, onImported, onDownload }: Props) {
   const me = useMe();
   const suuntoConnected = me.data?.suuntoConnected ?? false;
   const ref = useRef<HTMLDialogElement>(null);
@@ -81,6 +82,7 @@ export function ImportDialog({ file, onClose, onImported }: Props) {
           preview={preview.data}
           onCancel={() => ref.current?.close()}
           onImported={onImported}
+          onDownload={onDownload}
           suuntoConnected={suuntoConnected}
         />
       )}
@@ -93,12 +95,14 @@ function ImportForm({
   preview,
   onCancel,
   onImported,
+  onDownload,
   suuntoConnected,
 }: {
   file: File;
   preview: ImportPreview;
   onCancel: () => void;
   onImported?: () => void;
+  onDownload?: () => void;
   suuntoConnected: boolean;
 }) {
   const navigate = useNavigate();
@@ -314,6 +318,12 @@ function ImportForm({
         <button type="button" className="btn" onClick={onCancel}>
           Cancel
         </button>
+        {onDownload && (
+          <button type="button" className="btn" onClick={onDownload}>
+            <Icon name="download" size={18} />
+            Download GPX
+          </button>
+        )}
         <button type="submit" className="btn btn-primary" disabled={create.isPending}>
           {create.isPending ? 'Importing…' : 'Import & open editor'}
         </button>
