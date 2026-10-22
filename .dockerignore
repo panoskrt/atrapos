@@ -10,6 +10,7 @@ test-results
 # Local environment and editor files
 .env
 .env.*
+**/appsettings.Local.json
 .DS_Store
 .vscode
 .idea

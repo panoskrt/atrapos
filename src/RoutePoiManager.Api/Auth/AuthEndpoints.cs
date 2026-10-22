@@ -32,7 +32,7 @@ public static class AuthEndpoints
             return Results.Challenge(
                 new AuthenticationProperties { RedirectUri = "/auth/google-popup-complete" },
                 [GoogleDefaults.AuthenticationScheme]);
-        });
+        }).AllowAnonymous();
 
         auth.MapGet("/google-popup-complete", (IOptions<AppOptions> appOptions) =>
                 Results.Content(GoogleAuthPopupHtml(appOptions.Value.PublicBaseUrl, "/", true), "text/html"))
@@ -44,7 +44,7 @@ public static class AuthEndpoints
             var state = Base64Url(RandomNumberGenerator.GetBytes(32));
             http.Response.Cookies.Append(StateCookie, state, OAuthCookie(http));
             return Results.Redirect(oauth.BuildAuthorizeUrl(state));
-        });
+        }).AllowAnonymous();
 
         auth.MapGet("/connect", async (
             HttpContext http,
@@ -72,6 +72,7 @@ public static class AuthEndpoints
             string? error,
             SuuntoOAuthClient oauth,
             SuuntoTokenService tokens,
+            SignInAllowlist allowlist,
             IOptions<AppOptions> app,
             ILogger<Program> logger,
             CancellationToken ct) =>
@@ -111,6 +112,16 @@ public static class AuthEndpoints
                     return Results.Content(SuuntoPopupHtml(home, "/", true, null, true), "text/html");
                 }
 
+                // Checked before the tokens are stored, so a refused sign-in leaves nothing behind.
+                var username = SuuntoOAuthClient.ReadUsername(tokenResponse.AccessToken);
+                if (!allowlist.AllowsSuunto(username))
+                {
+                    logger.LogWarning("Suunto sign-in refused: {User} is not on the allowlist", username);
+                    return Results.Content(
+                        SuuntoPopupHtml(home, $"/login?error={SignInNotAllowedException.Code}", false, SignInNotAllowedException.Code, false),
+                        "text/html");
+                }
+
                 var user = await tokens.SaveTokensAsync(tokenResponse, ct);
 
                 var identity = new ClaimsIdentity(
@@ -118,6 +129,7 @@ public static class AuthEndpoints
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                     new Claim(ClaimTypes.Name, user.SuuntoUsername
                         ?? throw new InvalidOperationException("Suunto login did not provide a username.")),
+                    new Claim(SignInClaims.SuuntoUsername, username),
                 ], CookieAuthenticationDefaults.AuthenticationScheme);
                 await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
                     new AuthenticationProperties { IsPersistent = true });
@@ -142,13 +154,13 @@ public static class AuthEndpoints
                 logger.LogWarning("Suunto connection to Google account was rejected: {Code}", ex.Code);
                 return Results.Content(SuuntoPopupHtml(home, "/", false, ex.Code, true), "text/html");
             }
-        });
+        }).AllowAnonymous();
 
         auth.MapPost("/logout", async (HttpContext http) =>
         {
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.NoContent();
-        });
+        }).AllowAnonymous();
 
         auth.MapPost("/disconnect", async (HttpContext http, SuuntoTokenService tokens, AppDbContext db, CancellationToken ct) =>
         {

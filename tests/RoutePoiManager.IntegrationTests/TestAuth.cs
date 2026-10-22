@@ -39,7 +39,9 @@ public static class TestAuth
     {
         var browser = api.CreateBrowser();
         var res = await browser.GetAsync(await AuthorizeAtSuuntoAsync(browser, suunto, username, allow: true));
-        Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
+        // The callback answers with the sign-in popup page, which reports the result to the opener.
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("\"status\":\"success\"", await res.Content.ReadAsStringAsync());
         browser.DefaultRequestHeaders.Add("X-RPM-CSRF", "1");
         return browser;
     }

@@ -109,7 +109,7 @@ http://localhost:5080/auth/callback
 cp .env.example .env
 ```
 
-Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`. To enable Google sign-in, also create a Google OAuth web client with redirect URI `http://localhost:5080/auth/google-callback` and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Google sign-in is optional; without these values, Suunto sign-in continues to work. `.env` is git-ignored; never commit it. The API refuses to start if a required Suunto credential is missing, and the log names which.
+Fill in `SUUNTO_CLIENT_ID`, `SUUNTO_CLIENT_SECRET` and `SUUNTO_SUBSCRIPTION_KEY`. To enable Google sign-in, also create a Google OAuth web client with redirect URI `http://localhost:5080/auth/google-callback` and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Google sign-in is optional; without these values, Suunto sign-in continues to work. Any Google or Suunto account can sign in and gets its own private data; to restrict that, list accounts in `ALLOWED_GOOGLE_EMAILS` and/or `ALLOWED_SUUNTO_USERNAMES`. `.env` is git-ignored; never commit it. The API refuses to start if a required Suunto credential is missing, and the log names which.
 
 ### 3. Run
 
@@ -137,9 +137,13 @@ Set these in `.env` for Docker Compose:
 | `SUUNTO_SUBSCRIPTION_KEY` | ✔ | Developer API subscription key (`Ocp-Apim-Subscription-Key`) |
 | `GOOGLE_CLIENT_ID` | | Google OAuth web client id; enables Google app sign-in |
 | `GOOGLE_CLIENT_SECRET` | | Google OAuth web client secret |
+| `ALLOWED_GOOGLE_EMAILS` | | Optional¹: comma-separated verified Google emails allowed to sign in with Google |
+| `ALLOWED_SUUNTO_USERNAMES` | | Optional¹: comma-separated Suunto usernames allowed to sign in with Suunto (a Google account connecting Suunto needs no entry) |
 | `SUUNTO_DIAGNOSTICS` | | `true` logs the shape of Suunto responses (never tokens or keys); for troubleshooting |
 | `REQUIRE_OAUTH_STATE` | | Default `true`: OAuth callbacks must carry the matching `state` |
 | `POSTGRES_PASSWORD` | | Database password; only takes effect before the database volume is first created |
+
+¹ Both empty (the default): any Google or Suunto account can sign in. Once either is set, everyone else is refused at sign-in, and sessions of accounts taken off a list end within `Auth:SessionRevalidationInterval` (default 5 minutes).
 
 Other API settings (environment variables use `__` for nesting, e.g. `Routing__BaseUrl`):
 
@@ -172,7 +176,7 @@ npm --prefix src/web install
 npm --prefix src/web run dev
 ```
 
-Then open http://localhost:5173. For `dotnet run`, put the Suunto and Google settings in `src/RoutePoiManager.Api/appsettings.Local.json` (git-ignored). Start from the template and fill in the empty values:
+Then open http://localhost:5173. For `dotnet run`, put the Suunto and Google settings (and the optional allowlist) in `src/RoutePoiManager.Api/appsettings.Local.json` (git-ignored). Start from the template and fill in the empty values:
 
 ```bash
 cp src/RoutePoiManager.Api/appsettings.Local.json.example src/RoutePoiManager.Api/appsettings.Local.json
@@ -263,7 +267,7 @@ Things learned against the live API that the documentation doesn't spell out. Th
 ## Limitations
 
 - **Partner access:** Suunto grants API access to companies and organisations; personal use may not be approved.
-- **Single machine:** the app is built to run locally for one person, with no hosting or multi-tenant hardening.
+- **Single machine:** the app is built to run locally. Every API call needs a signed-in user and only sees that user's data, but there is no hosting hardening yet (HTTPS, security headers, rate limiting).
 - **Webhooks:** Suunto change notifications need a public URL, so changes in the Suunto app arrive only when you press **Refresh from Suunto**.
 - **Public services:** BRouter (routing), Open Topo Data (elevation: 1 request per second, 1,000 per day) and the OSM tile servers are free, fair-use services. Respect their usage policies, or self-host for heavy use.
 - **Watch limits:** Suunto doesn't document the maximum number of route points a watch accepts, or how long names can be. Routes are simplified slightly before pushing (2 m tolerance).

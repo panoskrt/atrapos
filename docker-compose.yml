@@ -26,6 +26,9 @@ services:
     build:
       context: .
       dockerfile: src/RoutePoiManager.Api/Dockerfile
+    # dotnet as PID 1 can't be killed by its own abort, so a startup error left it spinning with nothing listening.
+    # An init process makes it exit, and the error shows in `docker compose ps`.
+    init: true
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +40,9 @@ services:
       App__RequireOAuthState: ${REQUIRE_OAUTH_STATE:-true}
       Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      # Optional: restrict sign-in to these accounts. Empty = any Google or Suunto account.
+      Auth__AllowedGoogleEmails: ${ALLOWED_GOOGLE_EMAILS:-}
+      Auth__AllowedSuuntoUsernames: ${ALLOWED_SUUNTO_USERNAMES:-}
       Suunto__Mode: Live
       # Required: the API refuses to start without them. Set them in .env (see .env.example).
       Suunto__ClientId: ${SUUNTO_CLIENT_ID:-}

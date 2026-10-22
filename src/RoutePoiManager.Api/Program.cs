@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using RoutePoiManager.Api;
 using RoutePoiManager.Api.Auth;
@@ -14,7 +15,9 @@ using RoutePoiManager.Infrastructure.Persistence;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+// Added last, so it overrides everything; integration tests must never pick up a developer's database or secrets.
+if (!builder.Environment.IsEnvironment("Testing"))
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 builder.Services.AddSerilog((_, lc) => lc
     .ReadFrom.Configuration(builder.Configuration)
@@ -26,8 +29,12 @@ builder.Services.AddOptions<AppOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<AuthOptions>()
+    .Bind(builder.Configuration.GetSection(AuthOptions.Section));
+
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<GoogleAccountService>();
+builder.Services.AddSingleton<SignInAllowlist>();
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
@@ -50,6 +57,7 @@ var authentication = builder.Services
         // An API never redirects to a login page; the SPA handles 401/403.
         o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
         o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
+        o.Events.OnValidatePrincipal = SessionValidation.ValidateAsync;
     });
 
 var googleClientId = builder.Configuration["Google:ClientId"];
@@ -70,30 +78,45 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
 
             var email = context.Identity?.FindFirst(ClaimTypes.Email)?.Value;
             var name = context.Identity?.FindFirst(ClaimTypes.Name)?.Value;
+            var allowlist = context.HttpContext.RequestServices.GetRequiredService<SignInAllowlist>();
+            // Checked before the account is created, so a refused sign-in leaves nothing behind.
+            if (!allowlist.AllowsGoogle(email, SignInAllowlist.IsGoogleEmailVerified(context.User)))
+                throw new SignInNotAllowedException($"Google account {email ?? subject} is not on the allowlist.");
+
             var accounts = context.HttpContext.RequestServices.GetRequiredService<GoogleAccountService>();
             var user = await accounts.GetOrCreateAsync(subject, context.HttpContext.RequestAborted);
             var displayName = !string.IsNullOrWhiteSpace(name) ? name : email;
-            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(
+            List<Claim> claims =
             [
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, displayName ?? "Google user"),
-            ], CookieAuthenticationDefaults.AuthenticationScheme));
+            ];
+            if (!string.IsNullOrWhiteSpace(email))
+                claims.Add(new Claim(SignInClaims.GoogleEmail, email));
+            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
         };
         o.Events.OnRemoteFailure = context =>
         {
-            context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>()
-                .LogWarning(context.Failure, "Google sign-in failed");
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var notAllowed = context.Failure is SignInNotAllowedException;
+            if (notAllowed)
+                logger.LogWarning("Google sign-in refused: {Reason}", context.Failure!.Message);
+            else
+                logger.LogWarning(context.Failure, "Google sign-in failed");
             context.HandleResponse();
             var home = context.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>()
                 .Value.PublicBaseUrl;
+            var error = notAllowed ? SignInNotAllowedException.Code : "google_auth_failed";
             context.Response.ContentType = "text/html; charset=utf-8";
             return context.Response.WriteAsync(
-                AuthEndpoints.GoogleAuthPopupHtml(home, "/login?error=google_auth_failed", false, "google_auth_failed"),
+                AuthEndpoints.GoogleAuthPopupHtml(home, $"/login?error={error}", false, error),
                 context.HttpContext.RequestAborted);
         };
     });
 }
-builder.Services.AddAuthorization();
+// Deny by default: an endpoint is public only when it says .AllowAnonymous().
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
 builder.Services.AddExceptionHandler<SyncExceptionHandler>();
@@ -111,7 +134,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 // OpenAPI document at /openapi/v1.json and Swagger UI at /swagger; never exposed in Production.
 if (!app.Environment.IsProduction())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
     app.UseSwaggerUI(o =>
     {
         o.SwaggerEndpoint("/openapi/v1.json", "RoutePoiManager API v1");
@@ -130,7 +153,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/healthz", async (AppDbContext db, CancellationToken ct) =>
-    await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.StatusCode(503));
+    await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.StatusCode(503))
+    .AllowAnonymous();
 
 app.MapAuthEndpoints();
 app.MapRouteEndpoints();
@@ -146,10 +170,11 @@ lookups.MapGet("/poi-types", () => PoiTypes.All.Where(t => t.Id != PoiTypes.Unkn
     .Select(t => new { t.Id, t.Name }));
 lookups.MapGet("/activity-types", () => ActivityTypes.All);
 
-// Unknown API routes are 404s, never the SPA shell.
+// Unknown API routes are 404s (401 when signed out), never the SPA shell.
 app.Map("/api/{**rest}", () => Results.NotFound());
 app.Map("/auth/{**rest}", () => Results.NotFound());
-app.MapFallbackToFile("index.html");
+// The SPA shell must load signed out so it can show the login page.
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 await app.RunAsync();
 return 0;
