@@ -28,4 +28,5 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
 src/web/blob-report/

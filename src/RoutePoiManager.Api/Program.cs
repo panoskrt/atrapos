@@ -97,6 +97,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
 builder.Services.AddExceptionHandler<SyncExceptionHandler>();
+if (!builder.Environment.IsProduction())
+    builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -104,6 +106,19 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 {
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+}
+
+// OpenAPI document at /openapi/v1.json and Swagger UI at /swagger; never exposed in Production.
+if (!app.Environment.IsProduction())
+{
+    app.MapOpenApi();
+    app.UseSwaggerUI(o =>
+    {
+        o.SwaggerEndpoint("/openapi/v1.json", "RoutePoiManager API v1");
+        // "Try it out" on unsafe /api and /auth calls needs the CSRF header the SPA sends.
+        // Swashbuckle only reads parameters from "(...)", so this must not be a bare-parameter arrow function.
+        o.UseRequestInterceptor($"function (req) {{ req.headers['{CsrfHeaderMiddleware.HeaderName}'] = '1'; return req; }}");
+    });
 }
 
 app.UseExceptionHandler();
