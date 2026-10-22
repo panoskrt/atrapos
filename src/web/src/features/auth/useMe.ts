@@ -7,6 +7,8 @@ export interface Me {
   suuntoMode: 'Mock' | 'Live';
   suuntoConnected: boolean;
   googleAccount: boolean;
+  suuntoUsername: string | null;
+  googleEmail: string | null;
 }
 
 export const meQueryKey = ['me'] as const;

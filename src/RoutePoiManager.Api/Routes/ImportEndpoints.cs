@@ -95,11 +95,8 @@ public static class ImportEndpoints
             {
                 parsed = ImportService.Parse(content!, file.FileName);
                 var output = isFit ? RouteFileConverter.ToGpx(parsed) : RouteFileConverter.ToFit(parsed);
-                var name = Path.GetFileNameWithoutExtension(file.FileName);
-                var safeName = string.Concat(name.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '-')).Trim('-');
-                if (string.IsNullOrWhiteSpace(safeName))
-                    safeName = "converted-route";
-                return Results.File(output, isFit ? "application/gpx+xml" : "application/vnd.ant.fit", safeName + outputExtension);
+                return Results.File(output, isFit ? "application/gpx+xml" : "application/vnd.ant.fit",
+                    SafeName(file.FileName, "converted-route") + outputExtension);
             }
             catch (ImportException ex)
             {
@@ -108,6 +105,41 @@ public static class ImportEndpoints
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
                 return Results.Problem(title: "The route could not be converted.", statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "conversion_failed" });
+            }
+        });
+
+        // Same format out as in: a smaller file for the watch, the route itself unchanged within the tolerance.
+        g.MapPost("/shrink", async (IFormFile? file, [FromForm] double? toleranceM, CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, ct);
+            if (error is not null)
+                return error;
+            if (toleranceM is not { } tolerance || !double.IsFinite(tolerance) || tolerance < ImportService.BaseToleranceM ||
+                tolerance > ImportService.MaxToleranceM)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["toleranceM"] = [$"Choose a tolerance from {ImportService.BaseToleranceM} to {ImportService.MaxToleranceM} m."],
+                });
+
+            var extension = Path.GetExtension(file!.FileName);
+            var isFit = extension.Equals(".fit", StringComparison.OrdinalIgnoreCase);
+            if (!isFit && !extension.Equals(".gpx", StringComparison.OrdinalIgnoreCase))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a .fit or .gpx file."] });
+
+            try
+            {
+                var shrunk = RouteFileShrinker.Shrink(ImportService.Parse(content!, file.FileName), tolerance);
+                var output = isFit ? RouteFileConverter.ToFit(shrunk) : RouteFileConverter.ToGpx(shrunk);
+                return Results.File(output, isFit ? "application/vnd.ant.fit" : "application/gpx+xml",
+                    $"{SafeName(file.FileName, "route")}-shrunk{(isFit ? ".fit" : ".gpx")}");
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "shrink_failed" });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.Problem(title: "The route could not be shrunk.", statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "shrink_failed" });
             }
         });
 
@@ -142,6 +174,13 @@ public static class ImportEndpoints
                 return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "import_failed" });
             }
         });
+    }
+
+    /// <summary>The upload's name without extension, reduced to letters, digits, '-' and '_'.</summary>
+    private static string SafeName(string fileName, string fallback)
+    {
+        var safe = string.Concat(Path.GetFileNameWithoutExtension(fileName).Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '-')).Trim('-');
+        return string.IsNullOrWhiteSpace(safe) ? fallback : safe;
     }
 
     private static async Task<(byte[]? Content, IResult? Error)> ReadAsync(IFormFile? file, CancellationToken ct)

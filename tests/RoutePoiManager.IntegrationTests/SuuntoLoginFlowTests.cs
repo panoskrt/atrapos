@@ -32,6 +32,8 @@ public sealed class SuuntoLoginFlowTests(PostgresFixture pg)
         Assert.Equal("alice", me!.Username);
         Assert.Equal("Mock", me.SuuntoMode);
         Assert.True(me.SuuntoConnected);
+        Assert.Equal("alice", me.SuuntoUsername);
+        Assert.Null(me.GoogleEmail);
 
         await using var scope = api.Services.CreateAsyncScope();
         var user = scope.ServiceProvider.GetRequiredService<AppDbContext>().Users.Single();

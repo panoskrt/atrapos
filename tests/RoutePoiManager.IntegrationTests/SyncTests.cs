@@ -274,6 +274,47 @@ public sealed class SyncTests(PostgresFixture pg)
         Assert.Equal(("Still on Suunto", suuntoId, RouteSource.Suunto), (detail.Name, detail.SuuntoRouteId, detail.Source));
     }
 
+    [Fact]
+    public async Task Refresh_unlinks_routes_and_pois_deleted_in_the_suunto_app()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var http = await TestAuth.SignInAsync(api, suunto, "deleted-in-app");
+        var gone = await CreateRoute(http, "Deleted in the app", [Spring, Hut]);
+        var kept = await CreateRoute(http, "Still there", []);
+        var goneSuuntoId = (await Push(http, gone)).Route.SuuntoRouteId!;
+        var keptSuuntoId = (await Push(http, kept)).Route.SuuntoRouteId!;
+        var pushedPois = (await PushPois(http, gone)).Pois;
+        var hutKey = pushedPois.Single(p => p.Name == "Far hut").SuuntoPoiKey!;
+
+        // Deleted in the Suunto app before the first refresh: found from the full route list.
+        Store(suunto).Routes.TryRemove(goneSuuntoId, out _);
+        Store(suunto).Pois.TryRemove(hutKey, out _);
+        var first = await Refresh(http);
+        Assert.Equal((1, 1), (first.RoutesUnlinked, first.PoisUnlinked));
+
+        var detail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{gone}", Json))!;
+        Assert.Equal((null, SyncState.LocalOnly), (detail.SuuntoRouteId, detail.SyncState));
+        var hut = detail.Pois.Single(p => p.Name == "Far hut");
+        Assert.Equal((null, SyncState.LocalOnly), (hut.SuuntoPoiKey, hut.SyncState));
+        Assert.Equal(SyncState.Synced, detail.Pois.Single(p => p.Name == "Kettle spring").SyncState);
+        var keptDetail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{kept}", Json))!;
+        Assert.Equal((keptSuuntoId, SyncState.Synced), (keptDetail.SuuntoRouteId, keptDetail.SyncState));
+
+        // Pushing again uploads it as a new Suunto route.
+        var repushed = await Push(http, gone);
+        Assert.Equal("pushed", repushed.Outcome);
+        Assert.NotEqual(goneSuuntoId, repushed.Route.SuuntoRouteId);
+        Assert.Equal(0, (await Refresh(http)).RoutesUnlinked);
+
+        // Later refreshes pull incrementally; deletions are found from a separate full route list.
+        Store(suunto).Routes.TryRemove(keptSuuntoId, out _);
+        var later = await Refresh(http);
+        Assert.Equal((1, 0), (later.RoutesUnlinked, later.PoisUnlinked));
+        keptDetail = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{kept}", Json))!;
+        Assert.Equal((null, SyncState.LocalOnly), (keptDetail.SuuntoRouteId, keptDetail.SyncState));
+    }
+
     // ---------- helpers ----------
 
     private static MockStore Store(MockSuuntoFactory suunto) => suunto.Services.GetRequiredService<MockStore>();

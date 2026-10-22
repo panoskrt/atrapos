@@ -14,6 +14,7 @@ import {
 } from './api';
 import { ConflictDialog } from './ConflictDialog';
 import { PushResultDialog } from './PushResultDialog';
+import { RoutePushedDialog } from './RoutePushedDialog';
 import { Spinner } from '../../components/Spinner';
 import styles from './Sync.module.css';
 
@@ -38,6 +39,7 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
   const [error, setError] = useState<{ message: string; signIn: boolean } | null>(null);
   const [conflict, setConflict] = useState<RoutePushResponse | null>(null);
   const [poiResults, setPoiResults] = useState<PoiPushResult[] | null>(null);
+  const [pushedRoute, setPushedRoute] = useState<string | null>(null);
   const [copy, setCopy] = useState<{ id: string; name: string } | null>(null);
 
   const pendingPois = pois.filter((p) => (poiServer[p.id]?.syncState ?? 'localOnly') !== 'synced').length;
@@ -64,6 +66,7 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
       const res = await pushRoute(routeId);
       setSyncState(res.route.syncState);
       if (res.outcome === 'conflict') setConflict(res);
+      else setPushedRoute(res.route.name);
     });
 
   const onPushPois = () =>
@@ -78,8 +81,10 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
       const res = await resolveConflict(routeId, strategy);
       setConflict(null);
       if (res.copyId) setCopy({ id: res.copyId, name: `${res.result.route.name} (my version)` });
-      if (strategy === 'keepMine') setSyncState(res.result.route.syncState);
-      else onReload();
+      if (strategy === 'keepMine') {
+        setSyncState(res.result.route.syncState);
+        if (res.result.outcome === 'pushed') setPushedRoute(res.result.route.name);
+      } else onReload();
     });
 
   return (
@@ -156,6 +161,7 @@ export function SyncPanel({ routeId, flush, onReload }: Props) {
         <ConflictDialog conflict={conflict} busy={busy === 'resolve'} onResolve={onResolve} onClose={() => setConflict(null)} />
       )}
       {poiResults && <PushResultDialog results={poiResults} onClose={() => setPoiResults(null)} />}
+      {pushedRoute !== null && <RoutePushedDialog name={pushedRoute} onClose={() => setPushedRoute(null)} />}
     </div>
   );
 }

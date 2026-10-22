@@ -190,6 +190,55 @@ public sealed class ImportApiTests(PostgresFixture pg)
         Assert.Equal(HttpStatusCode.BadRequest, none.StatusCode);
     }
 
+    [Fact]
+    public async Task Shrink_keeps_the_route_within_the_tolerance_in_the_same_format()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var http = await TestAuth.SignInAsync(api, suunto, "shrinker");
+        var gpx = Encoding.UTF8.GetBytes(SampleGpx());
+        var original = ImportService.Parse(gpx, "trail.gpx");
+
+        var res = await http.PostAsync("/api/imports/shrink", ShrinkForm(gpx, "Jitter trail.gpx", 10));
+        Assert.True(res.IsSuccessStatusCode, await res.Content.ReadAsStringAsync());
+        Assert.Equal("application/gpx+xml", res.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Jitter-trail-shrunk.gpx", res.Content.Headers.ContentDisposition?.FileNameStar ?? res.Content.Headers.ContentDisposition?.FileName);
+        var shrunkBytes = await res.Content.ReadAsByteArrayAsync();
+        var shrunk = ImportService.Parse(shrunkBytes, "shrunk.gpx");
+
+        var before = original.Tracks[0].Points;
+        var after = shrunk.Tracks[0].Points;
+        Assert.True(after.Count < before.Count / 3, $"{before.Count} → {after.Count} points");
+        Assert.True(shrunkBytes.Length < gpx.Length);
+        Assert.Equal((before[0], before[^1]), (after[0], after[^1]));
+        Assert.All(before, p => Assert.True(Geo.Locate(after, p).OffsetM <= 10.5, $"{p} is {Geo.Locate(after, p).OffsetM:F1} m off"));
+        Assert.Equal(["Spring", "Far hut"], shrunk.Waypoints.Select(w => w.Name));
+
+        // The GPX tools count points on the preview's track; the file must have exactly that many.
+        var preview = await Read<ImportPreviewDto>(await http.PostAsync("/api/imports/preview", Form(gpx, "trail.gpx")));
+        var line = preview.Tracks[0].Coordinates.Select(c => new GeoPosition(c[0]!.Value, c[1]!.Value)).ToList();
+        Assert.Equal(Geo.SimplifyIndices(line, 10).Count, after.Count);
+
+        // FIT stays FIT, with recorded times kept on the points that remain.
+        var fitRes = await http.PostAsync("/api/imports/shrink", ShrinkForm(FitCourse(), "pyha.fit", 5));
+        Assert.True(fitRes.IsSuccessStatusCode, await fitRes.Content.ReadAsStringAsync());
+        Assert.Equal("application/vnd.ant.fit", fitRes.Content.Headers.ContentType?.MediaType);
+        var fit = ImportService.Parse(await fitRes.Content.ReadAsByteArrayAsync(), "shrunk.fit");
+        Assert.Equal(RouteSource.FitCourse, fit.Kind);
+        Assert.InRange(fit.Tracks[0].Points.Count, 2, 59);
+        Assert.All(fit.Tracks[0].Times!, t => Assert.NotNull(t));
+
+        var badTolerance = await http.PostAsync("/api/imports/shrink", ShrinkForm(gpx, "trail.gpx", 500));
+        Assert.Equal(HttpStatusCode.BadRequest, badTolerance.StatusCode);
+    }
+
+    private static MultipartFormDataContent ShrinkForm(byte[] file, string name, double toleranceM)
+    {
+        var form = Form(file, name);
+        form.Add(new StringContent(toleranceM.ToString(CultureInfo.InvariantCulture)), "toleranceM");
+        return form;
+    }
+
     private static MultipartFormDataContent Form(byte[] file, string name, ImportOptions? options = null)
     {
         var form = new MultipartFormDataContent();

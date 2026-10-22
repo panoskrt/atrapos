@@ -78,10 +78,22 @@ function TopBar({ me }: { me: Me }) {
           </>
         ) : (
           <>
-            <span className={me.suuntoConnected ? styles.dot : styles.dotGoogle} />
-            <span className={styles.statusLabel}>
-              {me.suuntoConnected ? (me.suuntoMode === 'Mock' ? 'Mock Suunto' : 'Suunto connected') : 'Google account'} ·
-            </span>
+            {me.googleAccount && (
+              <>
+                <span className={styles.dotGoogle} />
+                <span className={styles.statusLabel}>Google account</span>
+              </>
+            )}
+            {me.googleAccount && me.suuntoConnected && <span className={styles.statusLabel}>·</span>}
+            {me.suuntoConnected && (
+              <>
+                <span className={styles.dot} />
+                <span className={styles.statusLabel}>
+                  {me.suuntoMode === 'Mock' ? 'Mock Suunto' : 'Suunto connected'}
+                </span>
+              </>
+            )}
+            {(me.googleAccount || me.suuntoConnected) && <span className={styles.statusLabel}>·</span>}
             <strong>{me.username}</strong>
           </>
         )}
@@ -231,6 +243,18 @@ function AccountMenu({
               Connect Suunto
             </button>
           )}
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.menuItem}
+            onClick={() => {
+              setOpen(false);
+              navigate('/profile');
+            }}
+          >
+            <Icon name="user" size={18} />
+            Profile
+          </button>
           {suuntoConnected && (
             <button type="button" role="menuitem" className={styles.menuItemDanger} onClick={() => run('disconnect')}>
               <Icon name="unlink" size={18} />

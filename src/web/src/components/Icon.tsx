@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 /** Stroke icons (24×24 grid), shared with the design canvas. */
 const paths = {
   logo: 'M4 19c3-1 4-6 7-7s4 2 6 0 2-6 3-8',
+  user: 'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
   watch: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM9 3h6l1 4H8zM9 21h6l1-4H8zM12 10v2l1.5 1',
@@ -35,6 +36,7 @@ const paths = {
   arrowDown: 'M12 5v14M18 13l-6 6-6-6',
   umbrella: 'M12 2v20M4 11a8 8 0 0 1 16 0H4zM12 22a2 2 0 0 0 2-2',
   wind: 'M3 8h12a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 16h7a3 3 0 1 1-3 3',
+  shrink: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
 } as const;
 
 export type IconName = keyof typeof paths;

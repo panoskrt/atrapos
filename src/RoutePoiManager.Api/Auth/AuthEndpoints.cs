@@ -184,7 +184,9 @@ public static class AuthEndpoints
                 user.Identity!.Name!,
                 suunto.Value.Mode.ToString(),
                 account is not null && account.RefreshTokenProtected.Length > 0,
-                account?.GoogleSubject is not null));
+                account?.GoogleSubject is not null,
+                account?.SuuntoUsername,
+                user.FindFirstValue(SignInClaims.GoogleEmail)));
         }).RequireAuthorization();
     }
 
@@ -283,5 +285,11 @@ public static class AuthEndpoints
     };
 }
 
-public sealed record MeResponse(string Username, string SuuntoMode, bool SuuntoConnected, bool GoogleAccount);
+public sealed record MeResponse(
+    string Username,
+    string SuuntoMode,
+    bool SuuntoConnected,
+    bool GoogleAccount,
+    string? SuuntoUsername,
+    string? GoogleEmail);
 public sealed record DisconnectResponse(bool SessionPreserved);

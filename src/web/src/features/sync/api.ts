@@ -29,9 +29,11 @@ export interface RefreshSummary {
   routesAdded: number;
   routesUpdated: number;
   routeConflicts: number;
+  routesUnlinked: number;
   poisAdded: number;
   poisUpdated: number;
   poiConflicts: number;
+  poisUnlinked: number;
   refreshedAt: string;
 }
 
@@ -106,9 +108,11 @@ export function summarizeRefresh(s: RefreshSummary): string {
     s.routesAdded && `${s.routesAdded} new ${s.routesAdded === 1 ? 'route' : 'routes'}`,
     s.routesUpdated && `${s.routesUpdated} updated`,
     s.routeConflicts && `${s.routeConflicts} with conflicts`,
+    s.routesUnlinked && `${s.routesUnlinked} ${s.routesUnlinked === 1 ? 'route' : 'routes'} no longer on Suunto`,
     s.poisAdded && `${s.poisAdded} new ${s.poisAdded === 1 ? 'POI' : 'POIs'}`,
     s.poisUpdated && `${s.poisUpdated} POIs updated`,
     s.poiConflicts && `${s.poiConflicts} POI conflicts`,
+    s.poisUnlinked && `${s.poisUnlinked} ${s.poisUnlinked === 1 ? 'POI' : 'POIs'} no longer on Suunto`,
   ].filter(Boolean);
   return parts.length ? `From Suunto: ${parts.join(', ')}.` : 'Everything is up to date with Suunto.';
 }

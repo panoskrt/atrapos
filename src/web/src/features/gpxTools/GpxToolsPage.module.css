@@ -33,6 +33,64 @@
   color: var(--text-muted);
 }
 
+.toolPicker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.toolTile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.toolTile:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.toolTileActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-bg) 55%, var(--panel));
+  box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow-soft);
+}
+
+.toolTile .toolIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.toolTileActive .toolIcon {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.toolTileText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolTileText strong {
+  font-size: 15px;
+}
+
+.toolTileText span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .tool {
   padding: 24px;
   border: 1px solid var(--border);
@@ -72,6 +130,7 @@
 .controls {
   display: flex;
   align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -357,6 +416,100 @@
   accent-color: var(--accent);
 }
 
+.toleranceField {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0 14px;
+}
+
+.toleranceField > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toleranceField > span > span {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.toleranceField input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.stats > div {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.stats dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stats dd {
+  margin: 2px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats dd strong {
+  font-size: 17px;
+}
+
+.previewMap {
+  height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.previewMap :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  background: var(--panel-2);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.legendOriginal,
+.legendShrunk {
+  display: inline-block;
+  width: 18px;
+  border-radius: 999px;
+}
+
+.legendOriginal {
+  height: 7px;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+
+.legendShrunk {
+  height: 3px;
+  margin-left: 10px;
+  background: var(--accent);
+}
+
 .dropOverlay {
   position: fixed;
   inset: 12px;
@@ -375,9 +528,51 @@
   pointer-events: none;
 }
 
+@media (max-width: 860px) {
+  .toolPicker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 600px) {
   .page {
     padding: 24px 16px 80px;
+  }
+
+  .toolPicker {
+    gap: 8px;
+  }
+
+  .toolTile {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .toolTile .toolIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .toolTileText span {
+    display: none;
+  }
+
+  .toleranceField > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toleranceField > span > span {
+    text-align: left;
+  }
+
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .previewMap {
+    height: 260px;
   }
 
   .tool {

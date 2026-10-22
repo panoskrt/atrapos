@@ -10,14 +10,17 @@ public sealed record RefreshSummary(
     int RoutesAdded,
     int RoutesUpdated,
     int RouteConflicts,
+    int RoutesUnlinked,
     int PoisAdded,
     int PoisUpdated,
     int PoiConflicts,
+    int PoisUnlinked,
     DateTimeOffset RefreshedAt);
 
 /// <summary>"Refresh from Suunto": pulls routes and POIs changed since the last refresh. Only ever runs when the
 /// user asks (Suunto prohibits polling). Unchanged local copies take the Suunto version; edited ones become
-/// conflicts instead of being overwritten.</summary>
+/// conflicts instead of being overwritten. Local routes and POIs that were synced but are gone from Suunto (deleted
+/// in the app) are unlinked: they become local-only again.</summary>
 public sealed class SuuntoRefreshService(
     AppDbContext db,
     SuuntoTokenService tokens,
@@ -42,11 +45,20 @@ public sealed class SuuntoRefreshService(
         long? since = user.LastSuuntoRefreshAt?.AddMinutes(-5).ToUnixTimeMilliseconds();
 
         int poisAdded = 0, poisUpdated = 0, poiConflicts = 0;
-        for (var page = 0; page < MaxPoiPages; page++)
+        // The POI list is always complete (no "since"), so it also tells us which POIs are gone. Null when it was cut
+        // off by the page cap: then nothing can be called gone.
+        HashSet<string>? remotePoiKeys = [];
+        for (var page = 0; ; page++)
         {
+            if (page == MaxPoiPages)
+            {
+                remotePoiKeys = null;
+                break;
+            }
             var remote = await api.ListPoisAsync(token, PoiPageSize, page * PoiPageSize, ct);
             foreach (var r in remote.Where(r => r.Key is not null))
             {
+                remotePoiKeys.Add(r.Key!);
                 switch (await PullPoiAsync(userId, r, started, ct))
                 {
                     case PullResult.Added: poisAdded++; break;
@@ -59,11 +71,14 @@ public sealed class SuuntoRefreshService(
         await db.SaveChangesAsync(ct);
 
         int routesAdded = 0, routesUpdated = 0, routeConflicts = 0;
+        var pulledRouteIds = new HashSet<string>();
+        var pulledAll = false;
         for (var page = 0; page < MaxRoutePages; page++)
         {
             var remote = await api.ListRoutesAsync(token, since, page, RoutePageSize, ct);
             foreach (var summary in remote)
             {
+                pulledRouteIds.Add(summary.Id);
                 switch (await PullRouteAsync(userId, token, summary, started, ct))
                 {
                     case PullResult.Added: routesAdded++; break;
@@ -72,16 +87,76 @@ public sealed class SuuntoRefreshService(
                 }
                 await db.SaveChangesAsync(ct);
             }
-            if (remote.Count < RoutePageSize) break;
+            if (remote.Count < RoutePageSize)
+            {
+                pulledAll = true;
+                break;
+            }
         }
+
+        // An incremental pull only lists changed routes; finding the deleted ones takes the full list.
+        var remoteRouteIds = since is null ? (pulledAll ? pulledRouteIds : null) : await ListAllRouteIdsAsync(token, ct);
+        var routesUnlinked = remoteRouteIds is null ? 0 : await UnlinkMissingRoutesAsync(userId, remoteRouteIds, started, ct);
+        var poisUnlinked = remotePoiKeys is null ? 0 : await UnlinkMissingPoisAsync(userId, remotePoiKeys, started, ct);
 
         user.LastSuuntoRefreshAt = started;
         SyncSupport.Log(db, userId, "account", null, "refresh", 200,
-            $"routes +{routesAdded} ~{routesUpdated} !{routeConflicts}; pois +{poisAdded} ~{poisUpdated} !{poiConflicts}", started);
+            $"routes +{routesAdded} ~{routesUpdated} !{routeConflicts} -{routesUnlinked}; " +
+            $"pois +{poisAdded} ~{poisUpdated} !{poiConflicts} -{poisUnlinked}", started);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Refreshed from Suunto for {User}: {Routes} new routes, {Pois} new POIs", user.SuuntoUsername, routesAdded, poisAdded);
+        logger.LogInformation("Refreshed from Suunto for {User}: {Routes} new routes, {Pois} new POIs, {RoutesGone} routes and {PoisGone} POIs gone from Suunto",
+            user.SuuntoUsername, routesAdded, poisAdded, routesUnlinked, poisUnlinked);
 
-        return new RefreshSummary(routesAdded, routesUpdated, routeConflicts, poisAdded, poisUpdated, poiConflicts, started);
+        return new RefreshSummary(routesAdded, routesUpdated, routeConflicts, routesUnlinked,
+            poisAdded, poisUpdated, poiConflicts, poisUnlinked, started);
+    }
+
+    /// <summary>Ids of all the user's Suunto routes, or null when there are more than the page cap lets us see.</summary>
+    private async Task<HashSet<string>?> ListAllRouteIdsAsync(string token, CancellationToken ct)
+    {
+        var ids = new HashSet<string>();
+        for (var page = 0; page < MaxRoutePages; page++)
+        {
+            var remote = await api.ListRoutesAsync(token, null, page, RoutePageSize, ct);
+            ids.UnionWith(remote.Select(r => r.Id));
+            if (remote.Count < RoutePageSize)
+                return ids;
+        }
+        return null;
+    }
+
+    /// <summary>Routes linked to a Suunto route that no longer exists become local-only, as if never pushed. The next
+    /// push uploads them as new Suunto routes.</summary>
+    private async Task<int> UnlinkMissingRoutesAsync(Guid userId, HashSet<string> remoteIds, DateTimeOffset now, CancellationToken ct)
+    {
+        var linked = await db.Routes.Where(r => r.UserId == userId && r.SuuntoRouteId != null).ToListAsync(ct);
+        var gone = linked.Where(r => !remoteIds.Contains(r.SuuntoRouteId!)).ToList();
+        foreach (var route in gone)
+        {
+            SyncSupport.Log(db, userId, "route", route.Id, "remote_deleted", 404, route.SuuntoRouteId, now);
+            route.SuuntoRouteId = null;
+            route.SuuntoRevision = null;
+            route.SuuntoModifiedAt = null;
+            route.SyncState = SyncState.LocalOnly;
+        }
+        await db.SaveChangesAsync(ct);
+        return gone.Count;
+    }
+
+    /// <summary>POIs whose Suunto key no longer exists become local-only. Tombstones are left alone.</summary>
+    private async Task<int> UnlinkMissingPoisAsync(Guid userId, HashSet<string> remoteKeys, DateTimeOffset now, CancellationToken ct)
+    {
+        var linked = await db.Pois.Where(p => p.UserId == userId && p.SuuntoPoiKey != null).ToListAsync(ct);
+        var gone = linked.Where(p => !remoteKeys.Contains(p.SuuntoPoiKey!)).ToList();
+        foreach (var poi in gone)
+        {
+            SyncSupport.Log(db, userId, "poi", poi.Id, "remote_deleted", 404, poi.SuuntoPoiKey, now);
+            poi.SuuntoPoiKey = null;
+            poi.SuuntoModifiedAt = null;
+            poi.SyncState = SyncState.LocalOnly;
+        }
+        await db.SaveChangesAsync(ct);
+        return gone.Count;
     }
 
     private enum PullResult

@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useEditorStore } from '../editor/store';
 import type { RouteDetail } from '../routes/api';
 import { pushRoute, summarizeRefresh, type RoutePushResponse } from './api';
 import { ConflictDialog } from './ConflictDialog';
 import { PushResultDialog } from './PushResultDialog';
+import { SyncPanel } from './SyncPanel';
 
 const route = { name: 'Ridge', distanceM: 18300, pois: [{}, {}, {}] } as unknown as RouteDetail;
 
@@ -72,11 +75,30 @@ describe('sync', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
   });
 
+  it('confirms a route push with a dialog', async () => {
+    const body: RoutePushResponse = { outcome: 'pushed', reason: null, remote: null, route: { ...route, syncState: 'synced' } };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+    useEditorStore.setState({ points: [{}, {}] as never, pois: [], poiServer: {}, syncState: 'localChanges' });
+    render(
+      <MemoryRouter>
+        <SyncPanel routeId="r1" flush={async () => true} onReload={() => undefined} />
+      </MemoryRouter>,
+    );
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Push route' }));
+
+    expect(await screen.findByRole('heading', { name: 'Pushed to Suunto' })).toBeInTheDocument();
+    expect(screen.getByText('Route "Ridge" pushed')).toBeInTheDocument();
+  });
+
   it('summarizes a refresh', () => {
-    const base = { routesAdded: 0, routesUpdated: 0, routeConflicts: 0, poisAdded: 0, poisUpdated: 0, poiConflicts: 0, refreshedAt: '' };
+    const base = { routesAdded: 0, routesUpdated: 0, routeConflicts: 0, routesUnlinked: 0, poisAdded: 0, poisUpdated: 0, poiConflicts: 0, poisUnlinked: 0, refreshedAt: '' };
     expect(summarizeRefresh(base)).toBe('Everything is up to date with Suunto.');
     expect(summarizeRefresh({ ...base, routesAdded: 2, routeConflicts: 1, poisAdded: 1 })).toBe(
       'From Suunto: 2 new routes, 1 with conflicts, 1 new POI.',
+    );
+    expect(summarizeRefresh({ ...base, routesUnlinked: 1, poisUnlinked: 2 })).toBe(
+      'From Suunto: 1 route no longer on Suunto, 2 POIs no longer on Suunto.',
     );
   });
 });
