@@ -63,6 +63,29 @@ public sealed class AccessControlTests(PostgresFixture pg)
         Assert.Equal(HttpStatusCode.Unauthorized, (await api.CreateBrowser().GetAsync(path)).StatusCode);
     }
 
+    [Theory]
+    [InlineData("http://127.0.0.1")]
+    [InlineData("http://[::1]")]
+    public async Task Pages_opened_on_a_loopback_ip_move_to_localhost_where_sign_in_is_registered(string origin)
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto, enableGoogle: true);
+        var browser = api.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri(origin) });
+
+        var page = await browser.GetAsync("/auth/google?from=test");
+        Assert.Equal(HttpStatusCode.TemporaryRedirect, page.StatusCode);
+        Assert.Equal("http://localhost/auth/google?from=test", page.Headers.Location!.ToString());
+
+        Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync("/healthz")).StatusCode);
+        var logout = new HttpRequestMessage(HttpMethod.Post, "/auth/logout");
+        logout.Headers.Add("X-RPM-CSRF", "1");
+        Assert.Equal(HttpStatusCode.NoContent, (await browser.SendAsync(logout)).StatusCode);
+
+        var google = await api.CreateBrowser().GetAsync("/auth/google");
+        Assert.Equal("http://localhost/auth/google-callback",
+            QueryHelpers.ParseQuery(google.Headers.Location!.Query)["redirect_uri"].ToString());
+    }
+
     [Fact]
     public async Task Suunto_sign_in_outside_the_allowlist_is_refused_and_stores_nothing()
     {

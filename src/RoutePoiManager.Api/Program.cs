@@ -135,6 +135,8 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
+app.UseMiddleware<LocalhostRedirectMiddleware>();
+
 // OpenAPI document at /openapi/v1.json and Swagger UI at /swagger; never exposed in Production.
 if (!app.Environment.IsProduction())
 {
