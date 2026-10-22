@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useId, useMemo, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { useMe } from '../auth/useMe';
 import { SelectBox, SelectionBar, TriCheckbox } from '../../components/SelectionBar';
 import { toast } from '../../components/Toast';
+import { usePersistentState } from '../../lib/usePersistentState';
 import { useSelection, type Selection } from '../../lib/useSelection';
+import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { formatDistance, formatElevation } from '../editor/geo';
 import { usePoiTypes } from '../import/api';
 import { fold } from '../library/dashboard';
@@ -33,6 +38,9 @@ const isPending = (i: PoiListItem) => PENDING.includes(i.poi.syncState);
 type PoiFilter = 'all' | 'pending' | 'synced';
 const FILTERS: Record<PoiFilter, string> = { all: 'All POIs', pending: 'Not pushed', synced: 'Synced' };
 
+type PoiView = 'list' | 'map';
+const isPoiView = (v: unknown): v is PoiView => v === 'list' || v === 'map';
+
 /** Every POI: grouped by route, then the standalone ones (pulled from Suunto, or not on any route). */
 export function AllPoisPage() {
   const me = useMe();
@@ -43,6 +51,7 @@ export function AllPoisPage() {
   const [results, setResults] = useState<PoiPushResult[] | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<PoiFilter>('all');
+  const [view, setView] = usePersistentState<PoiView>('rpm.pois.view', 'list', isPoiView);
   const ids = { search: useId(), filter: useId() };
 
   const typeName = (id: number) => humanizeType(types.data?.find((t) => t.id === id)?.name ?? 'POI');
@@ -178,6 +187,16 @@ export function AllPoisPage() {
                 </select>
               </>
             )}
+            <div className={styles.viewToggle} role="group" aria-label="Show as">
+              <button type="button" className={styles.toolBtn} aria-pressed={view === 'list'} onClick={() => setView('list')} title="List">
+                <Icon name="list" size={18} />
+                <span className={styles.toggleText}>List</span>
+              </button>
+              <button type="button" className={styles.toolBtn} aria-pressed={view === 'map'} onClick={() => setView('map')} title="Map">
+                <Icon name="pin" size={18} />
+                <span className={styles.toggleText}>Map</span>
+              </button>
+            </div>
           </div>
 
           {shown.length === 0 ? (
@@ -194,6 +213,8 @@ export function AllPoisPage() {
                 Clear search and filter
               </button>
             </div>
+          ) : view === 'map' ? (
+            <PoiMap items={shown} selection={selection} typeName={typeName} suuntoConnected={suuntoConnected} />
           ) : (
             [...groups.entries()].map(([routeId, group]) => (
               <PoiGroup
@@ -306,8 +327,6 @@ function PoiRow({
     ...(item.routeId ? [p.distanceAlongM != null ? formatDistance(p.distanceAlongM) : 'off route'] : []),
     ...(p.ele !== null ? [formatElevation(p.ele)] : []),
   ].join(' · ');
-  const tone =
-    p.syncState === 'synced' ? styles.ok : p.syncState === 'localOnly' ? styles.muted : p.syncState === 'localChanges' ? styles.warn : styles.danger;
   return (
     <li className={`${styles.row} ${selected ? styles.selected : ''}`}>
       <SelectBox checked={selected} label={`Select ${p.name}`} onToggle={onToggle} />
@@ -321,16 +340,196 @@ function PoiRow({
       <span className={styles.rowText}>
         <strong>{p.name}</strong>
         <span className={styles.meta}>{metadata}</span>
+        {p.description && <span className={styles.desc}>{p.description}</span>}
       </span>
-      {suuntoConnected && (
-        <span className={tone}>
-          <span className={styles.dot} />
-          {p.syncState === 'localOnly' ? 'Not pushed' : syncStateLabel[p.syncState]}
-        </span>
-      )}
+      {suuntoConnected && <SyncStatus state={p.syncState} />}
       <button type="button" className={styles.iconBtn} onClick={onDelete} aria-label={`Delete ${p.name}`} title="Delete">
         <Icon name="trash" size={18} />
       </button>
     </li>
+  );
+}
+
+function SyncStatus({ state }: { state: SyncState }) {
+  const tone = state === 'synced' ? styles.ok : state === 'localOnly' ? styles.muted : state === 'localChanges' ? styles.warn : styles.danger;
+  return (
+    <span className={tone}>
+      <span className={styles.dot} />
+      {state === 'localOnly' ? 'Not pushed' : syncStateLabel[state]}
+    </span>
+  );
+}
+
+/** The shown POIs on one map. Clicking a pin opens its details; POIs selected in the list are outlined. */
+function PoiMap({
+  items,
+  selection,
+  typeName,
+  suuntoConnected,
+}: {
+  items: PoiListItem[];
+  selection: Selection;
+  typeName: (id: number) => string;
+  suuntoConnected: boolean;
+}) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const active = items.find((i) => i.poi.id === activeId);
+  const layer = baseLayers.find((l) => l.id === loadBaseLayer())!;
+  const first = items[0]!.poi;
+  return (
+    <div className={styles.mapWrap}>
+      <div className={styles.map} role="region" aria-label="POI map">
+        <MapContainer center={[first.lat, first.lon]} zoom={5} scrollWheelZoom>
+          <TileLayer
+            url={layer.url}
+            attribution={layer.attribution}
+            maxZoom={layer.maxZoom}
+            subdomains={layer.subdomains ?? 'abc'}
+            className="rpm-tiles"
+          />
+          <FitPois items={items} onBackgroundClick={() => setActiveId(null)} />
+          {items.map((item) => (
+            <PoiPin
+              key={item.poi.id}
+              item={item}
+              showType={suuntoConnected}
+              selected={selection.has(item.poi.id)}
+              active={item.poi.id === activeId}
+              onOpen={setActiveId}
+            />
+          ))}
+        </MapContainer>
+      </div>
+      {active ? (
+          <PoiDetails
+            item={active}
+            typeName={typeName(active.poi.poiType)}
+            suuntoConnected={suuntoConnected}
+            selected={selection.has(active.poi.id)}
+            onToggle={(extend) => selection.toggle(active.poi.id, extend)}
+          onClose={() => setActiveId(null)}
+        />
+      ) : (
+        <p className={styles.mapHint}>Click a POI to see its details. POIs selected in the list are outlined.</p>
+      )}
+    </div>
+  );
+}
+
+function pinIcon(type: number | null, selected: boolean, active: boolean) {
+  return L.divIcon({
+    className: [styles.pin, selected && styles.pinSelected, active && styles.pinActive].filter(Boolean).join(' '),
+    iconSize: active ? [40, 40] : [30, 30],
+    html: type === null ? '' : `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="${poiGlyph(type)}"/></svg>`,
+  });
+}
+
+function PoiPin({
+  item,
+  showType,
+  selected,
+  active,
+  onOpen,
+}: {
+  item: PoiListItem;
+  showType: boolean;
+  selected: boolean;
+  active: boolean;
+  onOpen: (id: string) => void;
+}) {
+  const p = item.poi;
+  const icon = useMemo(() => pinIcon(showType ? p.poiType : null, selected, active), [showType, p.poiType, selected, active]);
+  const handlers = useMemo<L.LeafletEventHandlerFnMap>(() => ({ click: () => onOpen(p.id) }), [onOpen, p.id]);
+  return (
+    <Marker
+      position={[p.lat, p.lon]}
+      icon={icon}
+      title={p.name}
+      // Selected pins stay above the rest, and the open one above those.
+      zIndexOffset={active ? 2000 : selected ? 1000 : 0}
+      eventHandlers={handlers}
+    />
+  );
+}
+
+/** Frames the shown POIs whenever the set changes (search, filter, deletes), and closes details on a map click. */
+function FitPois({ items, onBackgroundClick }: { items: PoiListItem[]; onBackgroundClick: () => void }) {
+  const map = useMap();
+  useMapEvents({ click: onBackgroundClick });
+  const latest = useRef(items);
+  latest.current = items;
+  const key = items.map((i) => i.poi.id).join();
+  useEffect(() => {
+    const points = latest.current.map((i) => [i.poi.lat, i.poi.lon] as L.LatLngTuple);
+    if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14 });
+    else if (points.length === 1) map.setView(points[0]!, 13);
+  }, [map, key]);
+  return null;
+}
+
+function PoiDetails({
+  item,
+  typeName,
+  suuntoConnected,
+  selected,
+  onToggle,
+  onClose,
+}: {
+  item: PoiListItem;
+  typeName: string;
+  suuntoConnected: boolean;
+  selected: boolean;
+  onToggle: (extend: boolean) => void;
+  onClose: () => void;
+}) {
+  const p = item.poi;
+  const headingId = useId();
+  return (
+    <section className={styles.details} aria-labelledby={headingId}>
+      <div className={styles.detailsHead}>
+        {suuntoConnected && (
+          <span className={styles.badge} aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="16" height="16">
+              <path d={poiGlyph(p.poiType)} />
+            </svg>
+          </span>
+        )}
+        <h2 id={headingId} className={styles.detailsTitle}>
+          {p.name}
+        </h2>
+        <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close details" title="Close">
+          <Icon name="close" size={18} />
+        </button>
+      </div>
+      {p.description && <p className={styles.detailsDesc}>{p.description}</p>}
+      <dl className={styles.facts}>
+        {suuntoConnected && (
+          <>
+            <dt>Type</dt>
+            <dd>{typeName}</dd>
+          </>
+        )}
+        <dt>Elevation</dt>
+        <dd>{p.ele !== null ? formatElevation(p.ele) : 'Unknown'}</dd>
+        <dt>Route</dt>
+        <dd>{item.routeId ? <Link to={`/routes/${item.routeId}`}>{item.routeName}</Link> : 'Not on a route'}</dd>
+        {suuntoConnected && (
+          <>
+            <dt>Sync</dt>
+            <dd>
+              <SyncStatus state={p.syncState} />
+            </dd>
+          </>
+        )}
+        <dt>Coordinates</dt>
+        <dd>
+          {p.lat.toFixed(5)}, {p.lon.toFixed(5)}
+        </dd>
+      </dl>
+      <label className={styles.detailsSelect}>
+        <SelectBox checked={selected} label={`Select ${p.name}`} onToggle={onToggle} />
+        Selected
+      </label>
+    </section>
   );
 }
