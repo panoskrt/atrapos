@@ -232,6 +232,31 @@ public sealed class ImportApiTests(PostgresFixture pg)
         Assert.Equal(HttpStatusCode.BadRequest, badTolerance.StatusCode);
     }
 
+    [Fact]
+    public async Task Upload_limit_comes_from_settings()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using (var defaults = new ApiFactory(pg, suunto))
+        {
+            var http = await TestAuth.SignInAsync(defaults, suunto, "default-limit");
+            Assert.Equal(20L * 1024 * 1024, (await Read<UploadLimitsDto>(await http.GetAsync("/api/imports/limits"))).MaxFileBytes);
+        }
+
+        await using var api = new ApiFactory(pg, suunto, settings: new Dictionary<string, string> { ["Uploads:MaxFileSizeMb"] = "1" });
+        var client = await TestAuth.SignInAsync(api, suunto, "small-limit");
+        Assert.Equal(1024L * 1024, (await Read<UploadLimitsDto>(await client.GetAsync("/api/imports/limits"))).MaxFileBytes);
+
+        // Padding in a GPX comment: well-formed, just big.
+        var big = Encoding.UTF8.GetBytes(SampleGpx().Replace("<trk>", $"<!--{new string('x', 1_200_000)}--><trk>", StringComparison.Ordinal));
+        var tooBig = await client.PostAsync("/api/imports/preview", Form(big, "big.gpx"));
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, tooBig.StatusCode);
+        Assert.Equal("The file is larger than 1 MB.", (await tooBig.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        Assert.True((await client.PostAsync("/api/imports/preview", Form(Encoding.UTF8.GetBytes(SampleGpx()), "small.gpx"))).IsSuccessStatusCode);
+
+        await using var invalid = new ApiFactory(pg, suunto, settings: new Dictionary<string, string> { ["Uploads:MaxFileSizeMb"] = "0" });
+        Assert.ThrowsAny<Exception>(() => invalid.CreateClient());
+    }
+
     private static MultipartFormDataContent ShrinkForm(byte[] file, string name, double toleranceM)
     {
         var form = Form(file, name);

@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RoutePoiManager.Api;
@@ -12,6 +13,7 @@ using RoutePoiManager.Api.Auth;
 using RoutePoiManager.Api.Routes;
 using RoutePoiManager.Domain;
 using RoutePoiManager.Infrastructure;
+using RoutePoiManager.Infrastructure.Import;
 using RoutePoiManager.Infrastructure.Persistence;
 using Serilog;
 
@@ -38,6 +40,9 @@ builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDef
     .Configure<IOptions<AuthOptions>>((cookie, auth) => cookie.ExpireTimeSpan = auth.Value.SessionLifetime);
 
 builder.Services.AddInfrastructure(builder.Configuration);
+// Multipart bodies default to 128 MB; follow the upload limit so a larger configured limit isn't cut short.
+builder.Services.AddOptions<FormOptions>()
+    .Configure<IOptions<UploadOptions>>((form, uploads) => form.MultipartBodyLengthLimit = uploads.Value.MaxFileBytes + 1024 * 1024);
 builder.Services.AddScoped<GoogleAccountService>();
 builder.Services.AddSingleton<SignInAllowlist>();
 builder.Services.ConfigureHttpJsonOptions(o =>

@@ -21,6 +21,10 @@ public static class DependencyInjection
             .Bind(config.GetSection(SuuntoOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddOptions<UploadOptions>()
+            .Bind(config.GetSection(UploadOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         var connectionString = config.GetConnectionString("Db")
             ?? throw new InvalidOperationException("Connection string 'Db' is not configured.");

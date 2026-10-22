@@ -142,6 +142,7 @@ Set these in `.env` for Docker Compose:
 | `SUUNTO_DIAGNOSTICS` | | `true` logs the shape of Suunto responses (never tokens or keys); for troubleshooting |
 | `REQUIRE_OAUTH_STATE` | | Default `true`: OAuth callbacks must carry the matching `state` |
 | `POSTGRES_PASSWORD` | | Database password; only takes effect before the database volume is first created |
+| `MAX_UPLOAD_MB` | | Default `20`: largest GPX or FIT file accepted, in MB (sets `Uploads:MaxFileSizeMb`) |
 
 ¹ Both empty (the default): any Google or Suunto account can sign in. Once either is set, everyone else is refused at sign-in, and sessions of accounts taken off a list end within `Auth:SessionRevalidationInterval` (default 5 minutes).
 
@@ -155,6 +156,7 @@ Other API settings (environment variables use `__` for nesting, e.g. `Routing__B
 | `Elevation:Dataset` | `mapzen` | [Open Topo Data](https://www.opentopodata.org) dataset; `mapzen` is global |
 | `Auth:SessionLifetime` | `60.00:00:00` | How long a sign-in lasts (`days.hh:mm:ss`). Sliding: using the app renews it. |
 | `Auth:SessionRevalidationInterval` | `00:05:00` | How often a session is re-checked against the database and the allowlists |
+| `Uploads:MaxFileSizeMb` | `20` | Largest GPX or FIT file accepted for import and the GPX tools, 1–500 MB. Each file is held in memory while it's read, so raise it with the API's memory in mind. The web app picks the value up from the API. |
 
 ---
 

@@ -45,7 +45,29 @@ export interface PoiType {
 }
 
 export const ACCEPTED_EXTENSIONS = ['.gpx', '.fit'];
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Used until the API has said what it accepts (Uploads:MaxFileSizeMb); the API enforces its own limit either way. */
+export const DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+export interface UploadLimits {
+  maxFileBytes: number;
+}
+
+/** The largest GPX or FIT file the API accepts, and a label for messages ("20 MB"). */
+export function useUploadLimit() {
+  const { data } = useQuery({
+    queryKey: ['upload-limits'],
+    queryFn: () => api.get<UploadLimits>('/api/imports/limits'),
+    staleTime: Infinity,
+    retry: false,
+  });
+  const maxFileBytes = typeof data?.maxFileBytes === 'number' && data.maxFileBytes > 0 ? data.maxFileBytes : DEFAULT_MAX_FILE_BYTES;
+  return { maxFileBytes, maxFileLabel: formatSizeLimit(maxFileBytes) };
+}
+
+export function formatSizeLimit(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
+}
 
 export function isImportable(file: File): boolean {
   return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));

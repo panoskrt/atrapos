@@ -9,7 +9,7 @@ import { usePersistentState } from '../../lib/usePersistentState';
 import { useSelection } from '../../lib/useSelection';
 import { formatDistance } from '../editor/geo';
 import { useMe } from '../auth/useMe';
-import { ACCEPTED_EXTENSIONS, isImportable, MAX_FILE_BYTES } from '../import/api';
+import { ACCEPTED_EXTENSIONS, isImportable, useUploadLimit } from '../import/api';
 import { ImportDialog } from '../import/ImportDialog';
 import {
   routeKeys,
@@ -141,14 +141,15 @@ export function LibraryPage() {
 
   const onSort = (key: RouteSortKey) => setSort(nextSort(sort, key));
 
+  const { maxFileBytes, maxFileLabel } = useUploadLimit();
   const startImport = (file: File | undefined) => {
     if (!file) return;
     if (!isImportable(file)) {
       setFileError(`${file.name} isn't a GPX or FIT file.`);
       return;
     }
-    if (file.size > MAX_FILE_BYTES) {
-      setFileError(`${file.name} is larger than 20 MB.`);
+    if (file.size > maxFileBytes) {
+      setFileError(`${file.name} is larger than ${maxFileLabel}.`);
       return;
     }
     setFileError(null);

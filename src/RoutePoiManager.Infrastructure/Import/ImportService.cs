@@ -16,7 +16,6 @@ public sealed record WaypointChoice(int Index, bool Include, string Name, int Po
 
 public sealed class ImportService(AppDbContext db, TimeProvider clock)
 {
-    public const long MaxFileBytes = 20 * 1024 * 1024;
     public const double MaxToleranceM = 50;
 
     /// <summary>Lossless-in-practice pre-simplification shared by preview and import, so the dialog's point

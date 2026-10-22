@@ -7,7 +7,7 @@ import { Spinner } from '../../components/Spinner';
 import { usePersistentState } from '../../lib/usePersistentState';
 import { baseLayers } from '../editor/baseLayers';
 import { formatDistance } from '../editor/geo';
-import { MAX_FILE_BYTES, previewImport } from '../import/api';
+import { previewImport, useUploadLimit } from '../import/api';
 import { formatBytes, postForFile, saveFile } from './fileApi';
 import {
   DEFAULT_SHRINK_TOLERANCE_M,
@@ -27,11 +27,12 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
   const [shrinking, setShrinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ file: File; points: number } | null>(null);
+  const { maxFileBytes, maxFileLabel } = useUploadLimit();
 
   const fileError = file && !/\.(gpx|fit)$/i.test(file.name)
     ? `${file.name} isn't a GPX or FIT file.`
-    : file && file.size > MAX_FILE_BYTES
-      ? `${file.name} is larger than 20 MB.`
+    : file && file.size > maxFileBytes
+      ? `${file.name} is larger than ${maxFileLabel}.`
       : null;
 
   const preview = useQuery({
@@ -82,7 +83,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
       />
       <div className={styles.controls}>
         <p className={styles.note}>
-          {file ? `${file.name} · ${formatBytes(file.size)}` : 'Choose one GPX or FIT file (up to 20 MB).'}
+          {file ? `${file.name} · ${formatBytes(file.size)}` : `Choose one GPX or FIT file (up to ${maxFileLabel}).`}
         </p>
         <button type="button" className="btn" onClick={() => inputRef.current?.click()}>
           <Icon name="fileUp" size={18} />

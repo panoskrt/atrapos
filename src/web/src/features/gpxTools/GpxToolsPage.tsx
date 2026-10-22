@@ -6,7 +6,7 @@ import { useSearchParams } from 'react-router';
 import { Icon, type IconName } from '../../components/Icon';
 import { Spinner } from '../../components/Spinner';
 import { baseLayers } from '../editor/baseLayers';
-import { MAX_FILE_BYTES } from '../import/api';
+import { useUploadLimit } from '../import/api';
 import { simplifyIndices } from '../import/simplify';
 import type { Coord } from '../editor/geo';
 import { ImportDialog } from '../import/ImportDialog';
@@ -34,6 +34,7 @@ export function GpxToolsPage() {
   const toolParam = searchParams.get('tool');
   const activeTool: ToolId = isToolId(toolParam) ? toolParam : 'merge';
   const tabRefs = useRef<Partial<Record<ToolId, HTMLButtonElement | null>>>({});
+  const { maxFileBytes, maxFileLabel } = useUploadLimit();
   const inputRef = useRef<HTMLInputElement>(null);
   const splitInputRef = useRef<HTMLInputElement>(null);
   const convertInputRef = useRef<HTMLInputElement>(null);
@@ -95,12 +96,12 @@ export function GpxToolsPage() {
 
   const addFiles = (list: FileList | File[]) => {
     const selected = Array.from(list);
-    const invalid = selected.find((file) => !file.name.toLowerCase().endsWith('.gpx') || file.size > MAX_FILE_BYTES);
+    const invalid = selected.find((file) => !file.name.toLowerCase().endsWith('.gpx') || file.size > maxFileBytes);
     if (invalid) {
       setMergeError(
         !invalid.name.toLowerCase().endsWith('.gpx')
           ? `${invalid.name} isn't a GPX file.`
-          : `${invalid.name} is larger than 20 MB.`,
+          : `${invalid.name} is larger than ${maxFileLabel}.`,
       );
       return;
     }
@@ -126,8 +127,8 @@ export function GpxToolsPage() {
       const result = mergeGpxFiles(inputs, routeName);
       const fileName = `${safeFileName(routeName)}.gpx`;
       const mergedFile = new File([result.xml], fileName, { type: 'application/gpx+xml' });
-      if (mergedFile.size > MAX_FILE_BYTES) {
-        throw new Error('The merged GPX is larger than 20 MB and cannot be imported. Remove some files and try again.');
+      if (mergedFile.size > maxFileBytes) {
+        throw new Error(`The merged GPX is larger than ${maxFileLabel} and cannot be imported. Remove some files and try again.`);
       }
       setMergedFile(mergedFile);
     } catch (e) {
@@ -143,8 +144,8 @@ export function GpxToolsPage() {
       setSplitError(`${file.name} isn't a GPX file.`);
       return;
     }
-    if (file.size > MAX_FILE_BYTES) {
-      setSplitError(`${file.name} is larger than 20 MB.`);
+    if (file.size > maxFileBytes) {
+      setSplitError(`${file.name} is larger than ${maxFileLabel}.`);
       return;
     }
 
@@ -198,8 +199,8 @@ export function GpxToolsPage() {
       const splitParts = splitGpxPoints(sourcePoints, cuts, splitRouteName);
       const partFiles = splitParts.map((part) => new File([part.xml], part.fileName, { type: 'application/gpx+xml' }));
       if (createRoutes) {
-        const tooLarge = partFiles.find((part) => part.size > MAX_FILE_BYTES);
-        if (tooLarge) throw new Error(`${tooLarge.name} is larger than 20 MB and cannot be imported.`);
+        const tooLarge = partFiles.find((part) => part.size > maxFileBytes);
+        if (tooLarge) throw new Error(`${tooLarge.name} is larger than ${maxFileLabel} and cannot be imported.`);
         setRouteQueue(partFiles);
       } else {
         setSplitParts(partFiles);
@@ -406,7 +407,7 @@ export function GpxToolsPage() {
             <button type="button" className={styles.dropTarget} onClick={() => inputRef.current?.click()}>
               <Icon name="fileUp" size={30} />
               <strong>Drop GPX files here or browse</strong>
-              <span>Choose at least two GPX files. Each file can be up to 20 MB.</span>
+              <span>Choose at least two GPX files. Each file can be up to {maxFileLabel}.</span>
             </button>
           )}
 
@@ -645,7 +646,7 @@ export function GpxToolsPage() {
           />
           <div className={styles.controls}>
             <p className={styles.note}>
-              {convertFile ? `${convertFile.name} · ${formatBytes(convertFile.size)}` : 'Choose one GPX or FIT file (up to 20 MB).'}
+              {convertFile ? `${convertFile.name} · ${formatBytes(convertFile.size)}` : `Choose one GPX or FIT file (up to ${maxFileLabel}).`}
             </p>
             <button type="button" className="btn" onClick={() => convertInputRef.current?.click()}>
               <Icon name="fileUp" size={18} />
@@ -657,7 +658,7 @@ export function GpxToolsPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!convertFile || convertFile.size > MAX_FILE_BYTES || converting}
+              disabled={!convertFile || convertFile.size > maxFileBytes || converting}
               aria-busy={converting}
               onClick={() => void convert()}
             >
@@ -665,8 +666,8 @@ export function GpxToolsPage() {
               {converting ? 'Converting…' : 'Convert and download'}
             </button>
           </div>
-          {convertFile && convertFile.size > MAX_FILE_BYTES && (
-            <p role="alert" className={styles.error}>This file is larger than 20 MB.</p>
+          {convertFile && convertFile.size > maxFileBytes && (
+            <p role="alert" className={styles.error}>This file is larger than {maxFileLabel}.</p>
           )}
           {convertError && (
             <p role="alert" className={styles.error}>

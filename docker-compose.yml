@@ -43,6 +43,7 @@ services:
       # Optional: restrict sign-in to these accounts. Empty = any Google or Suunto account.
       Auth__AllowedGoogleEmails: ${ALLOWED_GOOGLE_EMAILS:-}
       Auth__AllowedSuuntoUsernames: ${ALLOWED_SUUNTO_USERNAMES:-}
+      Uploads__MaxFileSizeMb: ${MAX_UPLOAD_MB:-20}
       Suunto__Mode: Live
       # Required: the API refuses to start without them. Set them in .env (see .env.example).
       Suunto__ClientId: ${SUUNTO_CLIENT_ID:-}

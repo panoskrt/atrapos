@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using RoutePoiManager.Api.Auth;
 using RoutePoiManager.Domain;
 using RoutePoiManager.Infrastructure.Import;
@@ -28,19 +29,27 @@ public sealed record ImportPreviewDto(
     List<ImportTrackDto> Tracks,
     List<ImportWaypointDto> Waypoints);
 
+public sealed record UploadLimitsDto(long MaxFileBytes);
+
 public static class ImportEndpoints
 {
     private const int MaxWaypoints = 2000;
 
     public static void MapImportEndpoints(this IEndpointRouteBuilder app)
     {
+        // Read once: the request size limit below is fixed when the endpoints are mapped.
+        var maxFileBytes = app.ServiceProvider.GetRequiredService<IOptions<UploadOptions>>().Value.MaxFileBytes;
+
         // Multipart endpoints: CsrfHeaderMiddleware protects them, so ASP.NET's form antiforgery is off.
         var g = app.MapGroup("/api/imports").RequireAuthorization().DisableAntiforgery()
-            .WithMetadata(new RequestSizeLimitAttribute(ImportService.MaxFileBytes + 1024 * 1024));
+            .WithMetadata(new RequestSizeLimitAttribute(maxFileBytes + 1024 * 1024));
+
+        // The web app checks files against this before uploading them.
+        g.MapGet("/limits", () => new UploadLimitsDto(maxFileBytes));
 
         g.MapPost("/preview", async (IFormFile? file, CancellationToken ct) =>
         {
-            var (content, error) = await ReadAsync(file, ct);
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
             if (error is not null)
                 return error;
 
@@ -79,7 +88,7 @@ public static class ImportEndpoints
 
         g.MapPost("/convert", async (IFormFile? file, CancellationToken ct) =>
         {
-            var (content, error) = await ReadAsync(file, ct);
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
             if (error is not null)
                 return error;
 
@@ -111,7 +120,7 @@ public static class ImportEndpoints
         // Same format out as in: a smaller file for the watch, the route itself unchanged within the tolerance.
         g.MapPost("/shrink", async (IFormFile? file, [FromForm] double? toleranceM, CancellationToken ct) =>
         {
-            var (content, error) = await ReadAsync(file, ct);
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
             if (error is not null)
                 return error;
             if (toleranceM is not { } tolerance || !double.IsFinite(tolerance) || tolerance < ImportService.BaseToleranceM ||
@@ -146,7 +155,7 @@ public static class ImportEndpoints
         g.MapPost("/", async (HttpContext http, IFormFile? file, [FromForm] string? options, ImportService imports, AppDbContext db,
             CancellationToken ct) =>
         {
-            var (content, error) = await ReadAsync(file, ct);
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
             if (error is not null)
                 return error;
 
@@ -183,12 +192,12 @@ public static class ImportEndpoints
         return string.IsNullOrWhiteSpace(safe) ? fallback : safe;
     }
 
-    private static async Task<(byte[]? Content, IResult? Error)> ReadAsync(IFormFile? file, CancellationToken ct)
+    private static async Task<(byte[]? Content, IResult? Error)> ReadAsync(IFormFile? file, long maxFileBytes, CancellationToken ct)
     {
         if (file is null || file.Length == 0)
             return (null, Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a GPX or FIT file."] }));
-        if (file.Length > ImportService.MaxFileBytes)
-            return (null, Results.Problem(title: "The file is larger than 20 MB.", statusCode: 413));
+        if (file.Length > maxFileBytes)
+            return (null, Results.Problem(title: $"The file is larger than {maxFileBytes / (1024 * 1024)} MB.", statusCode: 413));
 
         using var ms = new MemoryStream((int)file.Length);
         await file.CopyToAsync(ms, ct);

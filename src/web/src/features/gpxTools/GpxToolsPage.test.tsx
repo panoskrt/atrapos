@@ -62,6 +62,8 @@ describe('GpxToolsPage', () => {
 
   it('previews the point reduction and downloads the shrunk file', async () => {
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes('/api/imports/limits'))
+        return new Response(JSON.stringify({ maxFileBytes: 3 * 1024 * 1024 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       if (url.includes('/api/imports/preview'))
         return new Response(JSON.stringify(preview), { status: 200, headers: { 'Content-Type': 'application/json' } });
       expect((init?.body as FormData).get('toleranceM')).toBe('5');
@@ -77,6 +79,8 @@ describe('GpxToolsPage', () => {
     renderPage('/gpx-tools?tool=shrink');
     const user = userEvent.setup();
 
+    // The limit comes from the API (Uploads:MaxFileSizeMb).
+    expect(await screen.findByText('Choose one GPX or FIT file (up to 3 MB).')).toBeInTheDocument();
     const input = document.querySelector<HTMLInputElement>('input[type=file][accept*=".fit"]')!;
     await user.upload(input, new File([new Uint8Array(4000)], 'ridge.fit'));
 
