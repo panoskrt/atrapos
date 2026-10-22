@@ -172,10 +172,10 @@ npm --prefix src/web install
 npm --prefix src/web run dev
 ```
 
-Then open http://localhost:5173. For `dotnet run`, put the Suunto settings in `src/RoutePoiManager.Api/appsettings.Local.json` (git-ignored):
+Then open http://localhost:5173. For `dotnet run`, put the Suunto and Google settings in `src/RoutePoiManager.Api/appsettings.Local.json` (git-ignored). Start from the template and fill in the empty values:
 
-```json
-{ "Suunto": { "ClientId": "…", "ClientSecret": "…", "SubscriptionKey": "…" } }
+```bash
+cp src/RoutePoiManager.Api/appsettings.Local.json.example src/RoutePoiManager.Api/appsettings.Local.json
 ```
 
 Vite proxies `/api` and `/auth` to the API on port 5080. Suunto still redirects to the registered `http://localhost:5080/auth/callback`; the session cookie works on both ports, and the API then sends you on to 5173. Don't run the `api` compose service at the same time; it uses port 5080.
