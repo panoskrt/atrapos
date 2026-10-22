@@ -12,6 +12,9 @@ public sealed class AuthOptions
     /// <summary>Optional: only these Suunto usernames may sign in with Suunto. A Google account connecting Suunto doesn't need one.</summary>
     public string AllowedSuuntoUsernames { get; set; } = "";
 
+    /// <summary>How long a sign-in lasts. Sliding: each request in the second half of the lifetime renews it.</summary>
+    public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromDays(60);
+
     /// <summary>How often a session cookie is checked against the database and the allowlists.</summary>
     public TimeSpan SessionRevalidationInterval { get; set; } = TimeSpan.FromMinutes(5);
 

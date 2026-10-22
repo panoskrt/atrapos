@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using RoutePoiManager.Api;
 using RoutePoiManager.Api.Auth;
 using RoutePoiManager.Api.Routes;
@@ -30,7 +31,11 @@ builder.Services.AddOptions<AppOptions>()
     .ValidateOnStart();
 
 builder.Services.AddOptions<AuthOptions>()
-    .Bind(builder.Configuration.GetSection(AuthOptions.Section));
+    .Bind(builder.Configuration.GetSection(AuthOptions.Section))
+    .Validate(o => o.SessionLifetime > TimeSpan.Zero, "Auth:SessionLifetime must be positive.")
+    .ValidateOnStart();
+builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .Configure<IOptions<AuthOptions>>((cookie, auth) => cookie.ExpireTimeSpan = auth.Value.SessionLifetime);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<GoogleAccountService>();
@@ -52,7 +57,6 @@ var authentication = builder.Services
         o.Cookie.HttpOnly = true;
         o.Cookie.SameSite = SameSiteMode.Lax;
         o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        o.ExpireTimeSpan = TimeSpan.FromDays(30);
         o.SlidingExpiration = true;
         // An API never redirects to a login page; the SPA handles 401/403.
         o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };

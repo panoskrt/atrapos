@@ -8,7 +8,7 @@ using RoutePoiManager.Infrastructure.Persistence;
 
 namespace RoutePoiManager.Api.Auth;
 
-/// <summary>Session cookies live for 30 days, so they are re-checked periodically: a deleted account, or one taken
+/// <summary>Session cookies live for weeks (Auth:SessionLifetime), so they are re-checked periodically: a deleted account, or one taken
 /// off the allowlist, loses its session at the next check instead of when the cookie expires.</summary>
 public static class SessionValidation
 {

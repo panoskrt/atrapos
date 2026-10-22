@@ -153,6 +153,8 @@ Other API settings (environment variables use `__` for nesting, e.g. `Routing__B
 | `Routing:MaxSnapDistanceM` | `300` | A click further than this from any trail falls back to a straight segment |
 | `Elevation:Provider` | `OpenTopoData` | `None` disables elevation lookups (no external calls) |
 | `Elevation:Dataset` | `mapzen` | [Open Topo Data](https://www.opentopodata.org) dataset; `mapzen` is global |
+| `Auth:SessionLifetime` | `60.00:00:00` | How long a sign-in lasts (`days.hh:mm:ss`). Sliding: using the app renews it. |
+| `Auth:SessionRevalidationInterval` | `00:05:00` | How often a session is re-checked against the database and the allowlists |
 
 ---
 

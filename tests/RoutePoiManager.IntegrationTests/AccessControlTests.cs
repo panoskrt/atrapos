@@ -96,6 +96,26 @@ public sealed class AccessControlTests(PostgresFixture pg)
         Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync("/api/me")).StatusCode);
     }
 
+    [Theory]
+    [InlineData(null, 60)]
+    [InlineData("7.00:00:00", 7)]
+    public async Task Session_cookie_lasts_the_configured_lifetime(string? setting, int expectedDays)
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto, settings: setting is null
+            ? null
+            : new Dictionary<string, string> { ["Auth:SessionLifetime"] = setting });
+        var browser = api.CreateBrowser();
+
+        var res = await browser.GetAsync(await TestAuth.AuthorizeAtSuuntoAsync(browser, suunto, "alice", allow: true));
+
+        var cookie = Microsoft.Net.Http.Headers.SetCookieHeaderValue.ParseList(res.Headers.GetValues("Set-Cookie").ToList())
+            .Single(c => c.Name == "rpm.session");
+        Assert.NotNull(cookie.Expires);
+        var expected = TimeSpan.FromDays(expectedDays);
+        Assert.InRange(cookie.Expires.Value - DateTimeOffset.UtcNow, expected - TimeSpan.FromMinutes(5), expected);
+    }
+
     [Fact]
     public async Task Session_ends_when_the_account_is_deleted()
     {
