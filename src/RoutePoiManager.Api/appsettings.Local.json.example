@@ -5,6 +5,12 @@
   "ConnectionStrings": {
     "Db": "Host=localhost;Port=5432;Database=routepoi;Username=routepoi;Password=routepoi"
   },
+  // Optional: restrict sign-in to these accounts (comma-separated). Both empty = any Google or Suunto account.
+  // A Google account connecting Suunto needs no Suunto entry; signing in with Suunto directly does.
+  "Auth": {
+    "AllowedGoogleEmails": "",
+    "AllowedSuuntoUsernames": ""
+  },
   // Google OAuth client for app sign-in. Authorized redirect URI: http://localhost:5080/auth/google-callback
   "Google": {
     "ClientId": "",

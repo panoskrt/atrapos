@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RoutePoiManager.Api.Routes;
@@ -11,6 +13,11 @@ namespace RoutePoiManager.IntegrationTests;
 [Collection(IntegrationCollection.Name)]
 public sealed class WeatherApiTests(PostgresFixture pg)
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+    };
+
     [Fact]
     public async Task Weather_endpoint_returns_a_forecast_for_the_owners_saved_route()
     {
@@ -26,7 +33,7 @@ public sealed class WeatherApiTests(PostgresFixture pg)
         var response = await http.GetAsync($"/api/routes/{route.Id}/weather");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var forecast = await response.Content.ReadFromJsonAsync<RouteWeatherResponse>();
+        var forecast = await response.Content.ReadFromJsonAsync<RouteWeatherResponse>(Json);
         Assert.True(forecast!.Available);
         Assert.Equal("Europe/Helsinki", forecast.TimeZoneId);
         Assert.Equal(7, forecast.Forecast.Count);
@@ -53,8 +60,8 @@ public sealed class WeatherApiTests(PostgresFixture pg)
 
     private static async Task<RouteDetailDto> CreateSavedRoute(HttpClient http)
     {
-        var createdResponse = await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute());
-        var created = (await createdResponse.Content.ReadFromJsonAsync<RouteDetailDto>())!;
+        var createdResponse = await http.PostAsJsonAsync("/api/routes", RouteTestRequests.NewRoute(), Json);
+        var created = (await createdResponse.Content.ReadFromJsonAsync<RouteDetailDto>(Json))!;
         var update = RouteTestRequests.NewRoute() with
         {
             ControlPoints =
@@ -63,8 +70,8 @@ public sealed class WeatherApiTests(PostgresFixture pg)
                 new(24.51, 60.31, SegmentMode.Freehand),
             ],
         };
-        var savedResponse = await http.PutAsJsonAsync($"/api/routes/{created.Id}", update);
-        return (await savedResponse.Content.ReadFromJsonAsync<RouteDetailDto>())!;
+        var savedResponse = await http.PutAsJsonAsync($"/api/routes/{created.Id}", update, Json);
+        return (await savedResponse.Content.ReadFromJsonAsync<RouteDetailDto>(Json))!;
     }
 
     private sealed class FixedWeatherProvider : IWeatherProvider

@@ -41,7 +41,8 @@ public sealed class ApiFactory(
     PostgresFixture pg,
     MockSuuntoFactory suunto,
     Action<IServiceCollection>? configureServices = null,
-    bool enableGoogle = false) : WebApplicationFactory<Program>
+    bool enableGoogle = false,
+    IReadOnlyDictionary<string, string>? settings = null) : WebApplicationFactory<Program>
 {
     public const string MockHost = "http://mock-suunto";
     public const string PublicBaseUrl = "http://localhost:5173";
@@ -72,6 +73,8 @@ public sealed class ApiFactory(
         builder.UseSetting("Suunto:RedirectUri", RedirectUri);
         // Never call the public elevation API from tests.
         builder.UseSetting("Elevation:Provider", "None");
+        foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+            builder.UseSetting(key, value);
 
         builder.ConfigureServices(services =>
         {

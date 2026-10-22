@@ -12,6 +12,7 @@ const errorMessages: Record<string, string> = {
   missing_code: "Suunto didn't return a sign-in code. Please try again.",
   google_not_configured: 'Google sign-in is not configured yet.',
   google_auth_failed: 'Google sign-in failed. Please try again.',
+  not_allowed: "This account isn't allowed to use this app. Ask the owner to add it to the allowlist.",
 };
 
 export function LoginPage() {
