@@ -373,6 +373,11 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("default_map");
 
+                    b.Property<string>("Design")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("design");
+
                     b.Property<string>("GoogleSubject")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")

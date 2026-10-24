@@ -15,11 +15,13 @@ import styles from './AppShell.module.css';
 export function AppShell() {
   const me = useMe();
   const userSettings = useUserSettings(Boolean(me.data));
-  const { setTheme } = useTheme();
+  const { setTheme, setDesign } = useTheme();
 
   useLayoutEffect(() => {
-    if (userSettings.data) setTheme(userSettings.data.theme);
-  }, [setTheme, userSettings.data]);
+    if (!userSettings.data) return;
+    setTheme(userSettings.data.theme);
+    setDesign(userSettings.data.design ?? 'classic');
+  }, [setTheme, setDesign, userSettings.data]);
 
   if (me.isPending)
     return (

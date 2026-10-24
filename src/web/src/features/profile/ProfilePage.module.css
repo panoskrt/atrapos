@@ -167,3 +167,134 @@
     font-size: 32px;
   }
 }
+
+/* ---------- Design picker ---------- */
+
+.designPicker {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.designPicker legend {
+  padding: 0;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.designOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.designOption,
+.designOn {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.designOption:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.designOn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.designOption:has(input:focus-visible),
+.designOn:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.designName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.designText {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* A tiny fixed-colour picture of each design, whatever design is active now. */
+.swatch {
+  height: 64px;
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 5px;
+}
+
+.swatch i {
+  display: block;
+  border-radius: 4px;
+}
+
+.swatch i:first-child {
+  grid-row: span 2;
+}
+
+.swatch_classic {
+  background: #0b1117;
+}
+
+.swatch_classic i {
+  background: #1a2129;
+  border: 1px solid #2d3742;
+}
+
+.swatch_classic i:first-child {
+  background: #59c5ff;
+  border: none;
+}
+
+.swatch_alpine {
+  background: #f7f5ef;
+  border: 1px solid #ddd9cd;
+}
+
+.swatch_alpine i {
+  background: #fbfaf6;
+  border: 1px solid #ddd9cd;
+  border-radius: 3px;
+}
+
+.swatch_alpine i:first-child {
+  background: #2f6b4f;
+  border: none;
+}
+
+.swatch_soft {
+  background: #fff8f2;
+  border: 1px solid #f0dccb;
+}
+
+.swatch_soft i {
+  background: #fff;
+  border: 1px solid #f0dccb;
+  border-radius: 9px;
+}
+
+.swatch_soft i:first-child {
+  background: #d2500c;
+  border: none;
+}

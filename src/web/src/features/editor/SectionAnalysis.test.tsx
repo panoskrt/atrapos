@@ -11,7 +11,7 @@ const cumulative = cumulativeDistances(line);
 describe('SectionAnalysis', () => {
   afterEach(() => {
     act(() => useSectionStore.getState().clear());
-    applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark' });
+    applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic' });
   });
 
   it('shows nothing until a section is chosen', () => {
@@ -42,7 +42,7 @@ describe('SectionAnalysis', () => {
   });
 
   it('uses the chosen unit system', () => {
-    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark' });
+    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic' });
     render(<SectionAnalysis line={line} cumulative={cumulative} pois={[]} />);
     act(() => useSectionStore.getState().setRange(0, cumulative[2]!));
     const card = screen.getByRole('region', { name: 'Section analysis' });

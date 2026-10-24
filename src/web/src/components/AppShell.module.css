@@ -373,3 +373,105 @@
     opacity: 0.35;
   }
 }
+
+/* ---------- Designs ---------- */
+
+:global(:root[data-design='alpine']) .shell::before,
+:global(:root[data-design='soft']) .shell::before {
+  display: none;
+}
+
+:global(:root[data-design='alpine']) .topbar,
+:global(:root[data-design='soft']) .topbar {
+  background: var(--panel);
+  backdrop-filter: none;
+}
+
+:global(:root[data-design='alpine']) .mark {
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: none;
+}
+
+:global(:root[data-design='soft']) .mark {
+  border-radius: 14px;
+  background: var(--accent);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+:global(:root[data-design='alpine']) .wordmark {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+@media (min-width: 701px) {
+  /* Alpine: plain underlined tabs. */
+  :global(:root[data-design='alpine']) .nav {
+    gap: 22px;
+    padding: 0 0 0 8px;
+    border: none;
+    background: none;
+  }
+
+  :global(:root[data-design='alpine']) .navLink,
+  :global(:root[data-design='alpine']) .navActive {
+    padding: 8px 2px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+  }
+
+  :global(:root[data-design='alpine']) .navActive {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+  }
+
+  :global(:root[data-design='alpine']) .navLink:hover {
+    background: none;
+    border-bottom-color: var(--border);
+  }
+
+  /* Soft: a left icon rail under the top bar. */
+  :global(:root[data-design='soft']) .nav {
+    position: fixed;
+    z-index: 30;
+    top: var(--topbar-h);
+    bottom: 0;
+    left: 0;
+    width: var(--rail-w);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 14px 8px;
+    border-radius: 0;
+    border-width: 0 1px 0 0;
+    background: var(--panel-2);
+  }
+
+  :global(:root[data-design='soft']) .navLink,
+  :global(:root[data-design='soft']) .navActive {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 2px;
+    border: none;
+    border-radius: 16px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  :global(:root[data-design='soft']) .navActive {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  :global(:root[data-design='soft']) .navIcon {
+    display: block;
+  }
+
+  :global(:root[data-design='soft']) .main {
+    padding-left: var(--rail-w);
+  }
+}

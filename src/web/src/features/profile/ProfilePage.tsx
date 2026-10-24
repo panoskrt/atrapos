@@ -3,14 +3,21 @@ import { Spinner } from '../../components/Spinner';
 import { useMe } from '../auth/useMe';
 import { useUpdateUserSettings, useUserSettings } from './userSettings';
 import { baseLayers } from '../editor/baseLayers';
-import { useTheme } from '../../lib/theme';
+import { designs, useTheme, type Design } from '../../lib/theme';
 import styles from './ProfilePage.module.css';
 
 export function ProfilePage() {
   const me = useMe();
   const settings = useUserSettings();
   const updateSettings = useUpdateUserSettings();
-  const { setTheme } = useTheme();
+  const { setTheme, design, setDesign } = useTheme();
+
+  const chooseDesign = (next: Design) => {
+    if (!settings.data || next === settings.data.design) return;
+    const previous = design;
+    setDesign(next);
+    updateSettings.mutate({ ...settings.data, design: next }, { onError: () => setDesign(previous) });
+  };
 
   if (me.isPending)
     return (
@@ -39,6 +46,30 @@ export function ProfilePage() {
           <p className={styles.error} role="alert">Couldn’t load preferences: {settings.error.message}</p>
         ) : (
           <div className={styles.preferences}>
+            <fieldset className={styles.designPicker} disabled={!settings.data || updateSettings.isPending}>
+              <legend>Design</legend>
+              <div className={styles.designOptions}>
+                {designs.map((d) => (
+                  <label key={d.id} className={design === d.id ? styles.designOn : styles.designOption}>
+                    <input
+                      type="radio"
+                      name="design"
+                      value={d.id}
+                      checked={design === d.id}
+                      onChange={() => chooseDesign(d.id)}
+                      className="visually-hidden"
+                    />
+                    <span className={`${styles.swatch} ${styles[`swatch_${d.id}`]}`} aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    <span className={styles.designName}>{d.label}</span>
+                    <span className={styles.designText}>{d.description}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <label>
               Default map
               <select

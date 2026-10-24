@@ -22,9 +22,9 @@ public sealed class UserSettingsTests(PostgresFixture pg)
 
         using var browser = await TestAuth.SignInAsync(api, suunto, "settings-user");
         var initial = await browser.GetFromJsonAsync<UserSettingsDto>("/api/settings");
-        Assert.Equal(new UserSettingsDto("topo", "metric", "dark"), initial);
+        Assert.Equal(new UserSettingsDto("topo", "metric", "dark", "classic"), initial);
 
-        var updated = new UserSettingsDto("cyclosm", "imperial", "light");
+        var updated = new UserSettingsDto("cyclosm", "imperial", "light", "alpine");
         var response = await browser.PutAsJsonAsync("/api/settings", updated);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(updated, await response.Content.ReadFromJsonAsync<UserSettingsDto>());
@@ -35,19 +35,21 @@ public sealed class UserSettingsTests(PostgresFixture pg)
         Assert.Equal("cyclosm", user.DefaultMap);
         Assert.Equal("imperial", user.Units);
         Assert.Equal("light", user.Theme);
+        Assert.Equal("alpine", user.Design);
     }
 
     [Theory]
-    [InlineData("unknown", "metric", "dark")]
-    [InlineData("topo", "kelvin", "dark")]
-    [InlineData("topo", "metric", "system")]
-    public async Task Settings_reject_unknown_values(string defaultMap, string units, string theme)
+    [InlineData("unknown", "metric", "dark", "classic")]
+    [InlineData("topo", "kelvin", "dark", "classic")]
+    [InlineData("topo", "metric", "system", "classic")]
+    [InlineData("topo", "metric", "dark", "neon")]
+    public async Task Settings_reject_unknown_values(string defaultMap, string units, string theme, string design)
     {
         await using var suunto = new MockSuuntoFactory();
         await using var api = new ApiFactory(pg, suunto);
         using var browser = await TestAuth.SignInAsync(api, suunto, "invalid-settings-user");
 
-        var response = await browser.PutAsJsonAsync("/api/settings", new UserSettingsDto(defaultMap, units, theme));
+        var response = await browser.PutAsJsonAsync("/api/settings", new UserSettingsDto(defaultMap, units, theme, design));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

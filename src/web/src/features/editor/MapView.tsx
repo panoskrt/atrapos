@@ -6,6 +6,7 @@ import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseL
 import { locateOnLine, nearestDistance, positionAtDistance, sectionLine, segmentMidpoint, type Coord, type LonLat } from './geo';
 import { LocationSearch } from './LocationSearch';
 import { useMe } from '../auth/useMe';
+import { useTheme } from '../../lib/theme';
 import { lookupElevation, placePoi } from '../pois/placement';
 import { poiGlyph } from '../pois/poiTypes';
 import { useEditorStore, useHoverStore, useSectionStore, type EditorPoi, type EditorPoint } from './store';
@@ -214,6 +215,7 @@ function RouteLayer({
   const hoverDistance = useHoverStore((s) => s.distance);
   const setHover = useHoverStore((s) => s.setDistance);
   const [drag, setDrag] = useState<{ index: number; pos: LonLat; inserting: boolean } | null>(null);
+  const routeColors = useRouteColors();
 
   const latlngs = useMemo(() => line.map(toLatLng), [line]);
   const hoverPos = hoverDistance !== null ? positionAtDistance(line, cumulative, hoverDistance) : null;
@@ -244,8 +246,8 @@ function RouteLayer({
     <>
       {latlngs.length > 1 && (
         <>
-          <Polyline positions={latlngs} pathOptions={{ className: styles.routeCasing, weight: 9 }} interactive={false} />
-          <Polyline positions={latlngs} pathOptions={{ className: styles.routeLine, weight: 5 }} eventHandlers={lineHandlers} />
+          <Polyline positions={latlngs} pathOptions={{ color: routeColors.casing, weight: 9, lineCap: 'round', lineJoin: 'round' }} interactive={false} />
+          <Polyline positions={latlngs} pathOptions={{ color: routeColors.line, weight: 5, lineCap: 'round', lineJoin: 'round' }} eventHandlers={lineHandlers} />
           {/* Wide invisible hit area so the line is easy to hover. */}
           <Polyline positions={latlngs} pathOptions={{ className: styles.routeHit, weight: 18, opacity: 0 }} eventHandlers={lineHandlers} />
         </>
@@ -291,6 +293,16 @@ function RouteLayer({
       )}
     </>
   );
+}
+
+/** The route line colours of the active design. Read after the theme has switched, so a change shows at once. */
+function useRouteColors() {
+  const { theme, design } = useTheme();
+  const [colors, setColors] = useState({ line: '#3388ff', casing: '#3388ff' });
+  useEffect(() => {
+    setColors({ line: themeColor('--route-color', '#3388ff'), casing: themeColor('--route-casing', '#3388ff') });
+  }, [theme, design]);
+  return colors;
 }
 
 function VertexMarker({

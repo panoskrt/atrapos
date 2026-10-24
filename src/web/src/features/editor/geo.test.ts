@@ -18,10 +18,10 @@ import {
 import { applyUserSettings } from '../../lib/userPreferences';
 
 describe('geo', () => {
-  afterEach(() => applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark' }));
+  afterEach(() => applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic' }));
 
   it('formats values using the selected unit system', () => {
-    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark' });
+    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic' });
     expect(formatDistance(1609.344)).toBe('1.0 mi');
     expect(formatElevation(100)).toBe('328 ft');
     expect(formatTemperature(0)).toBe('32°');

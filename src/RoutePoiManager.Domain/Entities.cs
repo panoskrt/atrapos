@@ -56,6 +56,8 @@ public sealed class User
     public string DefaultMap { get; set; } = "topo";
     public string Units { get; set; } = "metric";
     public string Theme { get; set; } = "dark";
+    /// <summary>Visual design: classic, alpine or soft. Independent of the dark/light theme.</summary>
+    public string Design { get; set; } = "classic";
 }
 
 /// <summary>A point the user placed while drawing. <see cref="Segment"/> caches the computed line from this
