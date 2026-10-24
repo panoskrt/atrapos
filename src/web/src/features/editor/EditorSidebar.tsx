@@ -6,7 +6,7 @@ import type { PoiLocation } from '../pois/placement';
 import { PoiList } from '../pois/PoiList';
 import { SyncPanel } from '../sync/SyncPanel';
 import { toast } from '../../components/Toast';
-import { gpxDownloadUrl } from '../routes/api';
+import { downloadRouteGpx } from '../routes/api';
 import {
   COMMON_ACTIVITY_IDS,
   useActivityTypes,
@@ -50,16 +50,31 @@ export function EditorSidebar({
   const suuntoConnected = me.data?.suuntoConnected ?? false;
   const name = useEditorStore((s) => s.name);
   const setName = useEditorStore((s) => s.setName);
+  const hasLine = useEditorStore((s) => s.points.length > 1);
   const poiCount = useEditorStore((s) => s.pois.length);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const tool = useEditorStore((s) => s.tool);
   const [tab, setTab] = useState<'route' | 'pois' | 'weather'>('route');
+  const [downloading, setDownloading] = useState(false);
 
   // Placing or selecting a POI shows the POI list.
   useEffect(() => {
     if (selectedPoiId || tool === 'poi') setTab('pois');
   }, [selectedPoiId, tool]);
   const nameId = useId();
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      if (!(await save.flush())) {
+        toast('Save your changes before downloading the route.', { tone: 'error' });
+        return;
+      }
+      downloadRouteGpx(routeId);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <aside className={styles.sidebar}>
@@ -79,14 +94,28 @@ export function EditorSidebar({
         <label htmlFor={nameId} className={styles.label}>
           Route name
         </label>
-        <input
-          id={nameId}
-          className={styles.nameInput}
-          value={name}
-          maxLength={200}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Untitled route"
-        />
+        <div className={styles.nameRow}>
+          <input
+            id={nameId}
+            className={styles.nameInput}
+            value={name}
+            maxLength={200}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Untitled route"
+          />
+          {!isDraft && (
+            <button
+              type="button"
+              className={`btn btn-icon ${styles.downloadBtn}`}
+              onClick={() => void download()}
+              disabled={!hasLine || downloading}
+              title={hasLine ? 'Download GPX' : 'Draw at least two points first'}
+              aria-label="Download GPX"
+            >
+              <Icon name="download" size={18} />
+            </button>
+          )}
+        </div>
         <dl className={styles.stats}>
           <div>
             <dt>Distance</dt>
@@ -127,7 +156,7 @@ export function EditorSidebar({
 
       <div className={styles.sideBody} role="tabpanel">
         {tab === 'route' ? (
-          <RouteTab routeId={routeId} flush={save.flush} isDraft={isDraft} suuntoConnected={suuntoConnected} />
+          <RouteTab suuntoConnected={suuntoConnected} />
         ) : tab === 'pois' ? (
           <PoiList locations={poiLocations} onFocus={onFocus} suuntoConnected={suuntoConnected} />
         ) : (
@@ -140,37 +169,7 @@ export function EditorSidebar({
   );
 }
 
-function RouteTab({
-  routeId,
-  flush,
-  isDraft,
-  suuntoConnected,
-}: {
-  routeId: string;
-  flush: () => Promise<boolean>;
-  isDraft: boolean;
-  suuntoConnected: boolean;
-}) {
-  const hasLine = useEditorStore((s) => s.points.length > 1);
-  const [downloading, setDownloading] = useState(false);
-  const download = async () => {
-    setDownloading(true);
-    try {
-      if (!(await flush())) {
-        toast('Save your changes before downloading the route.', { tone: 'error' });
-        return;
-      }
-      // A plain link download keeps the server's file name (Content-Disposition).
-      const a = document.createElement('a');
-      a.href = gpxDownloadUrl(routeId);
-      a.download = '';
-      document.body.append(a);
-      a.click();
-      a.remove();
-    } finally {
-      setDownloading(false);
-    }
-  };
+function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
   const activityIds = useEditorStore((s) => s.activityIds);
   const toggleActivity = useEditorStore((s) => s.toggleActivity);
   const turnWaypoints = useEditorStore((s) => s.turnWaypointsEnabled);
@@ -269,18 +268,6 @@ function RouteTab({
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      {!isDraft && (
-        <button
-          type="button"
-          className={`btn ${styles.downloadBtn}`}
-          onClick={() => void download()}
-          disabled={!hasLine || downloading}
-          title={hasLine ? 'GPX with the route and all its POIs, for other apps' : 'Draw at least two points first'}
-        >
-          <Icon name="download" size={18} />
-          {downloading ? 'Preparing…' : 'Download GPX'}
-        </button>
-      )}
     </>
   );
 }

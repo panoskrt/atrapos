@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
 import { nearestDistance, positionAtDistance, segmentMidpoint, type Coord, type LonLat } from './geo';
+import { LocationSearch } from './LocationSearch';
 import { useMe } from '../auth/useMe';
 import { lookupElevation, placePoi } from '../pois/placement';
 import { poiGlyph } from '../pois/poiTypes';
@@ -95,6 +96,7 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
       <MapBehaviour line={line} cumulative={cumulative} fitRequest={fitRequest} locateRequest={locateRequest} focus={focus} />
       <RouteLayer segments={segments} line={line} cumulative={cumulative} markerPositions={markerPositions} />
       <PoiLayer line={line} cumulative={cumulative} />
+      <LocationSearch />
     </MapContainer>
   );
 }

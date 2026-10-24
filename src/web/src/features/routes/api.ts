@@ -156,6 +156,15 @@ export function gpxDownloadUrl(id: string) {
   return `/api/routes/${id}/gpx`;
 }
 
+export function downloadRouteGpx(id: string) {
+  const a = document.createElement('a');
+  a.href = gpxDownloadUrl(id);
+  a.download = '';
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
 export function saveRoute(id: string, body: UpdateRouteRequest) {
   return api.put<RouteDetail>(`/api/routes/${id}`, body);
 }

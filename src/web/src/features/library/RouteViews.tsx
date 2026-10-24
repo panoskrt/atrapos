@@ -8,7 +8,7 @@ import { SelectBox, TriCheckbox } from '../../components/SelectionBar';
 import type { Selection } from '../../lib/useSelection';
 import { formatDistance } from '../editor/geo';
 import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
-import { syncStateLabel, useActivityTypes, type RouteSummary, type SyncState } from '../routes/api';
+import { downloadRouteGpx, syncStateLabel, useActivityTypes, type RouteSummary, type SyncState } from '../routes/api';
 import { formatChanged, SORT_LABELS, type RouteSort, type RouteSortKey } from './dashboard';
 import styles from './LibraryPage.module.css';
 
@@ -93,6 +93,20 @@ function DeleteButton({ route, onDelete, disabled }: { route: RouteSummary; onDe
   );
 }
 
+function DownloadButton({ route }: { route: RouteSummary }) {
+  return (
+    <button
+      type="button"
+      className={styles.downloadBtn}
+      onClick={() => downloadRouteGpx(route.id)}
+      aria-label={`Download ${route.name} as GPX`}
+      title="Download GPX"
+    >
+      <Icon name="download" size={18} />
+    </button>
+  );
+}
+
 /** Boxes with a route outline: the visual overview. */
 export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnected, leading }: ViewProps & { leading?: ReactNode }) {
   const activityNames = useActivityNames(suuntoConnected);
@@ -122,6 +136,7 @@ export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnec
                 <h2 className={styles.cardTitle}>
                   <Link to={`/routes/${route.id}`}>{route.name}</Link>
                 </h2>
+                <DownloadButton route={route} />
                 <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
               </div>
               <p className={styles.meta}>
@@ -247,7 +262,10 @@ export function RouteTable({
                   </time>
                 </td>
                 <td className={styles.actionCol}>
-                  <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
+                  <div className={styles.rowActions}>
+                    <DownloadButton route={route} />
+                    <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
+                  </div>
                 </td>
               </tr>
             );

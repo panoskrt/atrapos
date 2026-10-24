@@ -233,16 +233,6 @@ function AccountMenu({
       </button>
       {open && (
         <div id={menuId} role="menu" className={styles.menu}>
-          <button type="button" role="menuitem" className={styles.menuItem} onClick={() => run('logout')}>
-            <Icon name="logout" size={18} />
-            Sign out
-          </button>
-          {googleAccount && !suuntoConnected && (
-            <button type="button" role="menuitem" className={styles.menuItem} onClick={connectSuunto}>
-              <Icon name="pinPlus" size={18} />
-              Connect Suunto
-            </button>
-          )}
           <button
             type="button"
             role="menuitem"
@@ -255,12 +245,22 @@ function AccountMenu({
             <Icon name="user" size={18} />
             Profile
           </button>
+          {googleAccount && !suuntoConnected && (
+            <button type="button" role="menuitem" className={styles.menuItem} onClick={connectSuunto}>
+              <Icon name="pinPlus" size={18} />
+              Connect Suunto
+            </button>
+          )}
           {suuntoConnected && (
             <button type="button" role="menuitem" className={styles.menuItemDanger} onClick={() => run('disconnect')}>
               <Icon name="unlink" size={18} />
               Disconnect Suunto
             </button>
           )}
+          <button type="button" role="menuitem" className={styles.menuItem} onClick={() => run('logout')}>
+            <Icon name="logout" size={18} />
+            Sign out
+          </button>
         </div>
       )}
     </div>
