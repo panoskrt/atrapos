@@ -1,6 +1,6 @@
 import type { RouteSummary, SyncState } from '../routes/api';
 
-export type RouteView = 'cards' | 'list';
+export type RouteView = 'cards' | 'list' | 'map';
 export type RouteSortKey = 'modified' | 'name' | 'distance' | 'ascent' | 'pois' | 'status';
 export type SortDir = 'asc' | 'desc';
 export interface RouteSort {
@@ -25,7 +25,7 @@ export const FILTER_LABELS: Record<RouteFilter, string> = {
   attention: 'Needs attention',
 };
 
-export const isRouteView = (v: unknown): v is RouteView => v === 'cards' || v === 'list';
+export const isRouteView = (v: unknown): v is RouteView => v === 'cards' || v === 'list' || v === 'map';
 
 export const isRouteSort = (v: unknown): v is RouteSort =>
   typeof v === 'object' &&

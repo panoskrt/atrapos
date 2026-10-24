@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { SelectBox, TriCheckbox } from '../../components/SelectionBar';
 import type { Selection } from '../../lib/useSelection';
 import { formatDistance } from '../editor/geo';
+import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { syncStateLabel, useActivityTypes, type RouteSummary, type SyncState } from '../routes/api';
 import { formatChanged, SORT_LABELS, type RouteSort, type RouteSortKey } from './dashboard';
 import styles from './LibraryPage.module.css';
@@ -251,6 +255,175 @@ export function RouteTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Routes plotted from their summary previews; selecting one shows its details and a link to open it. */
+export function RouteMap({ routes }: { routes: RouteSummary[] }) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const layer = baseLayers.find((l) => l.id === loadBaseLayer())!;
+  const plottedRoutes = useMemo(
+    () =>
+      routes.map((route, index) => ({
+        route,
+        color: `hsl(${(index * 137.508) % 360} 78% 45%)`,
+        positions: route.preview
+          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90)
+          .map(([lon, lat]) => [lat, lon] as L.LatLngTuple),
+      })),
+    [routes],
+  );
+  const active = plottedRoutes.find(({ route }) => route.id === activeId)?.route;
+  const points = useMemo(() => plottedRoutes.flatMap((item) => item.positions), [plottedRoutes]);
+  const withoutGeometry = plottedRoutes.filter((item) => item.positions.length === 0);
+  const center = points[0] ?? ([50, 10] as L.LatLngTuple);
+
+  return (
+    <div className={styles.routeMapWrap}>
+      <div className={styles.routeMap} role="region" aria-label="Route map">
+        <MapContainer center={center} zoom={5} scrollWheelZoom>
+          <TileLayer
+            url={layer.url}
+            attribution={layer.attribution}
+            maxZoom={layer.maxZoom}
+            subdomains={layer.subdomains ?? 'abc'}
+            className="rpm-tiles"
+          />
+          <FitRoutes points={points} onBackgroundClick={() => setActiveId(null)} />
+          {plottedRoutes.map(({ route, positions, color }) =>
+            positions.length > 1 ? (
+              <RouteMapLine key={route.id} route={route} positions={positions} color={color} onSelect={setActiveId} />
+            ) : positions.length === 1 ? (
+              <RouteMapPoint key={route.id} route={route} position={positions[0]!} color={color} onSelect={setActiveId} />
+            ) : null,
+          )}
+        </MapContainer>
+      </div>
+      {active && <RouteMapDetails route={active} onClose={() => setActiveId(null)} />}
+      {withoutGeometry.length > 0 && (
+        <section className={styles.routesWithoutGeometry} aria-label="Routes without map geometry">
+          <strong>Routes without map geometry</strong>
+          <ul>
+            {withoutGeometry.map(({ route }) => (
+              <li key={route.id}>
+                <Link to={`/routes/${route.id}`}>{route.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <p className={styles.routeMapHint}>Select a route line or marker to see its details.</p>
+    </div>
+  );
+}
+
+function RouteMapLine({
+  route,
+  positions,
+  color,
+  onSelect,
+}: {
+  route: RouteSummary;
+  positions: L.LatLngTuple[];
+  color: string;
+  onSelect: (id: string) => void;
+}) {
+  const eventHandlers = useMemo<L.LeafletEventHandlerFnMap>(
+    () => ({
+      click: (event) => {
+        L.DomEvent.stopPropagation(event.originalEvent);
+        onSelect(route.id);
+      },
+    }),
+    [onSelect, route.id],
+  );
+  const icon = useMemo(
+    () => L.divIcon({
+      className: styles.routeMarker,
+      html: `<span style="--route-color:${color}"></span>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    }),
+    [color],
+  );
+  return (
+    <>
+      <Polyline positions={positions} pathOptions={{ color: 'var(--bg)', weight: 10, opacity: 0.9 }} interactive={false} />
+      <Polyline
+        positions={positions}
+        pathOptions={{ color, weight: 5, opacity: 0.95 }}
+        eventHandlers={eventHandlers}
+      >
+        <Tooltip sticky>{route.name}</Tooltip>
+      </Polyline>
+      <Marker position={positions[0]!} icon={icon} title={`Show ${route.name}`} eventHandlers={eventHandlers}>
+        <Tooltip>{route.name}</Tooltip>
+      </Marker>
+    </>
+  );
+}
+
+function RouteMapPoint({
+  route,
+  position,
+  color,
+  onSelect,
+}: {
+  route: RouteSummary;
+  position: L.LatLngTuple;
+  color: string;
+  onSelect: (id: string) => void;
+}) {
+  const eventHandlers = useMemo<L.LeafletEventHandlerFnMap>(
+    () => ({
+      click: (event) => {
+        L.DomEvent.stopPropagation(event.originalEvent);
+        onSelect(route.id);
+      },
+    }),
+    [onSelect, route.id],
+  );
+  const icon = useMemo(
+    () => L.divIcon({
+      className: styles.routeMarker,
+      html: `<span style="--route-color:${color}"></span>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    }),
+    [color],
+  );
+  return (
+    <Marker position={position} icon={icon} title={`Show ${route.name}`} eventHandlers={eventHandlers}>
+      <Tooltip sticky>{route.name}</Tooltip>
+    </Marker>
+  );
+}
+
+function FitRoutes({ points, onBackgroundClick }: { points: L.LatLngTuple[]; onBackgroundClick: () => void }) {
+  const map = useMap();
+  useMapEvents({ click: onBackgroundClick });
+  useEffect(() => {
+    if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14 });
+    else if (points.length === 1) map.setView(points[0]!, 13);
+  }, [map, points]);
+  return null;
+}
+
+function RouteMapDetails({ route, onClose }: { route: RouteSummary; onClose: () => void }) {
+  const headingId = useId();
+  return (
+    <section className={styles.routeDetails} aria-labelledby={headingId}>
+      <div className={styles.routeDetailsHead}>
+        <h2 id={headingId} className={styles.routeDetailsTitle}>{route.name}</h2>
+        <button type="button" className={styles.routeDetailsClose} onClick={onClose} aria-label="Close details" title="Close">
+          <Icon name="close" size={18} />
+        </button>
+      </div>
+      <p className={styles.routeDetailsMeta}>
+        {formatDistance(route.distanceM)} · +{Math.round(route.ascentM)} m · {route.poiCount} {route.poiCount === 1 ? 'POI' : 'POIs'}
+      </p>
+      <Link className="btn btn-primary" to={`/routes/${route.id}`}>View route details</Link>
+    </section>
   );
 }
 

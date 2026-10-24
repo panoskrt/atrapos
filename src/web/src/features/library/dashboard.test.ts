@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RouteSummary } from '../routes/api';
-import { activityOptions, filterAndSort, formatChanged, isRouteSort, nextSort, routesForSummary, summarize } from './dashboard';
+import { activityOptions, filterAndSort, formatChanged, isRouteSort, isRouteView, nextSort, routesForSummary, summarize } from './dashboard';
 
 const route = (over: Partial<RouteSummary>): RouteSummary => ({
   id: over.name ?? 'r',
@@ -132,6 +132,15 @@ describe('sorting controls', () => {
     expect(isRouteSort({ key: 'toString', dir: 'asc' })).toBe(false);
     expect(isRouteSort({ key: 'name', dir: 'up' })).toBe(false);
     expect(isRouteSort(null)).toBe(false);
+  });
+});
+
+describe('layout controls', () => {
+  it('accepts the map layout and rejects unknown stored views', () => {
+    expect(isRouteView('cards')).toBe(true);
+    expect(isRouteView('list')).toBe(true);
+    expect(isRouteView('map')).toBe(true);
+    expect(isRouteView('table')).toBe(false);
   });
 });
 

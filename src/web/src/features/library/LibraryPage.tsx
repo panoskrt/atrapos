@@ -35,7 +35,7 @@ import {
   type RouteSort,
   type RouteSortKey,
 } from './dashboard';
-import { RouteCards, RouteTable } from './RouteViews';
+import { RouteCards, RouteMap, RouteTable } from './RouteViews';
 import toolbar from '../../components/Toolbar.module.css';
 import { Spinner } from '../../components/Spinner';
 import styles from './LibraryPage.module.css';
@@ -433,6 +433,16 @@ export function LibraryPage() {
                 <Icon name="list" size={18} />
                 <span className={styles.toggleText}>List</span>
               </button>
+              <button
+                type="button"
+                className={styles.toolBtn}
+                aria-pressed={view === 'map'}
+                onClick={() => setView('map')}
+                title="Map"
+              >
+                <Icon name="pin" size={18} />
+                <span className={styles.toggleText}>Map</span>
+              </button>
             </div>
           </div>
 
@@ -466,7 +476,7 @@ export function LibraryPage() {
               suuntoConnected={suuntoConnected}
               leading={filtering ? undefined : dropCard}
             />
-          ) : (
+          ) : view === 'list' ? (
             <RouteTable
               routes={shown}
               selection={selection}
@@ -476,6 +486,8 @@ export function LibraryPage() {
               onSort={onSort}
               suuntoConnected={suuntoConnected}
             />
+          ) : (
+            <RouteMap routes={shown} />
           )}
         </>
       )}
