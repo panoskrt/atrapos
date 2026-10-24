@@ -12,13 +12,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap"
     />
-    <script>
-      // Apply the saved theme before first paint to avoid a flash of the wrong theme.
-      try {
-        var t = localStorage.getItem('rpm.theme');
-        if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

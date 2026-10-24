@@ -148,6 +148,9 @@ Set these in `.env` for Docker Compose:
 | `REQUIRE_OAUTH_STATE` | | Default `true`: OAuth callbacks must carry the matching `state` |
 | `POSTGRES_PASSWORD` | | Database password; only takes effect before the database volume is first created |
 | `MAX_UPLOAD_MB` | | Default `20`: largest GPX or FIT file accepted, in MB (sets `Uploads:MaxFileSizeMb`) |
+| `FORWARDED_HEADERS` | | Default `false`: set `true` behind a TLS reverse proxy so the client address and `https` scheme are trusted (`Hosting:ForwardedHeaders`) |
+| `TRUSTED_PROXIES` | | Comma-separated proxy IPs to trust for forwarded headers; empty trusts any sender, so only use that when the proxy is the sole way in |
+| `HSTS` | | Default `false`: set `true` once the site is served over https to send `Strict-Transport-Security` |
 
 ¹ Both empty (the default): any Google or Suunto account can sign in. Once either is set, everyone else is refused at sign-in, and sessions of accounts taken off a list end within `Auth:SessionRevalidationInterval` (default 5 minutes).
 
@@ -162,6 +165,25 @@ Other API settings (environment variables use `__` for nesting, e.g. `Routing__B
 | `Auth:SessionLifetime` | `60.00:00:00` | How long a sign-in lasts (`days.hh:mm:ss`). Sliding: using the app renews it. |
 | `Auth:SessionRevalidationInterval` | `00:05:00` | How often a session is re-checked against the database and the allowlists |
 | `Uploads:MaxFileSizeMb` | `20` | Largest GPX or FIT file accepted for import and the GPX tools, 1–500 MB. Each file is held in memory while it's read, so raise it with the API's memory in mind. The web app picks the value up from the API. |
+| `Hosting:ContentSecurityPolicy` | built-in policy | Content-Security-Policy for the web app (allows the map tile hosts, Google Fonts and Nominatim); empty turns it off. Not sent on `/auth`, Swagger or OpenAPI pages. |
+| `Hosting:RateLimit:Enabled` | `true` | Per-minute request limits, per signed-in user (per address when signed out) |
+| `Hosting:RateLimit:PerMinute` | `600` | All endpoints, per user |
+| `Hosting:RateLimit:ExternalPerMinute` | `120` | Routing, elevation and weather, which call public services on the user's behalf |
+| `Hosting:RateLimit:AuthPerMinute` | `30` | Sign-in endpoints (`/auth`), per client address. Over the limit: `429` with `Retry-After`. |
+
+---
+
+## Hosting for other people
+
+The defaults suit one machine. To serve others over the internet:
+
+1. Put a TLS-terminating reverse proxy (Caddy, nginx, Traefik) in front, pass `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, and make the proxy the only way to reach the app (for Compose, change the port mapping to an internal network).
+2. Set `App__PublicBaseUrl` and `Suunto__RedirectUri` to your public https URLs, and update the redirect URI in the Suunto API Zone and the Google client (`https://your-host/auth/google-callback`).
+3. Set `FORWARDED_HEADERS=true` (and `TRUSTED_PROXIES` to the proxy's IP where you can), so sessions get `Secure` cookies and rate limits count the real client address. Without it behind a proxy, every user shares the proxy's address and its limit.
+4. Set `HSTS=true` once https works, and redirect http to https at the proxy.
+5. Consider `ALLOWED_GOOGLE_EMAILS` / `ALLOWED_SUUNTO_USERNAMES`, and self-hosting BRouter and Open Topo Data (see Limitations), since all users share their fair-use quotas.
+
+The built-in rate limits are in memory and per API instance (see `Hosting:RateLimit:*`).
 
 ---
 
@@ -276,8 +298,8 @@ Things learned against the live API that the documentation doesn't spell out. Th
 ## Limitations
 
 - **Partner access:** Suunto grants API access to companies and organisations; personal use may not be approved.
-- **Multi-user, but not hardened for the internet yet:** any number of Google or Suunto accounts can sign in, and every API call only sees that user's data (restrict who may sign in with the allowlists). However, the app has no HTTPS redirection or HSTS, no forwarded-header handling for a reverse proxy, no security headers and no rate limiting. Docker Compose publishes it on `127.0.0.1:5080` only, and the Suunto and Google redirect URIs default to `http://localhost:5080`. To host it for others, put it behind a TLS-terminating reverse proxy and change the redirect URIs: `Suunto__RedirectUri` (and the one registered in the API Zone), and the Google client's authorized redirect URI (`/auth/google-callback` on your host).
-- **Single instance:** routing and elevation caches and the shared rate limits for BRouter and Open Topo Data live in the API process's memory, so running several API replicas multiplies the load on those public services.
+- **Multi-user, TLS is up to you:** any number of Google or Suunto accounts can sign in, and every API call only sees that user's data (restrict who may sign in with the allowlists). The app sends security headers and rate-limits requests, and can trust a reverse proxy's forwarded headers and send HSTS, but it doesn't terminate TLS or redirect to https itself. Docker Compose publishes it on `127.0.0.1:5080` only and the redirect URIs default to `http://localhost:5080`. See [Hosting for other people](#hosting-for-other-people).
+- **Single instance:** routing and elevation caches and the shared rate limits for BRouter and Open Topo Data live in the API process's memory (as do the built-in request limits), so running several API replicas multiplies the load on those public services.
 - **Webhooks:** Suunto change notifications need a public URL, so changes in the Suunto app arrive only when you press **Refresh from Suunto**.
 - **Public services:** BRouter (routing), Open Topo Data (elevation: 1 request per second, 1,000 per day), the OSM tile servers and Nominatim (place search, called from the browser) are free, fair-use services. Respect their usage policies, or self-host for heavy use.
 - **Watch limits:** Suunto doesn't document the maximum number of route points a watch accepts, or how long names can be. Routes are simplified slightly before pushing (2 m tolerance).

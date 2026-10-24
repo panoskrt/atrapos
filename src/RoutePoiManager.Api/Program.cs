@@ -126,6 +126,7 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
 // Deny by default: an endpoint is public only when it says .AllowAnonymous().
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+builder.Services.AddHardening(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
 builder.Services.AddExceptionHandler<SyncExceptionHandler>();
@@ -140,6 +141,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
+app.UseHardening();
 app.UseMiddleware<LocalhostRedirectMiddleware>();
 
 // OpenAPI document at /openapi/v1.json and Swagger UI at /swagger; never exposed in Production.
@@ -161,6 +163,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseMiddleware<CsrfHeaderMiddleware>();
 app.UseAuthentication();
+app.UseRequestLimits();
 app.UseAuthorization();
 
 app.MapGet("/healthz", async (AppDbContext db, CancellationToken ct) =>

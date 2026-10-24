@@ -44,6 +44,10 @@ services:
       Auth__AllowedGoogleEmails: ${ALLOWED_GOOGLE_EMAILS:-}
       Auth__AllowedSuuntoUsernames: ${ALLOWED_SUUNTO_USERNAMES:-}
       Uploads__MaxFileSizeMb: ${MAX_UPLOAD_MB:-20}
+      # Only for hosting behind a TLS reverse proxy; see the README ("Hosting for other people").
+      Hosting__ForwardedHeaders: ${FORWARDED_HEADERS:-false}
+      Hosting__TrustedProxies: ${TRUSTED_PROXIES:-}
+      Hosting__Hsts: ${HSTS:-false}
       Suunto__Mode: Live
       # Required: the API refuses to start without them. Set them in .env (see .env.example).
       Suunto__ClientId: ${SUUNTO_CLIENT_ID:-}
