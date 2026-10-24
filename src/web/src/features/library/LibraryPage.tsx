@@ -9,8 +9,9 @@ import { usePersistentState } from '../../lib/usePersistentState';
 import { useSelection } from '../../lib/useSelection';
 import { formatDistance, formatElevation } from '../editor/geo';
 import { useMe } from '../auth/useMe';
-import { ACCEPTED_EXTENSIONS, isImportable, useUploadLimit } from '../import/api';
+import { isImportable, useUploadLimit } from '../import/api';
 import { ImportDialog } from '../import/ImportDialog';
+import { ImportPickerDialog } from '../import/ImportPickerDialog';
 import {
   routeKeys,
   useActivityTypes,
@@ -47,7 +48,7 @@ export function LibraryPage() {
   const me = useMe();
   const suuntoConnected = me.data?.suuntoConnected ?? false;
   const navigate = useNavigate();
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [picking, setPicking] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -142,18 +143,16 @@ export function LibraryPage() {
   const onSort = (key: RouteSortKey) => setSort(nextSort(sort, key));
 
   const { maxFileBytes, maxFileLabel } = useUploadLimit();
+  const checkFile = (file: File): string | null => {
+    if (!isImportable(file)) return `${file.name} isn't a GPX or FIT file.`;
+    if (file.size > maxFileBytes) return `${file.name} is larger than ${maxFileLabel}.`;
+    return null;
+  };
   const startImport = (file: File | undefined) => {
     if (!file) return;
-    if (!isImportable(file)) {
-      setFileError(`${file.name} isn't a GPX or FIT file.`);
-      return;
-    }
-    if (file.size > maxFileBytes) {
-      setFileError(`${file.name} is larger than ${maxFileLabel}.`);
-      return;
-    }
-    setFileError(null);
-    setImportFile(file);
+    const problem = checkFile(file);
+    setFileError(problem);
+    if (!problem) setImportFile(file);
   };
 
   const dropHandlers = {
@@ -178,7 +177,7 @@ export function LibraryPage() {
   };
 
   const dropCard = (
-    <button type="button" className={styles.dropCard} onClick={() => fileInput.current?.click()}>
+    <button type="button" className={styles.dropCard} onClick={() => setPicking(true)}>
       <Icon name="fileUp" size={36} />
       <strong>Drop GPX or FIT files</strong>
       <span>Tracks, routes, FIT courses and activities</span>
@@ -193,16 +192,17 @@ export function LibraryPage() {
           Drop the GPX or FIT file to import it
         </div>
       )}
-      <input
-        ref={fileInput}
-        type="file"
-        accept={ACCEPTED_EXTENSIONS.join(',')}
-        hidden
-        onChange={(e) => {
-          startImport(e.target.files?.[0]);
-          e.target.value = '';
-        }}
-      />
+      {picking && (
+        <ImportPickerDialog
+          validate={checkFile}
+          maxFileLabel={maxFileLabel}
+          onPick={(file) => {
+            setFileError(null);
+            setImportFile(file);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
       {importFile && <ImportDialog file={importFile} onClose={() => setImportFile(null)} />}
 
       <div className={styles.header}>
@@ -221,7 +221,7 @@ export function LibraryPage() {
             {refresh.isPending ? 'Refreshing…' : 'Refresh from Suunto'}
           </button>
         )}
-        <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+        <button type="button" className="btn" onClick={() => setPicking(true)}>
           <Icon name="fileUp" size={18} />
           Import GPX / FIT
         </button>
@@ -281,7 +281,7 @@ export function LibraryPage() {
               <Icon name="plus" size={18} />
               Draw your first route
             </button>
-            <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+            <button type="button" className="btn" onClick={() => setPicking(true)}>
               <Icon name="fileUp" size={18} />
               Import a file
             </button>

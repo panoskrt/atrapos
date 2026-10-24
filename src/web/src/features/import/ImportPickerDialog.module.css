@@ -1,0 +1,152 @@
+.dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.close:hover {
+  background: var(--panel-2);
+}
+
+.body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zone,
+.zoneOver {
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, transparent), color-mix(in srgb, var(--accent-bg) 30%, var(--panel)));
+  color: var(--text-muted);
+  min-height: 200px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.zone svg,
+.zoneOver svg {
+  color: var(--accent);
+}
+
+.zone strong,
+.zoneOver strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.zoneOver {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.or {
+  font-size: 13px;
+}
+
+.error {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+}
+
+.facts {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.facts dt {
+  color: var(--text-muted);
+  flex: none;
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .head,
+  .body,
+  .foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone,
+  .zoneOver {
+    transition: none;
+  }
+}
