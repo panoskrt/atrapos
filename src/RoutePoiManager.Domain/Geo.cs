@@ -10,9 +10,13 @@ public sealed record RouteStats(double DistanceM, double AscentM, double Descent
 public static class Geo
 {
     private const double EarthRadiusM = 6371008.8;
+    private const double ClimbComparisonEpsilonM = 1e-9;
+    private const double ElevationNoiseFilterWindowM = 100;
+    private const double ElevationNoiseRmsThresholdM = 3;
+    private const double ElevationNoiseFilterMinRouteLengthM = 10_000;
 
     /// <summary>Elevation changes smaller than this are treated as noise when summing ascent/descent.</summary>
-    public const double ClimbHysteresisM = 3;
+    public const double ClimbHysteresisM = 20;
 
     public static double DistanceM(GeoPosition a, GeoPosition b)
     {
@@ -32,15 +36,29 @@ public static class Geo
         return total;
     }
 
-    /// <summary>Distance plus hysteresis-filtered ascent and descent. Points without elevation are skipped
-    /// for climb, not for distance.</summary>
+    /// <summary>Distance plus hysteresis-filtered ascent and descent. Long, noisy profiles are smoothed for
+    /// the totals only; points without elevation are skipped for climb, not for distance.</summary>
     public static RouteStats Stats(IReadOnlyList<GeoPosition> line)
     {
+        var cumulative = CumulativeDistances(line);
+        var elevations = line.Select(p => p.Ele).ToArray();
+        if (cumulative.Length > 1 && cumulative[^1] >= ElevationNoiseFilterMinRouteLengthM &&
+            elevations.All(e => e is not null))
+        {
+            // Smooth high-frequency DEM noise for totals without changing the stored elevation profile.
+            var smoothed = SmoothElevations(elevations.Select(e => e!.Value).ToArray(), cumulative);
+            var residualRms = Math.Sqrt(elevations
+                .Select((e, i) => Math.Pow(e!.Value - smoothed[i], 2))
+                .Average());
+            if (residualRms > ElevationNoiseRmsThresholdM)
+                elevations = smoothed.Select(e => (double?)e).ToArray();
+        }
+
         double ascent = 0, descent = 0;
         double? anchor = null;
-        foreach (var p in line)
+        foreach (var elevation in elevations)
         {
-            if (p.Ele is not { } ele)
+            if (elevation is not { } ele)
                 continue;
             if (anchor is null)
             {
@@ -48,13 +66,50 @@ public static class Geo
                 continue;
             }
             var diff = ele - anchor.Value;
-            if (Math.Abs(diff) < ClimbHysteresisM)
+            if (Math.Abs(diff) < ClimbHysteresisM - ClimbComparisonEpsilonM)
                 continue;
             if (diff > 0) ascent += diff;
             else descent -= diff;
             anchor = ele;
         }
-        return new RouteStats(LengthM(line), ascent, descent);
+        return new RouteStats(cumulative.Length > 0 ? cumulative[^1] : 0, ascent, descent);
+    }
+
+    private static double[] CumulativeDistances(IReadOnlyList<GeoPosition> line)
+    {
+        var cumulative = new double[line.Count];
+        for (var i = 1; i < line.Count; i++)
+            cumulative[i] = cumulative[i - 1] + DistanceM(line[i - 1], line[i]);
+        return cumulative;
+    }
+
+    private static double[] SmoothElevations(double[] elevations, double[] cumulative)
+    {
+        var smoothed = new double[elevations.Length];
+        var halfWindow = ElevationNoiseFilterWindowM / 2;
+        var left = 0;
+        var right = 0;
+        var count = 0;
+        double sum = 0;
+
+        for (var i = 0; i < elevations.Length; i++)
+        {
+            var start = cumulative[i] - halfWindow;
+            var end = cumulative[i] + halfWindow;
+            while (right < elevations.Length && cumulative[right] <= end)
+            {
+                sum += elevations[right++];
+                count++;
+            }
+            while (left < elevations.Length && cumulative[left] < start)
+            {
+                sum -= elevations[left++];
+                count--;
+            }
+            smoothed[i] = sum / count;
+        }
+
+        return smoothed;
     }
 
     /// <summary>Fills missing elevations by linear interpolation along distance; ends take the nearest known

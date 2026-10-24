@@ -21,9 +21,34 @@ public sealed class GeoTests
 
         var stats = Geo.Stats(line);
 
-        // Anchors: 100 → 110 (+10) → 120 (+10) → 100 (−20); the ±1-2 m wiggles are noise.
+        // The small changes are noise; only the 20 m climb and descent pass the hysteresis.
         Assert.Equal(20, stats.AscentM, 6);
         Assert.Equal(20, stats.DescentM, 6);
+    }
+
+    [Fact]
+    public void Climb_ignores_repeated_small_elevation_undulations()
+    {
+        var line = new[] { 100.0, 104, 100, 104, 100, 104, 100 }
+            .Select((e, i) => new GeoPosition(24 + i * 0.001, 60, e)).ToList();
+
+        var stats = Geo.Stats(line);
+
+        Assert.Equal(0, stats.AscentM, 6);
+        Assert.Equal(0, stats.DescentM, 6);
+    }
+
+    [Fact]
+    public void Climb_smooths_high_frequency_noise_on_long_routes()
+    {
+        var line = Enumerable.Range(0, 2001)
+            .Select(i => new GeoPosition(24 + i * 0.00009, 60, 100 + i * 0.1 + (i % 2 == 0 ? 12 : -12)))
+            .ToList();
+
+        var stats = Geo.Stats(line);
+
+        Assert.InRange(stats.AscentM, 195, 205);
+        Assert.Equal(0, stats.DescentM, 6);
     }
 
     [Fact]

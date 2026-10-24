@@ -9,7 +9,11 @@ export interface LonLat {
 }
 
 const EARTH_RADIUS_M = 6371008.8;
-export const CLIMB_HYSTERESIS_M = 3;
+export const CLIMB_HYSTERESIS_M = 20;
+const CLIMB_COMPARISON_EPSILON_M = 1e-9;
+const ELEVATION_NOISE_FILTER_WINDOW_M = 100;
+const ELEVATION_NOISE_RMS_THRESHOLD_M = 3;
+const ELEVATION_NOISE_FILTER_MIN_ROUTE_LENGTH_M = 10_000;
 /** Freehand segments are sampled this often so the elevation profile has detail. */
 export const DENSIFY_STEP_M = 50;
 const MAX_POINTS_PER_SEGMENT = 200;
@@ -69,23 +73,63 @@ export interface RouteStats {
 }
 
 export function stats(line: Coord[]): RouteStats {
+  const cumulative = cumulativeDistances(line);
+  let elevations = line.map(([, , ele]) => ele);
+  if (
+    cumulative.length > 1 &&
+    cumulative[cumulative.length - 1]! >= ELEVATION_NOISE_FILTER_MIN_ROUTE_LENGTH_M &&
+    elevations.every((ele) => ele !== null)
+  ) {
+    const knownElevations = elevations.filter((ele): ele is number => ele !== null);
+    const smoothed = smoothElevations(knownElevations, cumulative);
+    const residualRms = Math.sqrt(
+      smoothed.reduce((sum, ele, i) => sum + (knownElevations[i]! - ele) ** 2, 0) / elevations.length,
+    );
+    // Smooth high-frequency DEM noise for totals without changing the plotted profile.
+    if (residualRms > ELEVATION_NOISE_RMS_THRESHOLD_M) elevations = smoothed;
+  }
+
   let ascent = 0;
   let descent = 0;
   let anchor: number | null = null;
-  for (const [, , ele] of line) {
+  for (const ele of elevations) {
     if (ele === null) continue;
     if (anchor === null) {
       anchor = ele;
       continue;
     }
     const diff = ele - anchor;
-    if (Math.abs(diff) < CLIMB_HYSTERESIS_M) continue;
+    if (Math.abs(diff) < CLIMB_HYSTERESIS_M - CLIMB_COMPARISON_EPSILON_M) continue;
     if (diff > 0) ascent += diff;
     else descent -= diff;
     anchor = ele;
   }
-  const dist = cumulativeDistances(line);
-  return { distanceM: dist.at(-1) ?? 0, ascentM: ascent, descentM: descent };
+  return { distanceM: cumulative.at(-1) ?? 0, ascentM: ascent, descentM: descent };
+}
+
+function smoothElevations(elevations: number[], cumulative: number[]): number[] {
+  const smoothed = new Array<number>(elevations.length);
+  const halfWindow = ELEVATION_NOISE_FILTER_WINDOW_M / 2;
+  let left = 0;
+  let right = 0;
+  let count = 0;
+  let sum = 0;
+
+  for (let i = 0; i < elevations.length; i++) {
+    const start = cumulative[i]! - halfWindow;
+    const end = cumulative[i]! + halfWindow;
+    while (right < elevations.length && cumulative[right]! <= end) {
+      sum += elevations[right++]!;
+      count++;
+    }
+    while (left < elevations.length && cumulative[left]! < start) {
+      sum -= elevations[left++]!;
+      count--;
+    }
+    smoothed[i] = sum / count;
+  }
+
+  return smoothed;
 }
 
 /** Position (and elevation, if known on both sides) at a distance along the line. */

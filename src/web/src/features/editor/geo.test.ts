@@ -50,6 +50,25 @@ describe('geo', () => {
     expect(s.descentM).toBeCloseTo(20, 6);
   });
 
+  it('ignores repeated small elevation undulations', () => {
+    const line: Coord[] = [100, 104, 100, 104, 100, 104, 100].map((e, i) => [24 + i * 0.001, 60, e]);
+    const s = stats(line);
+    expect(s.ascentM).toBe(0);
+    expect(s.descentM).toBe(0);
+  });
+
+  it('smooths high-frequency elevation noise on long routes', () => {
+    const line: Coord[] = Array.from({ length: 2001 }, (_, i) => [
+      24 + i * 0.00009,
+      60,
+      100 + i * 0.1 + (i % 2 === 0 ? 12 : -12),
+    ]);
+    const s = stats(line);
+    expect(s.ascentM).toBeGreaterThanOrEqual(195);
+    expect(s.ascentM).toBeLessThanOrEqual(205);
+    expect(s.descentM).toBe(0);
+  });
+
   it('interpolates position and elevation along the line', () => {
     const line: Coord[] = [
       [24, 60, 100],
