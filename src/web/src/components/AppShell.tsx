@@ -283,12 +283,12 @@ function AccountMenu({
             </button>
           )}
           {suuntoConnected && (
-            <button type="button" role="menuitem" className={styles.menuItemDanger} onClick={() => run('disconnect')}>
+            <button type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuItemDisconnect}`} onClick={() => run('disconnect')}>
               <Icon name="unlink" size={18} />
               Disconnect Suunto
             </button>
           )}
-          <button type="button" role="menuitem" className={styles.menuItem} onClick={() => run('logout')}>
+          <button type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuItemSignOut}`} onClick={() => run('logout')}>
             <Icon name="logout" size={18} />
             Sign out
           </button>

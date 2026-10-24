@@ -209,8 +209,7 @@
   backdrop-filter: blur(14px);
 }
 
-.menuItem,
-.menuItemDanger {
+.menuItem {
   height: 44px;
   padding: 0 12px;
   border: none;
@@ -223,12 +222,15 @@
   font-weight: 500;
 }
 
-.menuItem:hover,
-.menuItemDanger:hover {
+.menuItem:hover {
   background: var(--panel-2);
 }
 
-.menuItemDanger {
+.menuItemDisconnect {
+  color: var(--danger-solid);
+}
+
+.menuItemSignOut {
   color: var(--danger);
 }
 
