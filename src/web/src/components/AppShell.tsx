@@ -1,8 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Navigate, Outlet, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../lib/theme';
 import { useMe, useSignOut, type Me } from '../features/auth/useMe';
+import { useUpdateUserSettings, useUserSettings } from '../features/profile/userSettings';
 import { useSuuntoActivity } from '../lib/suuntoActivity';
 import { ConfirmHost, confirmAction } from './ConfirmDialog';
 import { Icon } from './Icon';
@@ -13,6 +14,12 @@ import styles from './AppShell.module.css';
 /** Guards the signed-in area and renders the top bar around it. */
 export function AppShell() {
   const me = useMe();
+  const userSettings = useUserSettings(Boolean(me.data));
+  const { setTheme } = useTheme();
+
+  useLayoutEffect(() => {
+    if (userSettings.data) setTheme(userSettings.data.theme);
+  }, [setTheme, userSettings.data]);
 
   if (me.isPending)
     return (
@@ -23,6 +30,14 @@ export function AppShell() {
     );
   if (me.isError) return <FatalError message={me.error.message} />;
   if (!me.data) return <Navigate to="/login" replace />;
+  if (userSettings.isPending)
+    return (
+      <div className={styles.loading} role="status">
+        <Spinner size={28} />
+        Loading your settings…
+      </div>
+    );
+  if (userSettings.isError) return <FatalError message={`Couldn't load your settings: ${userSettings.error.message}`} />;
 
   return (
     <div className={styles.shell}>
@@ -40,7 +55,9 @@ export function AppShell() {
 }
 
 function TopBar({ me }: { me: Me }) {
-  const { theme, toggle } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const userSettings = useUserSettings();
+  const updateSettings = useUpdateUserSettings();
   const suuntoActivity = useSuuntoActivity();
   const activity = me.suuntoConnected ? suuntoActivity : null;
 
@@ -101,7 +118,21 @@ function TopBar({ me }: { me: Me }) {
       <button
         type="button"
         className="btn btn-icon"
-        onClick={toggle}
+        onClick={() => {
+          if (!userSettings.data) return;
+          const next = theme === 'dark' ? 'light' : 'dark';
+          setTheme(next);
+          updateSettings.mutate(
+            { ...userSettings.data, theme: next },
+            {
+              onError: (error) => {
+                setTheme(theme);
+                toast(`Couldn't save theme preference: ${error.message}`, { tone: 'error' });
+              },
+            },
+          );
+        }}
+        disabled={!userSettings.data || updateSettings.isPending}
         aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
       >
         <Icon name={theme === 'dark' ? 'sun' : 'moon'} />

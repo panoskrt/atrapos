@@ -169,6 +169,7 @@ app.MapGet("/healthz", async (AppDbContext db, CancellationToken ct) =>
 
 app.MapAuthEndpoints();
 app.MapRouteEndpoints();
+app.MapUserSettingsEndpoints();
 app.MapWeatherEndpoints();
 app.MapElevationEndpoints();
 app.MapRoutingEndpoints();

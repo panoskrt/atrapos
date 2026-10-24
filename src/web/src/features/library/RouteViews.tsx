@@ -6,7 +6,7 @@ import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { SelectBox, TriCheckbox } from '../../components/SelectionBar';
 import type { Selection } from '../../lib/useSelection';
-import { formatDistance } from '../editor/geo';
+import { formatDistance, formatElevation } from '../editor/geo';
 import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { downloadRouteGpx, syncStateLabel, useActivityTypes, type RouteSummary, type SyncState } from '../routes/api';
 import { formatChanged, SORT_LABELS, type RouteSort, type RouteSortKey } from './dashboard';
@@ -140,7 +140,7 @@ export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnec
                 <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
               </div>
               <p className={styles.meta}>
-                {formatDistance(route.distanceM)} · +{Math.round(route.ascentM)} m{names && ` · ${names}`}
+                {formatDistance(route.distanceM)} · +{formatElevation(route.ascentM)}{names && ` · ${names}`}
               </p>
               {suuntoConnected && (
                 <>
@@ -245,7 +245,7 @@ export function RouteTable({
                 </td>
                 {suuntoConnected && <td className={`${styles.colWide} ${styles.muted}`}>{activityNames(route) || '–'}</td>}
                 <td className={styles.num}>{formatDistance(route.distanceM)}</td>
-                <td className={`${styles.num} ${styles.colMid}`}>+{Math.round(route.ascentM).toLocaleString()} m</td>
+                <td className={`${styles.num} ${styles.colMid}`}>+{formatElevation(route.ascentM)}</td>
                 {suuntoConnected && (
                   <>
                     <td>
@@ -438,7 +438,7 @@ function RouteMapDetails({ route, onClose }: { route: RouteSummary; onClose: () 
         </button>
       </div>
       <p className={styles.routeDetailsMeta}>
-        {formatDistance(route.distanceM)} · +{Math.round(route.ascentM)} m · {route.poiCount} {route.poiCount === 1 ? 'POI' : 'POIs'}
+        {formatDistance(route.distanceM)} · +{formatElevation(route.ascentM)} · {route.poiCount} {route.poiCount === 1 ? 'POI' : 'POIs'}
       </p>
       <Link className="btn btn-primary" to={`/routes/${route.id}`}>View route details</Link>
     </section>

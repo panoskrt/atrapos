@@ -53,6 +53,9 @@ public sealed class User
     public DateTimeOffset AccessTokenExpiresAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastSuuntoRefreshAt { get; set; }
+    public string DefaultMap { get; set; } = "topo";
+    public string Units { get; set; } = "metric";
+    public string Theme { get; set; } = "dark";
 }
 
 /// <summary>A point the user placed while drawing. <see cref="Segment"/> caches the computed line from this

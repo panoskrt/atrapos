@@ -368,6 +368,16 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("DefaultMap")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("default_map");
+
+                    b.Property<string>("GoogleSubject")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("google_subject");
+
                     b.Property<DateTimeOffset?>("LastSuuntoRefreshAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_suunto_refresh_at");
@@ -377,26 +387,31 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("refresh_token_protected");
 
-                    b.Property<string>("GoogleSubject")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("google_subject");
-
                     b.Property<string>("SuuntoUsername")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("suunto_username");
 
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("theme");
+
+                    b.Property<string>("Units")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("units");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
-
-                    b.HasIndex("SuuntoUsername")
-                        .IsUnique()
-                        .HasDatabaseName("ix_users_suunto_username");
 
                     b.HasIndex("GoogleSubject")
                         .IsUnique()
                         .HasDatabaseName("ix_users_google_subject");
+
+                    b.HasIndex("SuuntoUsername")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_suunto_username");
 
                     b.ToTable("users", (string)null);
                 });

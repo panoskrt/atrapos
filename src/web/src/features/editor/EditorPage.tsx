@@ -6,7 +6,7 @@ import { chooseAction } from '../../components/ConfirmDialog';
 import { toast } from '../../components/Toast';
 import { ApiError } from '../../lib/api';
 import { routeKeys, useCreateRoute, useRoute, type RouteDetail, type UpdateRouteRequest } from '../routes/api';
-import { loadBaseLayer, storeBaseLayer, type BaseLayerId } from './baseLayers';
+import { loadBaseLayer, type BaseLayerId } from './baseLayers';
 import { EditorSidebar } from './EditorSidebar';
 import { ElevationProfile } from './ElevationProfile';
 import { cumulativeDistances, joinSegments, stats } from './geo';
@@ -19,6 +19,7 @@ import { SelectedPointBar } from './SelectedPointBar';
 import { useEditorStore, useHoverStore } from './store';
 import { useManualSave } from './useManualSave';
 import { useEditorShortcuts } from './useEditorShortcuts';
+import { useUpdateUserSettings, useUserSettings } from '../profile/userSettings';
 import styles from './Editor.module.css';
 
 export function EditorPage() {
@@ -239,6 +240,8 @@ function Editor({
   const [focus, setFocus] = useState<{ lon: number; lat: number; seq: number } | null>(null);
   const focusOn = (lon: number, lat: number) => setFocus((f) => ({ lon, lat, seq: (f?.seq ?? 0) + 1 }));
   const [baseLayer, setBaseLayer] = useState<BaseLayerId>(loadBaseLayer);
+  const userSettings = useUserSettings();
+  const updateUserSettings = useUpdateUserSettings();
   const [fitRequest, setFitRequest] = useState(hadLine ? 1 : 0);
   const [locateRequest, setLocateRequest] = useState(0);
   const [notice, setNotice] = useState<SnapNotice | null>(null);
@@ -294,7 +297,12 @@ function Editor({
             value={baseLayer}
             onChange={(l) => {
               setBaseLayer(l);
-              storeBaseLayer(l);
+              if (userSettings.data && userSettings.data.defaultMap !== l) {
+                updateUserSettings.mutate(
+                  { ...userSettings.data, defaultMap: l },
+                  { onError: (error) => toast(`Couldn't save the default map: ${error.message}`, { tone: 'error' }) },
+                );
+              }
             }}
           />
           {notice ? (

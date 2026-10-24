@@ -25,6 +25,14 @@
   gap: 16px;
 }
 
+.preferencesCard {
+  margin-bottom: 24px;
+}
+
+.preferencesCard .error {
+  margin: 0;
+}
+
 .card {
   min-width: 0;
   padding: 20px;
@@ -111,6 +119,29 @@
   margin: 2px 0 0;
   overflow-wrap: anywhere;
   font-weight: 600;
+}
+
+.preferences {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.preferences label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preferences select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--text);
 }
 
 .loading {

@@ -1,10 +1,16 @@
 import { Navigate } from 'react-router';
 import { Spinner } from '../../components/Spinner';
 import { useMe } from '../auth/useMe';
+import { useUpdateUserSettings, useUserSettings } from './userSettings';
+import { baseLayers } from '../editor/baseLayers';
+import { useTheme } from '../../lib/theme';
 import styles from './ProfilePage.module.css';
 
 export function ProfilePage() {
   const me = useMe();
+  const settings = useUserSettings();
+  const updateSettings = useUpdateUserSettings();
+  const { setTheme } = useTheme();
 
   if (me.isPending)
     return (
@@ -22,6 +28,75 @@ export function ProfilePage() {
         <h1 className={styles.title}>Your profile</h1>
         <p className={styles.sub}>Account details and connected services.</p>
       </header>
+      <section className={`${styles.card} ${styles.preferencesCard}`} aria-labelledby="preferences-heading">
+        <div className={styles.cardHeader}>
+          <div>
+            <h2 id="preferences-heading" className={styles.cardTitle}>Preferences</h2>
+            <p className={styles.cardDescription}>Saved to your account and used throughout the app.</p>
+          </div>
+        </div>
+        {settings.isError ? (
+          <p className={styles.error} role="alert">Couldn’t load preferences: {settings.error.message}</p>
+        ) : (
+          <div className={styles.preferences}>
+            <label>
+              Default map
+              <select
+                value={settings.data?.defaultMap ?? 'topo'}
+                disabled={!settings.data || updateSettings.isPending}
+                onChange={(event) => {
+                  const defaultMap = baseLayers.find((layer) => layer.id === event.target.value)?.id;
+                  if (settings.data && defaultMap) {
+                    updateSettings.mutate({ ...settings.data, defaultMap });
+                  }
+                }}
+              >
+                {baseLayers.map((layer) => <option key={layer.id} value={layer.id}>{layer.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Units
+              <select
+                value={settings.data?.units ?? 'metric'}
+                disabled={!settings.data || updateSettings.isPending}
+                onChange={(event) => {
+                  const units = event.target.value;
+                  if (settings.data && (units === 'metric' || units === 'imperial')) {
+                    updateSettings.mutate({ ...settings.data, units });
+                  }
+                }}
+              >
+                <option value="metric">Metric (km, m, °C)</option>
+                <option value="imperial">Imperial (mi, ft, °F)</option>
+              </select>
+            </label>
+            <label>
+              Appearance
+              <select
+                value={settings.data?.theme ?? 'dark'}
+                disabled={!settings.data || updateSettings.isPending}
+                onChange={(event) => {
+                  const theme = event.target.value;
+                  if (settings.data && (theme === 'dark' || theme === 'light')) {
+                    const previousTheme = settings.data.theme;
+                    setTheme(theme);
+                    updateSettings.mutate(
+                      { ...settings.data, theme },
+                      { onError: () => setTheme(previousTheme) },
+                    );
+                  }
+                }}
+              >
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </label>
+            {updateSettings.isError && (
+              <p className={styles.error} role="alert">Couldn’t save preferences: {updateSettings.error.message}</p>
+            )}
+          </div>
+        )}
+      </section>
       <div className={styles.accounts}>
         <section className={styles.card} aria-labelledby="google-account-heading">
           <div className={styles.cardHeader}>

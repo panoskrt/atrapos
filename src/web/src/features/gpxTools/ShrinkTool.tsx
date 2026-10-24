@@ -5,7 +5,7 @@ import { MapContainer, Polyline, TileLayer, useMap } from 'react-leaflet';
 import { Icon } from '../../components/Icon';
 import { Spinner } from '../../components/Spinner';
 import { usePersistentState } from '../../lib/usePersistentState';
-import { baseLayers } from '../editor/baseLayers';
+import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { formatDistance } from '../editor/geo';
 import { previewImport, useUploadLimit } from '../import/api';
 import { formatBytes, postForFile, saveFile } from './fileApi';
@@ -64,7 +64,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
     }
   };
 
-  const layer = baseLayers.find((item) => item.id === 'topo')!;
+  const layer = baseLayers.find((item) => item.id === loadBaseLayer())!;
   const loadError = fileError ?? (preview.isError ? (preview.error instanceof Error ? preview.error.message : 'The file could not be read.') : null);
 
   return (
@@ -109,7 +109,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
         <>
           <label className={styles.toleranceField}>
             <span>
-              <strong>Keep the route within {toleranceM} m</strong>
+              <strong>Keep the route within {formatDistance(toleranceM)}</strong>
               <span>Every removed point stays within this distance of the new line.</span>
             </span>
             <input
@@ -118,7 +118,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
               max={MAX_SHRINK_TOLERANCE_M}
               step={1}
               value={toleranceM}
-              aria-valuetext={`${toleranceM} metres`}
+              aria-valuetext={formatDistance(toleranceM)}
               onChange={(event) => {
                 setToleranceM(Number(event.target.value));
                 setResult(null);

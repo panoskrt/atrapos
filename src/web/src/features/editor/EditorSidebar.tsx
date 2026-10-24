@@ -13,7 +13,7 @@ import {
   useRoutingProfiles,
   type RoutingProfile,
 } from '../routes/api';
-import { formatDistance, type RouteStats } from './geo';
+import { formatDistance, formatElevation, type RouteStats } from './geo';
 import { useEditorStore } from './store';
 import type { SaveStatus } from './useManualSave';
 import { WeatherPanel } from '../weather/WeatherPanel';
@@ -123,11 +123,11 @@ export function EditorSidebar({
           </div>
           <div>
             <dt>Ascent</dt>
-            <dd>+{Math.round(stats.ascentM)} m</dd>
+            <dd>+{formatElevation(stats.ascentM)}</dd>
           </div>
           <div>
             <dt>Descent</dt>
-            <dd>−{Math.round(stats.descentM)} m</dd>
+            <dd>−{formatElevation(stats.descentM)}</dd>
           </div>
           <div>
             <dt>Points</dt>

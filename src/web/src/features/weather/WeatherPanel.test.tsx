@@ -50,19 +50,21 @@ describe('WeatherPanel', () => {
 
     expect(await screen.findByText('Rain')).toBeInTheDocument();
     expect(screen.getAllByRole('group')).toHaveLength(7);
-    expect(screen.getByText('5° – 13°')).toBeInTheDocument();
-    expect(screen.getByText(/Europe\/Helsinki local time/)).toBeInTheDocument();
-    expect(screen.getByText(/03:00/)).toBeInTheDocument();
-    expect(screen.getAllByText('6°–8°')).toHaveLength(8);
-    expect(screen.getByText('70%')).toBeInTheDocument();
-    expect(screen.getByText('22 km/h')).toBeInTheDocument();
+    expect(screen.getAllByText('5°C – 13°C')).toHaveLength(7);
+    expect(screen.getByText(/Europe\/Helsinki/)).toBeInTheDocument();
+    expect(screen.getAllByText(/03:00/)).toHaveLength(7);
+    expect(screen.getAllByText('6°C–8°C')).toHaveLength(56);
+    expect(screen.getAllByText('70%')).toHaveLength(7);
+    expect(screen.getAllByText('22 km/h')).toHaveLength(7);
     expect(screen.getByRole('link', { name: 'Open-Meteo' })).toHaveAttribute('href', 'https://open-meteo.com/');
   });
 
   it('asks users to save a draft before showing weather', () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
     renderPanel(true);
 
     expect(screen.getByText('Save the route to see the forecast. Weather is based on the saved route geometry.')).toBeInTheDocument();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

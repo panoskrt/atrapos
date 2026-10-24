@@ -1,4 +1,5 @@
 import { Icon } from '../../components/Icon';
+import { formatTemperature, formatWindSpeed, temperatureUnit } from '../editor/geo';
 import { useRouteWeather, type RouteWeatherDay, type RouteWeatherHour } from './api';
 import styles from './WeatherPanel.module.css';
 
@@ -87,8 +88,8 @@ function WeatherDayRow({ day, timeZoneId, initiallyOpen }: {
         </span>
         </span>
         <span className={styles.dayMetrics}>
-          <span className={styles.temperature} aria-label={`Low ${Math.round(day.minTemperatureC)} degrees, high ${Math.round(day.maxTemperatureC)} degrees Celsius`}>
-            {Math.round(day.minTemperatureC)}° – {Math.round(day.maxTemperatureC)}°
+          <span className={styles.temperature} aria-label={`Low ${formatTemperature(day.minTemperatureC)}${temperatureUnit()}, high ${formatTemperature(day.maxTemperatureC)}${temperatureUnit()}`}>
+            {formatTemperature(day.minTemperatureC)}{temperatureUnit()} – {formatTemperature(day.maxTemperatureC)}{temperatureUnit()}
           </span>
           <span className={styles.details}>
             <span title="Maximum precipitation probability">
@@ -97,7 +98,7 @@ function WeatherDayRow({ day, timeZoneId, initiallyOpen }: {
             </span>
             <span title="Maximum wind speed">
               <Icon name="wind" size={14} />
-              {Math.round(day.windSpeedKmh)} km/h
+              {formatWindSpeed(day.windSpeedKmh)}
             </span>
           </span>
         </span>
@@ -123,8 +124,8 @@ function WeatherHourRow({ hour, timeZoneId }: { hour: RouteWeatherHour; timeZone
         })}
       </time>
       <span className={styles.hourCondition} title={condition.label} aria-label={condition.label}>{condition.icon}</span>
-      <strong aria-label={`${Math.round(hour.minTemperatureC)} to ${Math.round(hour.maxTemperatureC)} degrees Celsius`}>
-        {Math.round(hour.minTemperatureC)}°{hour.minTemperatureC === hour.maxTemperatureC ? '' : `–${Math.round(hour.maxTemperatureC)}°`}
+      <strong aria-label={`${formatTemperature(hour.minTemperatureC)}${temperatureUnit()} to ${formatTemperature(hour.maxTemperatureC)}${temperatureUnit()}`}>
+        {formatTemperature(hour.minTemperatureC)}{temperatureUnit()}{hour.minTemperatureC === hour.maxTemperatureC ? '' : `–${formatTemperature(hour.maxTemperatureC)}${temperatureUnit()}`}
       </strong>
       <span title="Precipitation probability">
         <Icon name="umbrella" size={13} />
@@ -132,7 +133,7 @@ function WeatherHourRow({ hour, timeZoneId }: { hour: RouteWeatherHour; timeZone
       </span>
       <span title="Wind speed">
         <Icon name="wind" size={13} />
-        {Math.round(hour.windSpeedKmh)}
+        {formatWindSpeed(hour.windSpeedKmh)}
       </span>
     </div>
   );

@@ -7,7 +7,7 @@ import { SelectionBar, TriCheckbox } from '../../components/SelectionBar';
 import { toast } from '../../components/Toast';
 import { usePersistentState } from '../../lib/usePersistentState';
 import { useSelection } from '../../lib/useSelection';
-import { formatDistance } from '../editor/geo';
+import { formatDistance, formatElevation } from '../editor/geo';
 import { useMe } from '../auth/useMe';
 import { ACCEPTED_EXTENSIONS, isImportable, useUploadLimit } from '../import/api';
 import { ImportDialog } from '../import/ImportDialog';
@@ -302,8 +302,8 @@ export function LibraryPage() {
             />
             <Stat
               label="Climbing"
-              value={`${Math.round(selectedStats.ascentM).toLocaleString()} m`}
-              total={showSelectionTotals ? `${Math.round(stats.ascentM).toLocaleString()} m` : undefined}
+              value={formatElevation(selectedStats.ascentM)}
+              total={showSelectionTotals ? formatElevation(stats.ascentM) : undefined}
             />
             <Stat label="POIs" value={selectedStats.pois.toLocaleString()} total={showSelectionTotals ? stats.pois.toLocaleString() : undefined} />
             {suuntoConnected && (

@@ -1,4 +1,6 @@
-export type BaseLayerId = 'osm' | 'topo' | 'cyclosm';
+import { currentUserSettings, type DefaultMapId } from '../../lib/userPreferences';
+
+export type BaseLayerId = DefaultMapId;
 
 export interface BaseLayer {
   id: BaseLayerId;
@@ -38,24 +40,8 @@ export const baseLayers: BaseLayer[] = [
   },
 ];
 
-const KEY = 'rpm.baseLayer';
-
 export function loadBaseLayer(): BaseLayerId {
-  try {
-    const v = localStorage.getItem(KEY);
-    if (v === 'osm' || v === 'topo' || v === 'cyclosm') return v;
-  } catch {
-    // ignore
-  }
-  return 'topo';
-}
-
-export function storeBaseLayer(id: BaseLayerId) {
-  try {
-    localStorage.setItem(KEY, id);
-  } catch {
-    // ignore
-  }
+  return currentUserSettings().defaultMap;
 }
 
 const VIEW_KEY = 'rpm.mapView';

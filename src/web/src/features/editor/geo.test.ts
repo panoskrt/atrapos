@@ -1,17 +1,31 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   cumulativeDistances,
   densify,
   distanceM,
   formatDistance,
+  formatElevation,
+  formatTemperature,
+  formatWindSpeed,
   joinSegments,
   nearestDistance,
   positionAtDistance,
   stats,
   type Coord,
 } from './geo';
+import { applyUserSettings } from '../../lib/userPreferences';
 
 describe('geo', () => {
+  afterEach(() => applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark' }));
+
+  it('formats values using the selected unit system', () => {
+    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark' });
+    expect(formatDistance(1609.344)).toBe('1.0 mi');
+    expect(formatElevation(100)).toBe('328 ft');
+    expect(formatTemperature(0)).toBe('32°');
+    expect(formatWindSpeed(16.09344)).toBe('10 mph');
+  });
+
   it('matches the server distance for a known pair', () => {
     // Same pair as GeoTests.Distance_matches_known_value: ~160.6 km.
     const d = distanceM({ lon: 24.9522, lat: 60.1704 }, { lon: 23.769, lat: 61.5004 });

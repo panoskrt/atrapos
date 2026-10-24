@@ -196,7 +196,7 @@ function ImportForm({
             <label htmlFor={tolId} className={styles.field}>
               <span className={styles.labelRow}>
                 <span className={styles.label}>Simplify tolerance</span>
-                <strong>{tolerance === 0 ? 'Off' : `${tolerance} m`}</strong>
+                <strong>{tolerance === 0 ? 'Off' : formatDistance(tolerance)}</strong>
               </span>
               <input
                 id={tolId}
@@ -292,8 +292,8 @@ function ImportForm({
                 </div>
                 <p className={styles.muted}>
                   {suuntoConnected
-                    ? 'Selected points become Suunto POIs and are added as waypoints to the route. Points more than 200 m off the track can only be POIs.'
-                    : 'Selected points become POIs in this app and are included in the route when they are within 200 m of the track.'}
+                    ? `Selected points become Suunto POIs and are added as waypoints to the route. Points more than ${formatDistance(200)} off the track can only be POIs.`
+                    : `Selected points become POIs in this app and are included in the route when they are within ${formatDistance(200)} of the track.`}
                 </p>
               </div>
             ) : (

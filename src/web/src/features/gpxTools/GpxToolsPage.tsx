@@ -5,7 +5,7 @@ import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap, useMa
 import { useSearchParams } from 'react-router';
 import { Icon, type IconName } from '../../components/Icon';
 import { Spinner } from '../../components/Spinner';
-import { baseLayers } from '../editor/baseLayers';
+import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { useUploadLimit } from '../import/api';
 import { simplifyIndices } from '../import/simplify';
 import type { Coord } from '../editor/geo';
@@ -240,7 +240,7 @@ export function GpxToolsPage() {
       return [point.lat, point.lon] as [number, number];
     });
   }, [sourcePoints]);
-  const layer = baseLayers.find((item) => item.id === 'topo')!;
+  const layer = baseLayers.find((item) => item.id === loadBaseLayer())!;
 
   const onDragEnter = (event: DragEvent) => {
     if (!event.dataTransfer.types.includes('Files')) return;

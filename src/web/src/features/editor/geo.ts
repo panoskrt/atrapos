@@ -1,3 +1,5 @@
+import { currentUserSettings } from '../../lib/userPreferences';
+
 /** Geometry helpers. `stats` mirrors Geo.Stats in RoutePoiManager.Domain/Geo.cs; keep them in step. */
 
 /** [lon, lat, ele] with ele null when unknown. */
@@ -216,10 +218,33 @@ export function segmentMidpoint(segment: Coord[]): LonLat | null {
 }
 
 export function formatDistance(m: number): string {
+  if (currentUserSettings().units === 'imperial') {
+    const feet = m * 3.280839895;
+    if (m < 1609.344) return `${Math.round(feet).toLocaleString('en-US')} ft`;
+    const miles = m / 1609.344;
+    return `${miles.toFixed(miles < 100 ? 1 : 0)} mi`;
+  }
   if (m < 1000) return `${Math.round(m)} m`;
   return `${(m / 1000).toFixed(m < 100_000 ? 1 : 0)} km`;
 }
 
 export function formatElevation(m: number): string {
-  return `${Math.round(m).toLocaleString('en-US')} m`;
+  const imperial = currentUserSettings().units === 'imperial';
+  return `${Math.round(imperial ? m * 3.280839895 : m).toLocaleString('en-US')} ${imperial ? 'ft' : 'm'}`;
+}
+
+export function formatTemperature(celsius: number): string {
+  const imperial = currentUserSettings().units === 'imperial';
+  const temperature = imperial ? (celsius * 9) / 5 + 32 : celsius;
+  return `${Math.round(temperature)}°`;
+}
+
+export function temperatureUnit(): string {
+  return currentUserSettings().units === 'imperial' ? 'F' : 'C';
+}
+
+export function formatWindSpeed(kmh: number): string {
+  const imperial = currentUserSettings().units === 'imperial';
+  const speed = imperial ? kmh / 1.609344 : kmh;
+  return `${Math.round(speed)} ${imperial ? 'mph' : 'km/h'}`;
 }
