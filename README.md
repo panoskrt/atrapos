@@ -12,17 +12,18 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 
 **Library dashboard**
 - Totals at a glance (routes, distance, climbing, POIs); "Not pushed" and "Needs attention" tiles double as filters
-- **Boxes** (route outlines) or a sortable **List**, remembered per browser
+- **Boxes** (route outlines), a sortable **List** or a **Map** showing all your routes at once, remembered per browser
 - Search (ignores case and accents), filter by sync status or activity, sort by date, name, distance, ascent, POIs or status
 - Select routes or POIs (Shift-click for a range) to **delete in bulk**, or **push selected POIs** to Suunto
 
 **Route editor**
 - OpenStreetMap base maps: OSM, OpenTopoMap and CyclOSM, with a dark and a light theme
+- **Place search** on the map (OpenStreetMap Nominatim) to jump to a town, peak or address
 - **Snap-to-trail** routing with [BRouter](https://brouter.de) (8 hiking and bike profiles) or **freehand** straight segments, chosen per segment
 - Drag points to move them, drag the line to insert a point, right-click to delete
 - Reverse, trim before or after a point, and split into two routes
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
-- **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent
+- **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent (ascent and descent ignore small DEM noise, so totals aren't inflated)
 - **7-day weather forecast** along a saved route, with daily summaries and expandable three-hour forecasts in the route’s local time
 - Routes are saved only when you press **Save**. Leaving with unsaved changes asks whether to save them or discard them.
 - New routes are added to the library only after you place at least one map point and save.
@@ -36,18 +37,22 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 **GPX tools**
 - Merge multiple GPX tracks or routes into one ordered route and create it in the app
 - View a GPX track or route on a map and click to add split points; download the parts or create a route for each part
+- **Shrink** a GPX or FIT file to reduce its size and point count, then download it
 - Convert a GPX file to FIT or a FIT file to GPX and download the converted file; the first track is converted point for point, with elevation, recorded times and waypoints preserved where supported (GPX→FIT produces a FIT course with lap, timer events and course points placed along the track)
 
 **POIs**
 - Place them on the map; a click near the route snaps onto it
 - All 61 Suunto POI types, with category icons
 - Shown in route order and on the elevation profile
-- An **All POIs** page that includes standalone POIs pulled from Suunto
+- An **All POIs** page, as a list or on a map, that includes standalone POIs pulled from Suunto
 
 **Account sign-in**
 - Sign in with Google for an app account, or sign in with Suunto to use your existing Suunto-backed account
 - From a Google account, choose **Connect Suunto** in the account menu to associate your Suunto account; existing Suunto routes and POIs are merged into the Google account, keeping the Suunto account's copy if a route or POI is already present
 - **Disconnect Suunto** revokes this app's access while keeping you signed in with Google; a Suunto-only account is signed out when disconnected
+
+**Profile and preferences**
+- A profile page shows your connected accounts and lets you set a **default map**, **units** (metric or imperial) and **appearance** (dark or light). Preferences are saved to your account (`/api/settings`), so they follow you across browsers.
 
 **Suunto sync**
 - Sign in with your Suunto account (OAuth 2). The app never sees your password.
@@ -271,9 +276,10 @@ Things learned against the live API that the documentation doesn't spell out. Th
 ## Limitations
 
 - **Partner access:** Suunto grants API access to companies and organisations; personal use may not be approved.
-- **Single machine:** the app is built to run locally. Every API call needs a signed-in user and only sees that user's data, but there is no hosting hardening yet (HTTPS, security headers, rate limiting).
+- **Multi-user, but not hardened for the internet yet:** any number of Google or Suunto accounts can sign in, and every API call only sees that user's data (restrict who may sign in with the allowlists). However, the app has no HTTPS redirection or HSTS, no forwarded-header handling for a reverse proxy, no security headers and no rate limiting. Docker Compose publishes it on `127.0.0.1:5080` only, and the Suunto and Google redirect URIs default to `http://localhost:5080`. To host it for others, put it behind a TLS-terminating reverse proxy and change the redirect URIs: `Suunto__RedirectUri` (and the one registered in the API Zone), and the Google client's authorized redirect URI (`/auth/google-callback` on your host).
+- **Single instance:** routing and elevation caches and the shared rate limits for BRouter and Open Topo Data live in the API process's memory, so running several API replicas multiplies the load on those public services.
 - **Webhooks:** Suunto change notifications need a public URL, so changes in the Suunto app arrive only when you press **Refresh from Suunto**.
-- **Public services:** BRouter (routing), Open Topo Data (elevation: 1 request per second, 1,000 per day) and the OSM tile servers are free, fair-use services. Respect their usage policies, or self-host for heavy use.
+- **Public services:** BRouter (routing), Open Topo Data (elevation: 1 request per second, 1,000 per day), the OSM tile servers and Nominatim (place search, called from the browser) are free, fair-use services. Respect their usage policies, or self-host for heavy use.
 - **Watch limits:** Suunto doesn't document the maximum number of route points a watch accepts, or how long names can be. Routes are simplified slightly before pushing (2 m tolerance).
 
 ---

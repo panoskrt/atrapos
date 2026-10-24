@@ -18,6 +18,8 @@ UI design: https://claude.ai/artifact/6T93oL1GkfUhNvwoaXyCZo (private until shar
 | M7 Editing extras & polish | ✅ Done: reverse, trim before/after, split, GPX download, error page and toasts, skip link, reduced motion, Playwright e2e (7 tests) with axe: 0 violations in both themes |
 | M8 Go live with Suunto | 🔄 In progress: live sign-in verified; fixed the import-id shape and POI timestamp units found on first use; awaiting re-push confirmation |
 | Dashboard | ✅ Done: library summary tiles (also act as filters), search, status filter, activity filter (only activities in use, with counts), sort, Boxes/List views (remembered per browser), multi-select with Shift ranges and bulk delete; All POIs gets search, filter, per-route select-all, bulk push and bulk delete. API: `POST /api/routes/delete`, `POST /api/pois/delete` |
+| User preferences | ✅ Done: profile page with default map, units (metric/imperial) and appearance (dark/light), stored on the user (`users.default_map`, `units`, `theme`); `GET/PUT /api/settings` validates values; the web app applies them on load |
+| Editor & library extras | ✅ Done: place search on the map (Nominatim), all-routes map view on the dashboard, POIs on a map in All POIs, GPX/FIT shrink tool, elevation smoothing for ascent/descent totals (server `Geo.cs` and client `geo.ts` match), configurable upload limit (`Uploads:MaxFileSizeMb`) |
 | Suunto loaders | ✅ Done: every call that reaches Suunto (refresh, route push, POI push and retry, conflict resolve, disconnect) runs through `withSuunto()`, which drives an app-wide indicator (progress bar under the top bar, the connection chip names the operation); busy buttons show a spinner and stay readable (`aria-busy`); sign-in shows "Opening Suunto…" |
 
 Deviations and details settled during implementation:
@@ -224,6 +226,7 @@ POST /api/routing/segment   (BRouter proxy)
 POST /api/elevation         (batch)
 POST /api/suunto/refresh    (pull routes + POIs)
 GET  /api/lookups/poi-types | activity-types
+GET/PUT /api/settings       (default map, units, theme)
 ```
 
 ---
