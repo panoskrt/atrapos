@@ -67,7 +67,8 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   padding: 8px 16px;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(16px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -114,6 +115,10 @@
   border: 1px solid var(--border);
 }
 
+.navIcon {
+  display: none;
+}
+
 .navLink,
 .navActive {
   padding: 8px 12px;
@@ -138,6 +143,64 @@
 
 .spacer {
   flex: 1;
+}
+
+/* Phones: one slim top bar, and the main navigation moves to a tab bar under the thumb. */
+@media (max-width: 700px) {
+  /* backdrop-filter would make the top bar the containing block of the fixed tab bar. */
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg);
+    backdrop-filter: none;
+  }
+
+  .wordmark {
+    display: none;
+  }
+
+  .main {
+    padding-bottom: var(--bottomnav-h);
+  }
+
+  .nav {
+    position: fixed;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--bottomnav-h);
+    padding: 6px 8px env(safe-area-inset-bottom, 0px);
+    gap: 4px;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: saturate(1.4) blur(16px);
+  }
+
+  .navLink,
+  .navActive {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+  }
+
+  .navActive {
+    border-color: transparent;
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+
+  .navIcon {
+    display: block;
+  }
 }
 
 .status {

@@ -40,15 +40,47 @@
   border-right: 1px solid var(--border);
 }
 
+/* Phones and narrow windows: the map comes first and the settings follow below it. */
+.actionBar {
+  display: none;
+}
+
 @media (max-width: 899px) {
   .editor {
     height: auto;
   }
+
+  .actionBar {
+    order: -2;
+    flex: 0 0 100%;
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 15;
+    height: 52px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .actionBar :global(.btn) {
+    height: 36px;
+  }
+
   .sidebar {
+    order: 0;
     max-width: none;
     height: auto;
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Back and Save are in the bar above the map. */
+  .sideTopRow {
+    display: none;
   }
 }
 
@@ -352,7 +384,10 @@
 
 @media (max-width: 899px) {
   .mapColumn {
-    height: 80dvh;
+    order: -1;
+    flex: 0 0 100%;
+    /* Fill the screen under the top bar and action bar, above the tab bar. */
+    height: max(480px, calc(100dvh - var(--topbar-h) - var(--bottomnav-h) - 52px));
   }
 }
 
@@ -503,6 +538,19 @@
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+}
+
+/* A narrow map: one row of tools that scrolls sideways, instead of a stack that covers the map. */
+@container (max-width: 560px) {
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .toolbar > * {
+    flex-shrink: 0;
+  }
 }
 
 .toolBtn {

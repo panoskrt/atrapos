@@ -7,7 +7,7 @@ import { toast } from '../../components/Toast';
 import { ApiError } from '../../lib/api';
 import { routeKeys, useCreateRoute, useRoute, type RouteDetail, type UpdateRouteRequest } from '../routes/api';
 import { loadBaseLayer, type BaseLayerId } from './baseLayers';
-import { EditorSidebar } from './EditorSidebar';
+import { EditorActionBar, EditorSidebar } from './EditorSidebar';
 import { ElevationProfile } from './ElevationProfile';
 import { cumulativeDistances, joinSegments, stats } from './geo';
 import { LayerSwitcher, MapToolbar } from './MapToolbar';
@@ -268,6 +268,12 @@ function Editor({
 
   return (
     <div className={styles.editor}>
+      <EditorActionBar
+        save={save}
+        onSave={() => void saveNow()}
+        savePending={isDraft ? createRoute.isPending : manualSave.status === 'saving'}
+        canSave={isDraft ? points.length > 0 && !pending : manualSave.isDirty && !pending}
+      />
       <EditorSidebar
         stats={routeStats}
         vertexCount={line.length}

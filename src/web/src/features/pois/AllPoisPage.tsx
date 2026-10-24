@@ -139,7 +139,12 @@ export function AllPoisPage() {
       )}
 
       {pois.isPending ? (
-        <p className={styles.sub}>Loading POIs…</p>
+        <div role="status" aria-busy="true" style={{ display: 'grid', gap: 10 }}>
+          <span className="visually-hidden">Loading POIs…</span>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skeleton" style={{ height: 64 }} aria-hidden="true" />
+          ))}
+        </div>
       ) : pois.isError ? (
         <p role="alert" className={styles.error}>
           Couldn't load POIs: {pois.error.message}

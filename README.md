@@ -63,6 +63,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - GPX download of any route, with all its POIs
 
 **Quality**
+- Responsive: on phones the main navigation becomes a bottom tab bar under a slim top bar, and the library actions stack for thumb reach
 - Accessible: keyboard support, a skip link and reduced motion; automated axe scans find no WCAG A/AA violations in either theme
 - Unit, integration and Playwright end-to-end tests
 

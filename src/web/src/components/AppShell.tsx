@@ -68,17 +68,20 @@ function TopBar({ me }: { me: Me }) {
         <span className={styles.mark}>
           <Icon name="logo" />
         </span>
-        <span className="display">Route &amp; POI Manager</span>
+        <span className={`display ${styles.wordmark}`}>Route &amp; POI Manager</span>
       </NavLink>
       <nav aria-label="Main" className={styles.nav}>
         <NavLink to="/" end className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
-          Library
+          <Icon name="grid" size={20} className={styles.navIcon} />
+          <span>Library</span>
         </NavLink>
         <NavLink to="/pois" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
-          All POIs
+          <Icon name="pin" size={20} className={styles.navIcon} />
+          <span>All POIs</span>
         </NavLink>
         <NavLink to="/gpx-tools" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
-          GPX tools
+          <Icon name="scissors" size={20} className={styles.navIcon} />
+          <span>GPX tools</span>
         </NavLink>
       </nav>
       <div className={styles.spacer} />

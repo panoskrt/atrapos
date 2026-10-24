@@ -80,16 +80,7 @@ export function EditorSidebar({
     <aside className={styles.sidebar}>
       <div className={styles.sideHead}>
         <div className={styles.sideTopRow}>
-          <Link to="/" className={styles.back}>
-            <Icon name="chevronLeft" size={16} />
-            Library
-          </Link>
-          <div className={styles.saveActions}>
-            <button type="button" className="btn btn-primary" onClick={onSave} disabled={!canSave || savePending}>
-              {savePending ? 'Saving…' : 'Save'}
-            </button>
-            <SaveIndicator {...save} />
-          </div>
+          <SaveControls save={save} onSave={onSave} savePending={savePending} canSave={canSave} />
         </div>
         <label htmlFor={nameId} className={styles.label}>
           Route name
@@ -269,6 +260,40 @@ function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
       />
 
     </>
+  );
+}
+
+interface SaveControlsProps {
+  save: Props['save'];
+  onSave: () => void;
+  savePending: boolean;
+  canSave: boolean;
+}
+
+/** Back link, Save and the save status. */
+function SaveControls({ save, onSave, savePending, canSave }: SaveControlsProps) {
+  return (
+    <>
+      <Link to="/" className={styles.back}>
+        <Icon name="chevronLeft" size={16} />
+        Library
+      </Link>
+      <div className={styles.saveActions}>
+        <button type="button" className="btn btn-primary" onClick={onSave} disabled={!canSave || savePending}>
+          {savePending ? 'Saving…' : 'Save'}
+        </button>
+        <SaveIndicator {...save} />
+      </div>
+    </>
+  );
+}
+
+/** Phones show the map first, so Back and Save live in a bar that stays under the top bar while the page scrolls. */
+export function EditorActionBar(props: SaveControlsProps) {
+  return (
+    <div className={styles.actionBar}>
+      <SaveControls {...props} />
+    </div>
   );
 }
 

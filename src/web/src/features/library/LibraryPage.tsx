@@ -260,9 +260,12 @@ export function LibraryPage() {
       )}
 
       {routes.isPending ? (
-        <p className={styles.sub} aria-busy="true">
-          Loading routes…
-        </p>
+        <div className={styles.grid} role="status" aria-busy="true">
+          <span className="visually-hidden">Loading routes…</span>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton" style={{ height: 300, borderRadius: 'var(--radius-lg)' }} aria-hidden="true" />
+          ))}
+        </div>
       ) : routes.isError ? (
         <p role="alert" className={styles.error}>
           Couldn't load routes: {routes.error.message}

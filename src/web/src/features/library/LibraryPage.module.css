@@ -27,6 +27,28 @@
   min-width: 240px;
 }
 
+@media (max-width: 600px) {
+  .title {
+    font-size: 32px;
+  }
+
+  /* Two across, with the main action on its own full-width row first. */
+  .header > :global(.btn) {
+    flex: 1 1 calc(50% - 8px);
+    padding: 0 12px;
+    order: 2;
+  }
+
+  .header > :global(.btn-primary) {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .heading {
+    flex-basis: 100%;
+  }
+}
+
 .title {
   margin: 0;
   font-size: 40px;
