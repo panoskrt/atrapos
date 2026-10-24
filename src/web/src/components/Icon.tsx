@@ -36,6 +36,7 @@ const paths = {
   arrowDown: 'M12 5v14M18 13l-6 6-6-6',
   umbrella: 'M12 2v20M4 11a8 8 0 0 1 16 0H4zM12 22a2 2 0 0 0 2-2',
   wind: 'M3 8h12a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 16h7a3 3 0 1 1-3 3',
+  ruler: 'M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2',
   shrink: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
 } as const;
 

@@ -36,7 +36,7 @@ export function ImportPickerDialog({ validate, maxFileLabel, onPick, onClose }: 
       return;
     }
     onPick(file);
-    ref.current?.close();
+    ref.current?.close?.();
   };
 
   const isFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files');

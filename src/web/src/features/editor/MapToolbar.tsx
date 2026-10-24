@@ -62,6 +62,13 @@ export function MapToolbar({
       <ToolButton icon="cursor" label="Select and drag points" pressed={tool === 'select'} onClick={() => setTool('select')} />
       <ToolButton icon="routePlus" label="Extend route (click the map)" pressed={tool === 'extend'} onClick={() => setTool('extend')} />
       <ToolButton icon="pinPlus" label="Add POI (click the map)" tone="poi" pressed={tool === 'poi'} onClick={() => setTool('poi')} />
+      <ToolButton
+        icon="ruler"
+        label="Analyse a section (click two points on the route)"
+        pressed={tool === 'section'}
+        onClick={() => setTool('section')}
+        disabled={!canFit}
+      />
       <span className={styles.toolSep} />
       <div role="group" aria-label="Drawing mode" className={styles.segmented}>
         <button

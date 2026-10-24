@@ -3,12 +3,12 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
-import { nearestDistance, positionAtDistance, segmentMidpoint, type Coord, type LonLat } from './geo';
+import { locateOnLine, nearestDistance, positionAtDistance, sectionLine, segmentMidpoint, type Coord, type LonLat } from './geo';
 import { LocationSearch } from './LocationSearch';
 import { useMe } from '../auth/useMe';
 import { lookupElevation, placePoi } from '../pois/placement';
 import { poiGlyph } from '../pois/poiTypes';
-import { useEditorStore, useHoverStore, type EditorPoi, type EditorPoint } from './store';
+import { useEditorStore, useHoverStore, useSectionStore, type EditorPoi, type EditorPoint } from './store';
 import styles from './Editor.module.css';
 
 interface Props {
@@ -65,6 +65,18 @@ function useLatest<T>(value: T) {
   return ref;
 }
 
+/** Section picks within this many screen pixels of the line count as on it. */
+const SECTION_PICK_PIXELS = 24;
+
+/** Distance along the line of a click near it, or null when the click is too far away. */
+function pickAlong(map: L.Map, at: L.LatLng, line: Coord[], cumulative: number[]): number | null {
+  const loc = locateOnLine(line, cumulative, { lon: at.lng, lat: at.lat });
+  if (!loc) return null;
+  const px = map.latLngToContainerPoint(at);
+  const thresholdM = at.distanceTo(map.containerPointToLatLng(px.add([SECTION_PICK_PIXELS, 0])));
+  return loc.offsetM <= thresholdM ? loc.alongM : null;
+}
+
 const insertIcon = L.divIcon({ className: styles.insertHandle, iconSize: [12, 12] });
 
 export function MapView({ segments, line, cumulative, markerPositions, baseLayer, fitRequest, locateRequest, focus }: Props) {
@@ -95,6 +107,7 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
       />
       <MapBehaviour line={line} cumulative={cumulative} fitRequest={fitRequest} locateRequest={locateRequest} focus={focus} />
       <RouteLayer segments={segments} line={line} cumulative={cumulative} markerPositions={markerPositions} />
+      <SectionLayer line={line} cumulative={cumulative} />
       <PoiLayer line={line} cumulative={cumulative} />
       <LocationSearch />
     </MapContainer>
@@ -133,6 +146,9 @@ function MapBehaviour({
       const tool = useEditorStore.getState().tool;
       if (tool === 'extend') {
         addPoint({ lon: e.latlng.lng, lat: e.latlng.lat });
+      } else if (tool === 'section') {
+        const along = pickAlong(map, e.latlng, lineRef.current, cumulativeRef.current);
+        if (along !== null) useSectionStore.getState().pick(along);
       } else if (tool === 'poi') {
         const placed = placePoi(map, e.latlng, lineRef.current, cumulativeRef.current);
         const id = addPoi(placed);
@@ -203,7 +219,7 @@ function RouteLayer({
   const hoverPos = hoverDistance !== null ? positionAtDistance(line, cumulative, hoverDistance) : null;
   const tool = useEditorStore((s) => s.tool);
   // In Add POI mode a click near the line must place a POI, not hit an insert handle.
-  const showInsertHandles = tool !== 'poi' && points.length >= 2 && points.length < 400;
+  const showInsertHandles = tool !== 'poi' && tool !== 'section' && points.length >= 2 && points.length < 400;
 
   const lineHandlers = useMemo<L.LeafletEventHandlerFnMap>(
     () => ({
@@ -258,6 +274,10 @@ function RouteLayer({
           kind={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'mid'}
           selected={p.id === selectedId}
           onDrag={(pos) => setDrag(pos ? { index: i, pos, inserting: false } : null)}
+          onSectionPick={(pos) => {
+            const along = locateOnLine(line, cumulative, pos)?.alongM;
+            if (along != null) useSectionStore.getState().pick(along);
+          }}
         />
       ))}
 
@@ -280,6 +300,7 @@ function VertexMarker({
   kind,
   selected,
   onDrag,
+  onSectionPick,
 }: {
   point: EditorPoint;
   display: LonLat;
@@ -287,6 +308,8 @@ function VertexMarker({
   kind: 'start' | 'end' | 'mid';
   selected: boolean;
   onDrag: (pos: LonLat | null) => void;
+  /** Section tool: a click on the point picks it as an end of the section. */
+  onSectionPick: (pos: LonLat) => void;
 }) {
   const markerRef = useRef<L.Marker>(null);
   const icon = useMemo(() => vertexIcon(kind), [kind]);
@@ -296,13 +319,15 @@ function VertexMarker({
   // A new array every render would make react-leaflet reset the marker mid-drag.
   const position = useMemo<L.LatLngTuple>(() => [display.lat, display.lon], [display.lat, display.lon]);
   const onDragRef = useLatest(onDrag);
+  const sectionPick = useLatest({ onSectionPick, display });
 
   // Bound once per point: re-binding during a drag isn't safe either.
   const handlers = useMemo<L.LeafletEventHandlerFnMap>(
     () => ({
       click: (e) => {
         L.DomEvent.stopPropagation(e);
-        useEditorStore.getState().select(point.id);
+        if (useEditorStore.getState().tool === 'section') sectionPick.current.onSectionPick(sectionPick.current.display);
+        else useEditorStore.getState().select(point.id);
       },
       contextmenu: (e) => {
         L.DomEvent.stopPropagation(e);
@@ -320,7 +345,7 @@ function VertexMarker({
         s.select(point.id);
       },
     }),
-    [point.id, onDragRef],
+    [point.id, onDragRef, sectionPick],
   );
 
   return (
@@ -334,6 +359,51 @@ function VertexMarker({
       title={title}
       zIndexOffset={kind === 'mid' ? 500 : 1000}
     />
+  );
+}
+
+/** A theme colour for Leaflet paths: it takes colours as values, and a `className` in `pathOptions` is only applied
+ *  when a layer is created, which react-leaflet doesn't do for them. */
+function themeColor(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+/** The chosen section drawn over the route, with its ends marked; zooms to it on request. */
+function SectionLayer({ line, cumulative }: { line: Coord[]; cumulative: number[] }) {
+  const map = useMap();
+  const from = useSectionStore((s) => s.from);
+  const to = useSectionStore((s) => s.to);
+  const pending = useSectionStore((s) => s.pending);
+  const fitSeq = useSectionStore((s) => s.fitSeq);
+
+  const part = useMemo(
+    () => (from !== null && to !== null ? sectionLine(line, cumulative, from, to).map(toLatLng) : []),
+    [line, cumulative, from, to],
+  );
+  const color = themeColor('--warn', '#f5bd58');
+  const casing = themeColor('--bg', '#0b1118');
+  const pendingPos = pending !== null ? positionAtDistance(line, cumulative, pending) : null;
+
+  const lastFit = useRef(fitSeq);
+  useEffect(() => {
+    if (lastFit.current === fitSeq) return;
+    lastFit.current = fitSeq;
+    if (part.length > 1) map.fitBounds(L.latLngBounds(part), { padding: [64, 64], maxZoom: 16 });
+  }, [map, fitSeq, part]);
+
+  return (
+    <>
+      {part.length > 1 && (
+        <>
+          <Polyline positions={part} pathOptions={{ color, weight: 8, lineCap: 'round', lineJoin: 'round' }} interactive={false} />
+          <CircleMarker center={part[0]!} radius={7} pathOptions={{ color: casing, weight: 3, fillColor: color, fillOpacity: 1 }} interactive={false} />
+          <CircleMarker center={part.at(-1)!} radius={7} pathOptions={{ color: casing, weight: 3, fillColor: color, fillOpacity: 1 }} interactive={false} />
+        </>
+      )}
+      {pendingPos && (
+        <CircleMarker center={toLatLng(pendingPos)} radius={8} pathOptions={{ color: casing, weight: 3, fillColor: color, fillOpacity: 1 }} interactive={false} />
+      )}
+    </>
   );
 }
 

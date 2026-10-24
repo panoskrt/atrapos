@@ -18,7 +18,7 @@ export interface EditorPoi extends LonLat {
   ele: number | null;
 }
 
-export type Tool = 'select' | 'extend' | 'poi';
+export type Tool = 'select' | 'extend' | 'poi' | 'section';
 
 /** The parts of the route that undo/redo covers. Text fields rely on the browser's own undo. */
 interface UndoableDoc {
@@ -262,4 +262,46 @@ export const useEditorStore = create<EditorState>()(
 export const useHoverStore = create<{ distance: number | null; setDistance: (d: number | null) => void }>()((set) => ({
   distance: null,
   setDistance: (distance) => set({ distance }),
+}));
+
+/** A chosen part of the route, as distances along it. Transient like the hover: not undoable, not saved, and
+ *  cleared whenever the line changes (distances along it would no longer mean the same place). */
+interface SectionState {
+  from: number | null;
+  to: number | null;
+  /** First point of a two-point pick, waiting for the second. */
+  pending: number | null;
+  /** Bumped to ask the map to zoom to the section. */
+  fitSeq: number;
+  /** Sets the section from two distances in either order. */
+  setRange: (a: number, b: number) => void;
+  setFrom: (d: number) => void;
+  setTo: (d: number) => void;
+  /** Two-point pick: the first call remembers the point, the second completes the section. */
+  pick: (d: number) => void;
+  clear: () => void;
+  requestFit: () => void;
+}
+
+export const useSectionStore = create<SectionState>()((set, get) => ({
+  from: null,
+  to: null,
+  pending: null,
+  fitSeq: 0,
+  setRange: (a, b) => set({ from: Math.min(a, b), to: Math.max(a, b), pending: null }),
+  setFrom: (d) => {
+    const { to } = get();
+    if (to !== null) set({ from: Math.min(d, to) });
+  },
+  setTo: (d) => {
+    const { from } = get();
+    if (from !== null) set({ to: Math.max(d, from) });
+  },
+  pick: (d) => {
+    const { pending } = get();
+    if (pending === null) set({ pending: d, from: null, to: null });
+    else set({ from: Math.min(pending, d), to: Math.max(pending, d), pending: null });
+  },
+  clear: () => set({ from: null, to: null, pending: null }),
+  requestFit: () => set({ fitSeq: get().fitSeq + 1 }),
 }));

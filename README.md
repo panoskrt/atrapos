@@ -24,6 +24,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - Reverse, trim before or after a point, and split into two routes
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
 - **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent (ascent and descent ignore small DEM noise, so totals aren't inflated)
+- **Section analysis:** drag across the elevation profile (then drag the handles to adjust), or pick the **ruler** tool and click two points on the route or two of its markers, to measure just that part: distance, ascent, descent, net change, average and steepest grades, highest and lowest point, and the POIs in it. The section is highlighted on the map and **Zoom to section** fits it. `Esc` clears it.
 - **7-day weather forecast** along a saved route, with daily summaries and expandable three-hour forecasts in the route’s local time
 - Routes are saved only when you press **Save**. Leaving with unsaved changes asks whether to save them or discard them.
 - New routes are added to the library only after you place at least one map point and save.

@@ -10,6 +10,8 @@ import {
   joinSegments,
   nearestDistance,
   positionAtDistance,
+  sectionLine,
+  sectionStats,
   stats,
   type Coord,
 } from './geo';
@@ -109,5 +111,64 @@ describe('geo', () => {
   it('formats distances', () => {
     expect(formatDistance(420.4)).toBe('420 m');
     expect(formatDistance(12_440)).toBe('12.4 km');
+  });
+
+  describe('sections', () => {
+    // Climbs 100 m over the first 1 km-ish, is flat, then drops 60 m: points 0.01° (~556 m) apart at lat 60.
+    const line: Coord[] = [100, 150, 200, 200, 200, 140].map((e, i) => [24 + i * 0.02, 60, e]);
+    const cum = cumulativeDistances(line);
+
+    it('cuts the line at interpolated ends', () => {
+      const sub = sectionLine(line, cum, cum[1]! / 2, cum[2]! + 10);
+      expect(sub).toHaveLength(4);
+      expect(sub[0]![2]).toBeCloseTo(125, 6);
+      expect(sub[1]).toEqual(line[1]);
+      expect(sub[2]).toEqual(line[2]);
+      expect(sub.at(-1)![2]).toBeGreaterThan(150);
+      expect(sectionLine(line, cum, 100, 100)).toEqual([]);
+    });
+
+    it('measures only the chosen part, whichever order the ends are given', () => {
+      const climb = sectionStats(line, cum, cum[0]!, cum[2]!)!;
+      expect(climb.distanceM).toBeCloseTo(cum[2]!, 6);
+      expect(climb.ascentM).toBeCloseTo(100, 6);
+      expect(climb.descentM).toBe(0);
+      expect(climb.netM).toBeCloseTo(100, 6);
+      expect(climb.minEleM).toBe(100);
+      expect(climb.maxEleM).toBe(200);
+      expect(climb.avgGradePct).toBeCloseTo((100 / cum[2]!) * 100, 6);
+      expect(climb.maxClimbPct).toBeGreaterThan(0);
+      expect(climb.maxDescentPct).toBeNull();
+
+      const drop = sectionStats(line, cum, cum[5]!, cum[4]!)!;
+      expect(drop.fromM).toBe(cum[4]);
+      expect(drop.descentM).toBeCloseTo(60, 6);
+      expect(drop.ascentM).toBe(0);
+      expect(drop.netM).toBeCloseTo(-60, 6);
+      expect(drop.maxDescentPct).toBeLessThan(0);
+      expect(drop.maxClimbPct).toBeNull();
+    });
+
+    it('covering the whole route matches the route totals', () => {
+      const all = sectionStats(line, cum, 0, cum.at(-1)!)!;
+      const total = stats(line);
+      expect(all.distanceM).toBeCloseTo(total.distanceM, 6);
+      expect(all.ascentM).toBeCloseTo(total.ascentM, 6);
+      expect(all.descentM).toBeCloseTo(total.descentM, 6);
+    });
+
+    it('has distance but no elevation figures when elevation is unknown', () => {
+      const flat: Coord[] = [24, 24.01, 24.02].map((lon) => [lon, 60, null]);
+      const result = sectionStats(flat, cumulativeDistances(flat), 0, 800)!;
+      expect(result.distanceM).toBeCloseTo(800, 6);
+      expect(result.netM).toBeNull();
+      expect(result.minEleM).toBeNull();
+      expect(result.avgGradePct).toBeNull();
+      expect(result.maxClimbPct).toBeNull();
+    });
+
+    it('needs a stretch with length', () => {
+      expect(sectionStats(line, cum, 50, 50)).toBeNull();
+    });
   });
 });

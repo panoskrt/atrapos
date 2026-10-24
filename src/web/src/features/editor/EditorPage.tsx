@@ -15,8 +15,9 @@ import { MapView } from './MapView';
 import { displayPositions, seedSegments, segmentKey, toWire, useSegments, type SegmentFailure } from './segments';
 import { PoiCard } from '../pois/PoiCard';
 import { usePoiLocations } from '../pois/placement';
+import { SectionAnalysis } from './SectionAnalysis';
 import { SelectedPointBar } from './SelectedPointBar';
-import { useEditorStore, useHoverStore } from './store';
+import { useEditorStore, useHoverStore, useSectionStore } from './store';
 import { useManualSave } from './useManualSave';
 import { useEditorShortcuts } from './useEditorShortcuts';
 import { useUpdateUserSettings, useUserSettings } from '../profile/userSettings';
@@ -237,6 +238,12 @@ function Editor({
       }),
     [pois, poiLocations],
   );
+  // Distances along the line stop meaning the same place once it changes.
+  useEffect(() => {
+    useSectionStore.getState().clear();
+  }, [cumulative]);
+  useEffect(() => () => useSectionStore.getState().clear(), []);
+  const sectionPending = useSectionStore((s) => s.pending !== null);
   const [focus, setFocus] = useState<{ lon: number; lat: number; seq: number } | null>(null);
   const focusOn = (lon: number, lat: number) => setFocus((f) => ({ lon, lat, seq: (f?.seq ?? 0) + 1 }));
   const [baseLayer, setBaseLayer] = useState<BaseLayerId>(loadBaseLayer);
@@ -324,14 +331,19 @@ function Editor({
               Finding the trail…
             </div>
           ) : null}
+          <SectionAnalysis line={line} cumulative={cumulative} pois={profilePois} />
           {!isDraft && <SelectedPointBar routeId={routeId} flush={save.flush} onReload={onReload} />}
           <div className={styles.hint}>
-            <Icon name={tool === 'extend' ? 'routePlus' : tool === 'poi' ? 'pinPlus' : 'cursor'} size={16} />
+            <Icon name={tool === 'extend' ? 'routePlus' : tool === 'poi' ? 'pinPlus' : tool === 'section' ? 'ruler' : 'cursor'} size={16} />
             {tool === 'extend'
               ? points.length === 0
                 ? 'Click the map to place the start'
                 : 'Click to extend · drag ○ on the line to add a point between'
-              : tool === 'poi'
+              : tool === 'section'
+                ? sectionPending
+                  ? 'Click the second point on the route · Esc to cancel'
+                  : 'Click two points on the route (or its markers) to analyse the section between them'
+                : tool === 'poi'
                 ? 'Click to place a POI · clicks near the route snap onto it'
                 : 'Drag points and POIs to move · right-click a point to delete'}
           </div>

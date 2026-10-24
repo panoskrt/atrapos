@@ -209,6 +209,85 @@ export function locateOnLine(line: Coord[], cumulative: number[], p: LonLat): Li
   return { alongM: along, offsetM: Math.sqrt(best.sq), point: positionAtDistance(line, cumulative, along)! };
 }
 
+/** The part of the line between two distances along it, with interpolated ends. */
+export function sectionLine(line: Coord[], cumulative: number[], fromM: number, toM: number): Coord[] {
+  const total = cumulative.at(-1) ?? 0;
+  const from = Math.max(0, Math.min(fromM, toM));
+  const to = Math.min(total, Math.max(fromM, toM));
+  const start = positionAtDistance(line, cumulative, from);
+  const end = positionAtDistance(line, cumulative, to);
+  if (!start || !end || to <= from) return [];
+  const inside = line.filter((_, i) => cumulative[i]! > from && cumulative[i]! < to);
+  return [start, ...inside, end];
+}
+
+export interface SectionStats extends RouteStats {
+  fromM: number;
+  toM: number;
+  startEleM: number | null;
+  endEleM: number | null;
+  minEleM: number | null;
+  maxEleM: number | null;
+  /** End minus start elevation. */
+  netM: number | null;
+  /** Net change over the length, in percent. */
+  avgGradePct: number | null;
+  /** Steepest climb and descent over a short stretch (GRADE_WINDOW_M), in percent; the descent is negative. */
+  maxClimbPct: number | null;
+  maxDescentPct: number | null;
+}
+
+/** Grades are measured over this length so a single noisy elevation sample doesn't read as a cliff. */
+export const GRADE_WINDOW_M = 100;
+const GRADE_STEP_M = 25;
+
+/** Distance, climbing and elevation figures for the part of the route between two distances along it.
+ *  Ascent and descent use the same rules as the whole-route totals (`stats`). */
+export function sectionStats(line: Coord[], cumulative: number[], fromM: number, toM: number): SectionStats | null {
+  const sub = sectionLine(line, cumulative, fromM, toM);
+  if (sub.length < 2) return null;
+  const total = cumulative.at(-1) ?? 0;
+  const from = Math.max(0, Math.min(fromM, toM));
+  const to = Math.min(total, Math.max(fromM, toM));
+  const base = stats(sub);
+
+  const known = sub.map((c) => c[2]).filter((e): e is number => e !== null);
+  const startEleM = sub[0]![2];
+  const endEleM = sub.at(-1)![2];
+  const netM = startEleM !== null && endEleM !== null ? endEleM - startEleM : null;
+
+  let maxClimbPct: number | null = null;
+  let maxDescentPct: number | null = null;
+  if (known.length === sub.length) {
+    const window = Math.min(GRADE_WINDOW_M, to - from);
+    for (let d = from; ; d += GRADE_STEP_M) {
+      const a = Math.min(d, to - window);
+      const e0 = positionAtDistance(line, cumulative, a)?.[2];
+      const e1 = positionAtDistance(line, cumulative, a + window)?.[2];
+      if (e0 != null && e1 != null && window > 0) {
+        const grade = ((e1 - e0) / window) * 100;
+        maxClimbPct = maxClimbPct === null ? grade : Math.max(maxClimbPct, grade);
+        maxDescentPct = maxDescentPct === null ? grade : Math.min(maxDescentPct, grade);
+      }
+      if (a >= to - window) break;
+    }
+  }
+
+  return {
+    ...base,
+    fromM: from,
+    toM: to,
+    startEleM,
+    endEleM,
+    minEleM: known.length ? Math.min(...known) : null,
+    maxEleM: known.length ? Math.max(...known) : null,
+    netM,
+    avgGradePct: netM !== null && base.distanceM > 0 ? (netM / base.distanceM) * 100 : null,
+    maxClimbPct: maxClimbPct !== null && maxClimbPct > 0 ? maxClimbPct : null,
+    maxDescentPct: maxDescentPct !== null && maxDescentPct < 0 ? maxDescentPct : null,
+  };
+}
+
 /** Midpoint (by distance) of a segment, for the "drag to insert" handles. */
 export function segmentMidpoint(segment: Coord[]): LonLat | null {
   if (segment.length < 2) return null;

@@ -1,12 +1,16 @@
-import { useMemo, type PointerEvent } from 'react';
+import { useMemo, useRef, type PointerEvent } from 'react';
 import { formatDistance, formatElevation, positionAtDistance, type Coord } from './geo';
-import { useEditorStore, useHoverStore } from './store';
+import { useEditorStore, useHoverStore, useSectionStore } from './store';
 import styles from './Editor.module.css';
 
 const W = 1000;
 const H = 120;
 const PAD_TOP = 8;
 const MAX_SAMPLES = 800;
+/** A drag shorter than this (fraction of the route, or metres) is a click, not a selection. */
+const MIN_SECTION_FRACTION = 0.005;
+const MIN_SECTION_M = 20;
+const CLICK_SLOP_PX = 4;
 
 export interface ProfilePoi {
   id: string;
@@ -27,6 +31,11 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const selectPoi = useEditorStore((s) => s.selectPoi);
   const total = cumulative.at(-1) ?? 0;
+  const sectionFrom = useSectionStore((s) => s.from);
+  const sectionTo = useSectionStore((s) => s.to);
+  const pickStart = useSectionStore((s) => s.pending);
+  const drag = useRef<{ mode: 'new' | 'from' | 'to'; anchor: number; startX: number; moved: boolean } | null>(null);
+  const section = sectionFrom !== null && sectionTo !== null && total > 0 ? { from: sectionFrom, to: sectionTo } : null;
 
   const chart = useMemo(() => {
     const known: { d: number; e: number }[] = [];
@@ -66,10 +75,46 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
     return { left: (hoverDistance / total) * 100, ele: here?.[2] ?? null, grade };
   }, [hoverDistance, line, cumulative, total]);
 
-  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+  const distanceAt = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    setHover(frac * total);
+    return Math.min(1, Math.max(0, (e.clientX - r.left) / (r.width || 1))) * total;
+  };
+
+  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = distanceAt(e);
+    setHover(d);
+    const g = drag.current;
+    if (!g) return;
+    const section = useSectionStore.getState();
+    if (g.mode === 'from') section.setFrom(d);
+    else if (g.mode === 'to') section.setTo(d);
+    else {
+      if (!g.moved && Math.abs(e.clientX - g.startX) < CLICK_SLOP_PX) return;
+      g.moved = true;
+      section.setRange(g.anchor, d);
+    }
+  };
+
+  // Drag across the profile to select that part of the route; drag a handle to adjust it; click to clear it.
+  const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || total <= 0 || (e.target as HTMLElement).closest('button')) return;
+    const handle = (e.target as HTMLElement).dataset.handle;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = {
+      mode: handle === 'from' ? 'from' : handle === 'to' ? 'to' : 'new',
+      anchor: distanceAt(e),
+      startX: e.clientX,
+      moved: false,
+    };
+  };
+
+  const onUp = (e: PointerEvent<HTMLDivElement>) => {
+    const g = drag.current;
+    drag.current = null;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    if (!g || g.mode !== 'new') return;
+    const { from, to, clear } = useSectionStore.getState();
+    if (!g.moved || from === null || to === null || to - from < Math.max(MIN_SECTION_M, total * MIN_SECTION_FRACTION)) clear();
   };
 
   return (
@@ -81,6 +126,7 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
             {formatElevation(chart.minE)} – {formatElevation(chart.maxE)}
           </span>
         )}
+        {chart && !section && <span className={styles.muted}>Drag across the profile to analyse a section</span>}
       </div>
 
       {chart ? (
@@ -93,7 +139,10 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
           <div className={styles.plotWrap}>
             <div
               className={styles.plot}
+              onPointerDown={onDown}
               onPointerMove={onMove}
+              onPointerUp={onUp}
+              onPointerCancel={onUp}
               onPointerLeave={() => setHover(null)}
             >
               <svg
@@ -106,6 +155,18 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
                 <path className={styles.area} d={chart.areaPath} />
                 <path className={styles.profileLine} d={chart.linePath} />
               </svg>
+              {section && (
+                <div
+                  className={styles.selection}
+                  style={{ left: `${(section.from / total) * 100}%`, width: `${((section.to - section.from) / total) * 100}%` }}
+                >
+                  <span className={styles.handle} data-handle="from" />
+                  <span className={`${styles.handle} ${styles.handleEnd}`} data-handle="to" />
+                </div>
+              )}
+              {pickStart !== null && total > 0 && (
+                <span className={styles.pendingMark} style={{ left: `${(pickStart / total) * 100}%` }} />
+              )}
               {pois.map((p) => {
                 const at = positionAtDistance(line, cumulative, p.alongM);
                 return (

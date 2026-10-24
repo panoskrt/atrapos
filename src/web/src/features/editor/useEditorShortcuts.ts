@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { confirmPoiDelete } from '../pois/confirmDelete';
-import { useEditorStore } from './store';
+import { useEditorStore, useSectionStore } from './store';
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -33,7 +33,8 @@ export function useEditorShortcuts() {
       } else if (e.key === 'Escape') {
         state.select(null);
         state.selectPoi(null);
-        if (state.tool === 'poi') state.setTool('select');
+        useSectionStore.getState().clear();
+        if (state.tool === 'poi' || state.tool === 'section') state.setTool('select');
       }
     };
     window.addEventListener('keydown', onKey);
