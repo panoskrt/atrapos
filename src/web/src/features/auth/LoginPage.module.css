@@ -1,33 +1,36 @@
 .page {
+  position: relative;
   min-height: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background: var(--panel-2);
+  overflow: hidden;
 }
 
+/* The sign-in card floats over the full-bleed map. */
 .panel {
-  flex: 1 1 440px;
-  max-width: 560px;
-  padding: 48px 56px;
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  padding: 40px 44px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-}
-
-/* Once the art wraps below, the panel takes the full row. */
-@media (max-width: 999px) {
-  .panel {
-    max-width: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+  gap: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
 }
 
 @media (max-width: 600px) {
+  .page {
+    padding: 16px 12px;
+  }
+
   .panel {
-    padding: 32px 16px;
+    padding: 28px 20px;
   }
 }
 
@@ -59,7 +62,7 @@
 
 .title {
   margin: 0;
-  font-size: clamp(40px, 6vw, 56px);
+  font-size: clamp(34px, 5vw, 44px);
   line-height: 1;
   font-weight: 700;
 }
@@ -164,10 +167,8 @@
 }
 
 .art {
-  flex: 999 1 480px;
-  min-width: 0;
-  min-height: 360px;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: var(--panel-2);
 }
@@ -206,6 +207,8 @@
   stroke: var(--bg);
   stroke-width: 12;
   stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: draw 10s ease-in-out infinite;
 }
 
 .route {
@@ -213,6 +216,8 @@
   stroke: var(--accent);
   stroke-width: 6;
   stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: draw 10s ease-in-out infinite;
 }
 
 .start {
@@ -225,4 +230,31 @@
   fill: var(--poi);
   stroke: var(--panel);
   stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pin 10s ease-out infinite;
+}
+
+.poi2 { animation-delay: 1.2s; }
+.poi3 { animation-delay: 2.4s; }
+
+@keyframes draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  40% { stroke-dashoffset: 0; }
+  92% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes pin {
+  0%, 10% { transform: scale(0); opacity: 0; }
+  18% { transform: scale(1.25); opacity: 1; }
+  24%, 92% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeCase, .route, .poi {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }

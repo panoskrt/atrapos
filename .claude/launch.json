@@ -7,7 +7,11 @@
       "runtimeArgs": [
         "ASPNETCORE_ENVIRONMENT=Development",
         "ASPNETCORE_URLS=http://localhost:5091",
-        "dotnet", "run", "--no-launch-profile", "--project", "src/RoutePoiManager.MockSuunto"
+        "dotnet",
+        "run",
+        "--no-launch-profile",
+        "--project",
+        "src/RoutePoiManager.MockSuunto"
       ],
       "port": 5091
     },
@@ -33,9 +37,24 @@
         "Suunto__OAuthBaseUrl=http://localhost:5091",
         "Suunto__ApiBaseUrl=http://localhost:5091",
         "Suunto__RedirectUri=http://localhost:5081/auth/callback",
-        "dotnet", "run", "--no-launch-profile", "--project", "src/RoutePoiManager.Api"
+        "dotnet",
+        "run",
+        "--no-launch-profile",
+        "--project",
+        "src/RoutePoiManager.Api"
       ],
       "port": 5081
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "src/web",
+        "run",
+        "dev"
+      ],
+      "port": 5173
     }
   ]
 }
