@@ -1,12 +1,7 @@
-# Render Blueprint: one Docker web service plus a PostgreSQL database (PostGIS is available on Render Postgres).
-# Deploy with New > Blueprint. Check the plan names against Render's current pricing before applying.
+# Render Blueprint: one Docker web service. The PostgreSQL database already exists on Render (PostGIS is available there),
+# so it is not declared here; enter its Internal Database URL as DATABASE_URL in the dashboard (never commit it).
+# Check the plan name against Render's current pricing before applying.
 # Keep the service at a single instance: caches and rate limits live in the API's memory.
-databases:
-  - name: routepoi-db
-    plan: basic-256mb
-    databaseName: routepoi
-    user: routepoi
-
 services:
   - type: web
     name: routepoi
@@ -17,10 +12,9 @@ services:
     numInstances: 1
     healthCheckPath: /healthz
     envVars:
+      # Internal Database URL of the existing Render database (postgresql://user:password@host/db).
       - key: DATABASE_URL
-        fromDatabase:
-          name: routepoi-db
-          property: connectionString
+        sync: false
       - key: Suunto__Mode
         value: Live
       - key: Suunto__ClientId
