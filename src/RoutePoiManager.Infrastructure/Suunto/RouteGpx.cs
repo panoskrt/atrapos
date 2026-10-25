@@ -75,7 +75,7 @@ public static class RouteGpx
 
         var gpx = new XElement(Gpx + "gpx",
             new XAttribute("version", "1.1"),
-            new XAttribute("creator", "Route & POI Manager"),
+            new XAttribute("creator", "Atrapos"),
             new XAttribute(XNamespace.Xmlns + "suunto", Suunto.NamespaceName),
             metadata);
         if (forDownload)

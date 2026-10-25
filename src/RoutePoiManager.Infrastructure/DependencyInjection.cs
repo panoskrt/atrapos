@@ -70,7 +70,7 @@ public static class DependencyInjection
             services.AddHttpClient<IElevationProvider, OpenTopoDataProvider>(OpenTopoDataProvider.HttpClientName, c =>
                 {
                     c.Timeout = TimeSpan.FromSeconds(60);
-                    c.DefaultRequestHeaders.UserAgent.ParseAdd("RoutePoiManager/0.1 (personal route planner)");
+                    c.DefaultRequestHeaders.UserAgent.ParseAdd("Atrapos/0.1 (personal route planner)");
                 })
                 .AddStandardResilienceHandler(o =>
                 {
@@ -86,7 +86,7 @@ public static class DependencyInjection
             {
                 c.BaseAddress = new Uri("https://api.open-meteo.com/");
                 c.Timeout = TimeSpan.FromSeconds(15);
-                c.DefaultRequestHeaders.UserAgent.ParseAdd("RoutePoiManager/0.1 (route weather forecast)");
+                c.DefaultRequestHeaders.UserAgent.ParseAdd("Atrapos/0.1 (route weather forecast)");
             })
             .AddStandardResilienceHandler(o =>
             {
@@ -103,7 +103,7 @@ public static class DependencyInjection
         services.AddHttpClient<IRoutingProvider, BRouterProvider>(BRouterProvider.HttpClientName, c =>
         {
             c.Timeout = TimeSpan.FromSeconds(30);
-            c.DefaultRequestHeaders.UserAgent.ParseAdd("RoutePoiManager/0.1 (personal route planner)");
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("Atrapos/0.1 (personal route planner)");
         });
 
         return services;

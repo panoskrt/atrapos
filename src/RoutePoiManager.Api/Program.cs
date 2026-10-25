@@ -151,7 +151,7 @@ if (!app.Environment.IsProduction())
     app.MapOpenApi().AllowAnonymous();
     app.UseSwaggerUI(o =>
     {
-        o.SwaggerEndpoint("/openapi/v1.json", "RoutePoiManager API v1");
+        o.SwaggerEndpoint("/openapi/v1.json", "Atrapos API v1");
         // "Try it out" on unsafe /api and /auth calls needs the CSRF header the SPA sends.
         // Swashbuckle only reads parameters from "(...)", so this must not be a bare-parameter arrow function.
         o.UseRequestInterceptor($"function (req) {{ req.headers['{CsrfHeaderMiddleware.HeaderName}'] = '1'; return req; }}");

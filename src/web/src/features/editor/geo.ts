@@ -11,11 +11,12 @@ export interface LonLat {
 }
 
 const EARTH_RADIUS_M = 6371008.8;
-export const CLIMB_HYSTERESIS_M = 20;
-const CLIMB_COMPARISON_EPSILON_M = 1e-9;
-const ELEVATION_NOISE_FILTER_WINDOW_M = 100;
-const ELEVATION_NOISE_RMS_THRESHOLD_M = 3;
-const ELEVATION_NOISE_FILTER_MIN_ROUTE_LENGTH_M = 10_000;
+/** A climb or descent only counts once the profile has reversed by this much from its extreme. */
+export const CLIMB_HYSTERESIS_M = 5;
+/** The profile is resampled to this spacing before smoothing, so point density doesn't change the totals. */
+const ELEVATION_RESAMPLE_STEP_M = 5;
+/** Moving-average half-width in resampled steps (±50 m). */
+const ELEVATION_SMOOTHING_HALF_WIDTH_STEPS = 10;
 /** Freehand segments are sampled this often so the elevation profile has detail. */
 export const DENSIFY_STEP_M = 50;
 const MAX_POINTS_PER_SEGMENT = 200;
@@ -74,64 +75,91 @@ export interface RouteStats {
   descentM: number;
 }
 
+/** Distance plus ascent and descent: the elevation profile is resampled at a fixed spacing, smoothed, then
+ *  summed between turning points that differ by at least CLIMB_HYSTERESIS_M. Points without elevation are
+ *  skipped for climb, not for distance. */
 export function stats(line: Coord[]): RouteStats {
   const cumulative = cumulativeDistances(line);
-  let elevations = line.map(([, , ele]) => ele);
-  if (
-    cumulative.length > 1 &&
-    cumulative[cumulative.length - 1]! >= ELEVATION_NOISE_FILTER_MIN_ROUTE_LENGTH_M &&
-    elevations.every((ele) => ele !== null)
-  ) {
-    const knownElevations = elevations.filter((ele): ele is number => ele !== null);
-    const smoothed = smoothElevations(knownElevations, cumulative);
-    const residualRms = Math.sqrt(
-      smoothed.reduce((sum, ele, i) => sum + (knownElevations[i]! - ele) ** 2, 0) / elevations.length,
-    );
-    // Smooth high-frequency DEM noise for totals without changing the plotted profile.
-    if (residualRms > ELEVATION_NOISE_RMS_THRESHOLD_M) elevations = smoothed;
-  }
-
-  let ascent = 0;
-  let descent = 0;
-  let anchor: number | null = null;
-  for (const ele of elevations) {
-    if (ele === null) continue;
-    if (anchor === null) {
-      anchor = ele;
-      continue;
-    }
-    const diff = ele - anchor;
-    if (Math.abs(diff) < CLIMB_HYSTERESIS_M - CLIMB_COMPARISON_EPSILON_M) continue;
-    if (diff > 0) ascent += diff;
-    else descent -= diff;
-    anchor = ele;
-  }
+  const { ascent, descent } = climb(line, cumulative);
   return { distanceM: cumulative.at(-1) ?? 0, ascentM: ascent, descentM: descent };
 }
 
-function smoothElevations(elevations: number[], cumulative: number[]): number[] {
-  const smoothed = new Array<number>(elevations.length);
-  const halfWindow = ELEVATION_NOISE_FILTER_WINDOW_M / 2;
-  let left = 0;
-  let right = 0;
-  let count = 0;
-  let sum = 0;
+function climb(line: Coord[], cumulative: number[]): { ascent: number; descent: number } {
+  const distances: number[] = [];
+  const elevations: number[] = [];
+  line.forEach(([, , ele], i) => {
+    if (ele === null) return;
+    // Coincident points would make the interpolation ambiguous; keep the first.
+    if (distances.length > 0 && cumulative[i]! <= distances.at(-1)!) return;
+    distances.push(cumulative[i]!);
+    elevations.push(ele);
+  });
+  if (distances.length < 2) return { ascent: 0, descent: 0 };
+  return sumClimb(smoothElevations(resample(distances, elevations)));
+}
 
-  for (let i = 0; i < elevations.length; i++) {
-    const start = cumulative[i]! - halfWindow;
-    const end = cumulative[i]! + halfWindow;
-    while (right < elevations.length && cumulative[right]! <= end) {
-      sum += elevations[right++]!;
-      count++;
-    }
-    while (left < elevations.length && cumulative[left]! < start) {
-      sum -= elevations[left++]!;
-      count--;
-    }
-    smoothed[i] = sum / count;
+/** Linear interpolation at a fixed spacing from the first to the last known point. */
+function resample(distances: number[], elevations: number[]): number[] {
+  const span = distances.at(-1)! - distances[0]!;
+  const count = Math.ceil(span / ELEVATION_RESAMPLE_STEP_M) + 1;
+  const result = new Array<number>(count);
+  let seg = 0;
+  for (let j = 0; j < count; j++) {
+    const d = j === count - 1 ? distances.at(-1)! : distances[0]! + j * ELEVATION_RESAMPLE_STEP_M;
+    while (seg < distances.length - 2 && distances[seg + 1]! < d) seg++;
+    const t = (d - distances[seg]!) / (distances[seg + 1]! - distances[seg]!);
+    result[j] = elevations[seg]! + Math.min(1, Math.max(0, t)) * (elevations[seg + 1]! - elevations[seg]!);
   }
+  return result;
+}
 
-  return smoothed;
+/** Moving average whose window shrinks symmetrically at the ends, so the start and end elevations
+ *  (and straight ramps) are kept exactly. */
+function smoothElevations(samples: number[]): number[] {
+  const prefix = new Array<number>(samples.length + 1).fill(0);
+  samples.forEach((e, i) => (prefix[i + 1] = prefix[i]! + e));
+  return samples.map((_, i) => {
+    const h = Math.min(ELEVATION_SMOOTHING_HALF_WIDTH_STEPS, i, samples.length - 1 - i);
+    return (prefix[i + h + 1]! - prefix[i - h]!) / (2 * h + 1);
+  });
+}
+
+/** Sums the legs between turning points. A leg is committed once the profile reverses by the hysteresis
+ *  from its running extreme, so peaks and valleys count in full and the final leg is included. */
+function sumClimb(profile: number[]): { ascent: number; descent: number } {
+  let ascent = 0;
+  let descent = 0;
+  let last = profile[0]!; // last committed turning point
+  let extreme = last; // furthest point reached in the current direction
+  let direction = 0; // 1 climbing, -1 descending, 0 not yet decided
+  for (const e of profile) {
+    if (direction === 0) {
+      if (e - last >= CLIMB_HYSTERESIS_M) {
+        direction = 1;
+        extreme = e;
+      } else if (last - e >= CLIMB_HYSTERESIS_M) {
+        direction = -1;
+        extreme = e;
+      }
+    } else if (direction === 1) {
+      if (e > extreme) extreme = e;
+      else if (extreme - e >= CLIMB_HYSTERESIS_M) {
+        ascent += extreme - last;
+        last = extreme;
+        direction = -1;
+        extreme = e;
+      }
+    } else if (e < extreme) extreme = e;
+    else if (e - extreme >= CLIMB_HYSTERESIS_M) {
+      descent += last - extreme;
+      last = extreme;
+      direction = 1;
+      extreme = e;
+    }
+  }
+  if (direction === 1) ascent += extreme - last;
+  else if (direction === -1) descent += last - extreme;
+  return { ascent, descent };
 }
 
 /** Position (and elevation, if known on both sides) at a distance along the line. */

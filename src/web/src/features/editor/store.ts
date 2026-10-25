@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
 import type { RouteDetail, SegmentMode, SyncState } from '../routes/api';
-import type { LonLat } from './geo';
+import { distanceM, type LonLat } from './geo';
 
 export interface EditorPoint extends LonLat {
   id: string;
@@ -16,6 +16,13 @@ export interface EditorPoi extends LonLat {
   description: string;
   poiType: number;
   ele: number | null;
+}
+
+/** A route is a loop when it ends within this distance of where it starts. */
+export const LOOP_CLOSE_TOLERANCE_M = 25;
+
+export function isLoop(points: LonLat[]): boolean {
+  return points.length >= 3 && distanceM(points[0]!, points.at(-1)!) <= LOOP_CLOSE_TOLERANCE_M;
 }
 
 export type Tool = 'select' | 'extend' | 'poi' | 'section';
@@ -66,6 +73,8 @@ interface EditorState extends UndoableDoc {
   deletePoint: (id: string) => void;
   /** Reverses the direction; each segment keeps its mode. */
   reverse: () => void;
+  /** For a loop: makes this inner point the start and end, keeping the route itself the same. */
+  rotateLoop: (id: string) => void;
   /** Removes everything before this point (it becomes the start). */
   trimBefore: (id: string) => void;
   /** Removes everything after this point (it becomes the end). */
@@ -207,6 +216,14 @@ export const useEditorStore = create<EditorState>()(
         // Segment i (pts[i] → pts[i+1]) is owned by pts[i]; reversed, the same leg is owned by pts[i+1].
         const reversed = pts.map((p, i) => ({ ...p, mode: i > 0 ? pts[i - 1]!.mode : p.mode })).reverse();
         set({ points: reversed });
+      },
+      rotateLoop: (id) => {
+        const pts = get().points;
+        const k = pts.findIndex((p) => p.id === id);
+        if (!isLoop(pts) || k < 1 || k > pts.length - 2) return;
+        // The old end sits on the old start, so it is dropped and the start point takes its place at the seam.
+        // Leg i belongs to point i, so every leg keeps its mode and its own two ends.
+        set({ points: [...pts.slice(k, -1), pts[0]!, ...pts.slice(1, k), { ...pts[k]!, id: newId() }] });
       },
       trimBefore: (id) => {
         const i = get().points.findIndex((p) => p.id === id);

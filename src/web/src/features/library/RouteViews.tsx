@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { Spinner } from '../../components/Spinner';
 import { SelectBox, TriCheckbox } from '../../components/SelectionBar';
 import type { Selection } from '../../lib/useSelection';
 import { formatDistance, formatElevation } from '../editor/geo';
@@ -22,6 +23,10 @@ interface ViewProps {
   onDelete: (route: RouteSummary) => void;
   deleting: boolean;
   suuntoConnected: boolean;
+  onPushRoute: (route: RouteSummary) => void;
+  onPushPois: (route: RouteSummary) => void;
+  /** Which push is running, as `route:<id>` or `pois:<id>`; pushes are one at a time. */
+  pushing: string | null;
 }
 
 const sourceLabel: Record<RouteSummary['source'], string> = {
@@ -93,6 +98,41 @@ function DeleteButton({ route, onDelete, disabled }: { route: RouteSummary; onDe
   );
 }
 
+function PushButtons({ route, onPushRoute, onPushPois, pushing }: Pick<ViewProps, 'onPushRoute' | 'onPushPois' | 'pushing'> & { route: RouteSummary }) {
+  const routeBusy = pushing === `route:${route.id}`;
+  const poisBusy = pushing === `pois:${route.id}`;
+  const routeDone = route.syncState === 'synced';
+  const noLine = route.distanceM <= 0;
+  const routeTitle = noLine ? 'Draw at least two points first' : routeDone ? 'Suunto has this version' : route.syncState === 'conflict' ? 'Resolve conflict' : 'Push route to Suunto';
+  const poiTitle = route.poiCount === 0 ? 'No POIs on this route' : route.poisPending === 0 ? 'All POIs are pushed' : `Push ${route.poisPending} ${route.poisPending === 1 ? 'POI' : 'POIs'} to Suunto`;
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.downloadBtn}
+        onClick={() => onPushRoute(route)}
+        disabled={pushing !== null || routeDone || noLine}
+        aria-busy={routeBusy}
+        aria-label={`Push ${route.name} to Suunto`}
+        title={routeTitle}
+      >
+        {routeBusy ? <Spinner size={18} /> : <Icon name="upload" size={18} />}
+      </button>
+      <button
+        type="button"
+        className={styles.downloadBtn}
+        onClick={() => onPushPois(route)}
+        disabled={pushing !== null || route.poisPending === 0}
+        aria-busy={poisBusy}
+        aria-label={`Push POIs of ${route.name} to Suunto`}
+        title={poiTitle}
+      >
+        {poisBusy ? <Spinner size={18} /> : <Icon name="pinUp" size={18} />}
+      </button>
+    </>
+  );
+}
+
 function DownloadButton({ route }: { route: RouteSummary }) {
   return (
     <button
@@ -108,7 +148,7 @@ function DownloadButton({ route }: { route: RouteSummary }) {
 }
 
 /** Boxes with a route outline: the visual overview. */
-export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnected, leading }: ViewProps & { leading?: ReactNode }) {
+export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnected, leading, onPushRoute, onPushPois, pushing }: ViewProps & { leading?: ReactNode }) {
   const activityNames = useActivityNames(suuntoConnected);
   return (
     <ul className={styles.grid} data-selecting={selection.count > 0 || undefined}>
@@ -136,8 +176,11 @@ export function RouteCards({ routes, selection, onDelete, deleting, suuntoConnec
                 <h2 className={styles.cardTitle}>
                   <Link to={`/routes/${route.id}`}>{route.name}</Link>
                 </h2>
-                <DownloadButton route={route} />
-                <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
+                <div className={styles.cardActions}>
+                  {suuntoConnected && <PushButtons route={route} onPushRoute={onPushRoute} onPushPois={onPushPois} pushing={pushing} />}
+                  <DownloadButton route={route} />
+                  <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
+                </div>
               </div>
               <p className={styles.meta}>
                 {formatDistance(route.distanceM)} · +{formatElevation(route.ascentM)}{names && ` · ${names}`}
@@ -171,6 +214,9 @@ export function RouteTable({
   sort,
   onSort,
   suuntoConnected,
+  onPushRoute,
+  onPushPois,
+  pushing,
 }: ViewProps & { sort: RouteSort; onSort: (key: RouteSortKey) => void }) {
   const activityNames = useActivityNames(suuntoConnected);
   const header = (key: RouteSortKey, className?: string) => {
@@ -263,6 +309,7 @@ export function RouteTable({
                 </td>
                 <td className={styles.actionCol}>
                   <div className={styles.rowActions}>
+                    {suuntoConnected && <PushButtons route={route} onPushRoute={onPushRoute} onPushPois={onPushPois} pushing={pushing} />}
                     <DownloadButton route={route} />
                     <DeleteButton route={route} onDelete={onDelete} disabled={deleting} />
                   </div>

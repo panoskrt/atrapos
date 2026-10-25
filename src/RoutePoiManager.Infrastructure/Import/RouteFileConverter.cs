@@ -24,7 +24,7 @@ public static class RouteFileConverter
             new XElement(Gpx + "trkseg", track.Points.Select((point, index) => PointElement(point, track.Times?[index]))));
         var root = new XElement(Gpx + "gpx",
             new XAttribute("version", "1.1"),
-            new XAttribute("creator", "Route & POI Manager"),
+            new XAttribute("creator", "Atrapos"),
             new XElement(Gpx + "metadata", new XElement(Gpx + "name", parsed.Name ?? track.Name ?? "Converted route")),
             IncludedWaypoints(parsed).Select(waypoint =>
             {

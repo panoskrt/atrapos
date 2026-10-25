@@ -135,7 +135,7 @@ export function ProfilePage() {
               <GoogleLogo />
               <div>
                 <h2 id="google-account-heading" className={styles.cardTitle}>Google account</h2>
-                <p className={styles.cardDescription}>Used to sign in to Route &amp; POI Manager.</p>
+                <p className={styles.cardDescription}>Used to sign in to Atrapos.</p>
               </div>
             </div>
             <span className={me.data.googleAccount ? styles.connected : styles.disconnected}>

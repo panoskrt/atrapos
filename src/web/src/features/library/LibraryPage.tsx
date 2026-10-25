@@ -20,7 +20,7 @@ import {
   useRoutes,
   type RouteSummary,
 } from '../routes/api';
-import { allPoisKey, refreshFromSuunto, summarizeRefresh, syncErrorMessage } from '../sync/api';
+import { allPoisKey, pushRoute, pushRoutePois, refreshFromSuunto, summarizeRefresh, syncErrorMessage } from '../sync/api';
 import { confirmRouteDelete } from './confirmRouteDelete';
 import {
   activityOptions,
@@ -98,6 +98,44 @@ export function LibraryPage() {
   const deleteMany = useDeleteRoutes();
 
   const newRoute = () => navigate('/routes/new');
+
+  const [pushing, setPushing] = useState<string | null>(null);
+  const push = async (key: string, action: () => Promise<void>) => {
+    setPushing(key);
+    try {
+      await action();
+    } catch (e) {
+      toast(`Couldn't push to Suunto: ${syncErrorMessage(e).message}`, { tone: 'error' });
+    } finally {
+      setPushing(null);
+      void qc.invalidateQueries({ queryKey: routeKeys.all, exact: true });
+      void qc.invalidateQueries({ queryKey: allPoisKey });
+    }
+  };
+
+  const onPushRoute = (route: RouteSummary) =>
+    push(`route:${route.id}`, async () => {
+      const res = await pushRoute(route.id);
+      if (res.outcome === 'conflict') {
+        toast(`"${route.name}" has changed on Suunto too.`, { link: { to: `/routes/${route.id}`, label: 'Resolve' }, tone: 'error' });
+      } else {
+        toast(`Pushed "${route.name}" to Suunto. Sync your watch in the Suunto app.`);
+      }
+    });
+
+  const onPushPois = (route: RouteSummary) =>
+    push(`pois:${route.id}`, async () => {
+      const { results } = await pushRoutePois(route.id);
+      const failed = results.filter((r) => r.status === 'failed').length;
+      if (failed) {
+        toast(`${failed} of ${results.length} POIs of "${route.name}" failed to push.`, {
+          link: { to: `/routes/${route.id}`, label: 'Open route' },
+          tone: 'error',
+        });
+      } else {
+        toast(`Pushed ${results.length} ${results.length === 1 ? 'POI' : 'POIs'} of "${route.name}" to Suunto.`);
+      }
+    });
 
   const onDelete = async (route: RouteSummary) => {
     if (await confirmRouteDelete([route])) deleteOne.mutate(route.id);
@@ -477,6 +515,9 @@ export function LibraryPage() {
               onDelete={onDelete}
               deleting={deleteOne.isPending}
               suuntoConnected={suuntoConnected}
+              onPushRoute={onPushRoute}
+              onPushPois={onPushPois}
+              pushing={pushing}
               leading={filtering ? undefined : dropCard}
             />
           ) : view === 'list' ? (
@@ -488,6 +529,9 @@ export function LibraryPage() {
               sort={effectiveSort}
               onSort={onSort}
               suuntoConnected={suuntoConnected}
+              onPushRoute={onPushRoute}
+              onPushPois={onPushPois}
+              pushing={pushing}
             />
           ) : (
             <RouteMap routes={shown} />

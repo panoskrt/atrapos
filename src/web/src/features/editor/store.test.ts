@@ -223,6 +223,41 @@ describe('editor store', () => {
     expect(lons()).toEqual([1, 2, 3]);
   });
 
+  it('rotates a loop to start at another point, keeping every leg', () => {
+    s().setDrawMode('snap');
+    s().addPoint({ lon: 1, lat: 0 }); // A: leg A→B snap
+    s().addPoint({ lon: 2, lat: 0 }); // B
+    s().setDrawMode('freehand');
+    s().addPoint({ lon: 2, lat: 1 }); // C: leg B→C freehand
+    s().setDrawMode('snap');
+    s().addPoint({ lon: 1, lat: 1 }); // D: leg C→D snap
+    s().setDrawMode('freehand');
+    s().addPoint({ lon: 1, lat: 0 }); // back at A: leg D→A freehand
+    const legs = () => s().points.slice(0, -1).map((p, i) => `${p.lon},${p.lat}>${s().points[i + 1]!.lon},${s().points[i + 1]!.lat}:${p.mode}`);
+    const before = legs();
+    const c = s().points[2]!.id;
+
+    s().rotateLoop(c);
+
+    // Same legs, in a rotated order: C→D, D→A, A→B, B→C.
+    expect(legs()).toEqual([before[2], before[3], before[0], before[1]]);
+    expect(s().points[0]!.id).toBe(c);
+    expect(s().points).toHaveLength(5);
+    t().undo();
+    expect(legs()).toEqual(before);
+  });
+
+  it('only rotates loops, and not from their ends', () => {
+    [1, 2, 3, 4].forEach((lon) => s().addPoint({ lon, lat: 0 }));
+    s().rotateLoop(s().points[1]!.id);
+    expect(lons()).toEqual([1, 2, 3, 4]);
+
+    s().addPoint({ lon: 1, lat: 0 });
+    s().rotateLoop(s().points[0]!.id);
+    s().rotateLoop(s().points.at(-1)!.id);
+    expect(lons()).toEqual([1, 2, 3, 4, 1]);
+  });
+
   it('trims before and after a point, undoably', () => {
     [1, 2, 3, 4].forEach((lon) => s().addPoint({ lon, lat: 0 }));
     const second = s().points[1]!.id;

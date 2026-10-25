@@ -98,7 +98,7 @@ export function LoginPage() {
           <span className={styles.mark}>
             <Icon name="logo" size={22} />
           </span>
-          <span className="display">Route &amp; POI Manager</span>
+          <span className="display">Atrapos</span>
         </div>
 
         <div className={styles.body}>
@@ -158,7 +158,8 @@ export function LoginPage() {
         </div>
 
         <p className={styles.footer}>
-          Independent tool, not affiliated with Suunto. Map data ©{' '}
+          Atrapos works with Suunto but is not affiliated with or endorsed by Suunto. Suunto is a trademark of its
+          owner. Map data ©{' '}
           <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
         </p>
       </section>

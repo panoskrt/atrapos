@@ -229,6 +229,13 @@ function Editor({
     });
     useEditorStore.getState().reverse();
   };
+  // The leg that closed the loop now ends on the start point; it is the same line, so hand it over instead of re-routing.
+  const startLoopHere = (id: string) => {
+    const last = points.length - 1;
+    const a = points[last - 1];
+    if (a && segments[last - 1]) qc.setQueryData(segmentKey(a, points[0]!, a.mode, profile), segments[last - 1]);
+    useEditorStore.getState().rotateLoop(id);
+  };
   const poiLocations = usePoiLocations(pois, line, cumulative);
   const profilePois = useMemo(
     () =>
@@ -338,7 +345,7 @@ function Editor({
             </div>
           ) : null}
           <SectionAnalysis line={line} cumulative={cumulative} pois={profilePois} />
-          {!isDraft && <SelectedPointBar routeId={routeId} flush={save.flush} onReload={onReload} />}
+          {!isDraft && <SelectedPointBar routeId={routeId} flush={save.flush} onReload={onReload} onStartHere={startLoopHere} />}
           <div className={styles.hint}>
             <Icon name={tool === 'extend' ? 'routePlus' : tool === 'poi' ? 'pinPlus' : tool === 'section' ? 'ruler' : 'cursor'} size={16} />
             {tool === 'extend'
