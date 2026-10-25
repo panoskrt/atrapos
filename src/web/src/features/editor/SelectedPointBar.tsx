@@ -4,17 +4,19 @@ import { Icon } from '../../components/Icon';
 import { toast } from '../../components/Toast';
 import { splitRoute } from '../routes/api';
 import { syncErrorMessage } from '../sync/api';
-import { useEditorStore } from './store';
+import { isLoop, useEditorStore } from './store';
 import styles from './Editor.module.css';
 
 interface Props {
   routeId: string;
   flush: () => Promise<boolean>;
   onReload: () => void;
+  /** Makes the point the start of a loop; the caller keeps the already computed legs. */
+  onStartHere: (id: string) => void;
 }
 
 /** Actions for the selected control point: segment mode, trim, split, delete. */
-export function SelectedPointBar({ routeId, flush, onReload }: Props) {
+export function SelectedPointBar({ routeId, flush, onReload, onStartHere }: Props) {
   const points = useEditorStore((s) => s.points);
   const selectedId = useEditorStore((s) => s.selectedId);
   const setSegmentMode = useEditorStore((s) => s.setSegmentMode);
@@ -81,6 +83,17 @@ export function SelectedPointBar({ routeId, flush, onReload }: Props) {
             Freehand
           </button>
         </div>
+      )}
+      {inner && isLoop(points) && (
+        <button
+          type="button"
+          className={styles.pointBarBtnPlain}
+          onClick={() => onStartHere(point.id)}
+          title="The route stays the same; it just starts and ends here"
+        >
+          <Icon name="flag" size={16} />
+          Start loop here
+        </button>
       )}
       {!isStart && (
         <button type="button" className={styles.pointBarBtnPlain} onClick={() => trimBefore(point.id)} title="Make this point the start">
