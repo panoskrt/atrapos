@@ -70,7 +70,7 @@ function TopBar({ me }: { me: Me }) {
         <span className={styles.mark}>
           <Icon name="logo" />
         </span>
-        <span className={`display ${styles.wordmark}`}>Route &amp; POI Manager</span>
+        <span className={`display ${styles.wordmark}`}>Atrapos</span>
       </NavLink>
       <nav aria-label="Main" className={styles.nav}>
         <NavLink to="/" end className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>

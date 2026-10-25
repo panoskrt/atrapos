@@ -1,6 +1,6 @@
 # Technical documentation
 
-Route & POI Manager for Suunto: a web app to draw or import routes, place POIs, and push both to a Suunto account. This document describes how it is built. For features and setup see the [README](../README.md), for design history [PLAN.md](../PLAN.md), for the schema [database.md](database.md).
+Atrapos (*atrapos*, Greek for a footpath) is a web app to draw or import routes, place POIs, and push both to a Suunto account. It works with Suunto but is not affiliated with or endorsed by Suunto. This document describes how it is built. The code keeps its original internal names (`RoutePoiManager.*` projects and namespaces, the `routepoi` database and Docker names, the Data Protection application name `RoutePoiManager`); they predate the product name and are not user-visible. Renaming the Data Protection name or the database would break existing encrypted tokens and data. For features and setup see the [README](../README.md), for design history [PLAN.md](../PLAN.md), for the schema [database.md](database.md).
 
 ## Contents
 

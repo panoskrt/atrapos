@@ -1,10 +1,12 @@
-# Route & POI Manager for Suunto
+# Atrapos
+
+*Routes and POIs for your Suunto watch.* The name comes from the Greek *atrapos* (ἀτραπός), a footpath or track.
 
 Plan routes on OpenStreetMap, import GPX and FIT files, pin points of interest, and push both to your **Suunto app** account so they sync to your watch.
 
 Routes go through Suunto's **Route API** and POIs through its **POI API**. The two are separate uploads with their own sync status. A POI that sits on a route also becomes a waypoint in that route, so the watch can alert you as you pass it.
 
-> Independent project, not affiliated with or endorsed by Suunto. Using it requires your own access to the [Suunto API Zone](https://apizone.suunto.com) partner program.
+> Atrapos works with Suunto but is not affiliated with or endorsed by Suunto. Suunto is a trademark of its owner. Using it requires your own access to the [Suunto API Zone](https://apizone.suunto.com) partner program.
 
 ---
 

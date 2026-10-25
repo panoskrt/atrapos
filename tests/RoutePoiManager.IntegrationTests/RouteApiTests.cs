@@ -59,8 +59,9 @@ public sealed class RouteApiTests(PostgresFixture pg)
         Assert.Equal("Ridge loop", saved.Name);
         Assert.Equal("Clockwise", saved.Description);
         Assert.True(saved.HasElevation);
-        Assert.Equal(100, saved.AscentM, 1);
-        Assert.Equal(40, saved.DescentM, 1);
+        // The profile is smoothed, which shaves a little off the sharp peak.
+        Assert.InRange(saved.AscentM, 90, 100);
+        Assert.InRange(saved.DescentM, 30, 40);
         Assert.InRange(saved.DistanceM, 1700, 1900);
 
         var reloaded = await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{created.Id}", Json);

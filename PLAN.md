@@ -1,4 +1,4 @@
-# Route & POI Manager: Implementation Plan
+# Atrapos: Implementation Plan
 
 Web app for signing in with a Suunto account, building routes on OpenStreetMap (draw, or import GPX/FIT), placing POIs on them, and pushing the route (Route API) and the POIs (POI API) to the user's Suunto app account so they sync to the watch.
 

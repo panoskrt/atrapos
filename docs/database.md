@@ -1,6 +1,6 @@
 # Database documentation
 
-Route POI Manager stores everything in a single **PostgreSQL 17 + PostGIS 3.5** database (`routepoi`). Access is through EF Core (`Npgsql.EntityFrameworkCore.PostgreSQL` 10 with NetTopologySuite). The schema is code-first: the source of truth is [`Entities.cs`](../src/RoutePoiManager.Domain/Entities.cs) and [`AppDbContext.cs`](../src/RoutePoiManager.Infrastructure/Persistence/AppDbContext.cs); the migrations live in [`Persistence/Migrations`](../src/RoutePoiManager.Infrastructure/Persistence/Migrations).
+Atrapos stores everything in a single **PostgreSQL 17 + PostGIS 3.5** database (`routepoi`). Access is through EF Core (`Npgsql.EntityFrameworkCore.PostgreSQL` 10 with NetTopologySuite). The schema is code-first: the source of truth is [`Entities.cs`](../src/RoutePoiManager.Domain/Entities.cs) and [`AppDbContext.cs`](../src/RoutePoiManager.Infrastructure/Persistence/AppDbContext.cs); the migrations live in [`Persistence/Migrations`](../src/RoutePoiManager.Infrastructure/Persistence/Migrations).
 
 ## Contents
 

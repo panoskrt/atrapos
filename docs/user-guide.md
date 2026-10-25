@@ -1,8 +1,8 @@
 # User guide
 
-Route & POI Manager lets you plan routes on a map, add points of interest (POIs), and send both to your Suunto app so they appear on your watch. This guide explains how to use it. It does not cover installing or hosting the app; for that see the [README](../README.md).
+Atrapos lets you plan routes on a map, add points of interest (POIs), and send both to your Suunto app so they appear on your watch. This guide explains how to use it. It does not cover installing or hosting the app; for that see the [README](../README.md).
 
-> This is an independent tool, not made or endorsed by Suunto.
+> Atrapos works with Suunto but is not affiliated with or endorsed by Suunto. Suunto is a trademark of its owner.
 
 ## Contents
 

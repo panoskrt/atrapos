@@ -34,7 +34,7 @@ export function mergeGpxFiles(inputs: GpxInput[], routeName: string): GpxMergeRe
   return {
     xml: [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      '<gpx version="1.1" creator="Route &amp; POI Manager" xmlns="http://www.topografix.com/GPX/1/1">',
+      '<gpx version="1.1" creator="Atrapos" xmlns="http://www.topografix.com/GPX/1/1">',
       '  <trk>',
       `    <name>${escapeXml(name)}</name>`,
       '    <trkseg>',
