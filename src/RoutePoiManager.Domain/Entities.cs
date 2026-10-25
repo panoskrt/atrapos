@@ -163,3 +163,25 @@ public sealed class SyncLogEntry
     public string? Message { get; set; }
     public DateTimeOffset At { get; set; }
 }
+
+/// <summary>An error the app hit, kept so a failure can be diagnosed after the fact. Not tied to the user by a
+/// foreign key: entries outlive the account, and username is copied at the time.</summary>
+public sealed class ErrorLog
+{
+    public long Id { get; set; }
+    public DateTimeOffset At { get; set; }
+    public Guid? UserId { get; set; }
+    public string? Username { get; set; }
+
+    /// <summary>The function or operation that failed, e.g. <c>POST /api/pois/push</c> or <c>PoiSync.Push</c>.</summary>
+    public required string Operation { get; set; }
+
+    public string? ExceptionType { get; set; }
+    public required string Message { get; set; }
+
+    /// <summary>The full exception text: type, message, stack trace and inner exceptions.</summary>
+    public string? StackTrace { get; set; }
+
+    public int? HttpStatus { get; set; }
+    public string? RequestPath { get; set; }
+}

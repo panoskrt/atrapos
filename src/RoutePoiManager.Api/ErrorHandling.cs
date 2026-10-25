@@ -1,7 +1,45 @@
 using Microsoft.AspNetCore.Diagnostics;
+using System.Security.Claims;
+using RoutePoiManager.Infrastructure.Diagnostics;
 using RoutePoiManager.Infrastructure.Suunto;
 
 namespace RoutePoiManager.Api;
+
+/// <summary>Records every exception that reaches the exception middleware in <c>error_logs</c>, then lets the
+/// next handler produce the response (so it is registered first and always returns false).</summary>
+public sealed class ErrorLogExceptionHandler(ErrorLogService errors) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+    {
+        // A client that went away is not an error worth keeping.
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+            return false;
+
+        var request = httpContext.Request;
+        var pattern = (httpContext.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? request.Path.Value;
+        var user = httpContext.User;
+        await errors.LogAsync(
+            $"{request.Method} {pattern}",
+            exception,
+            userId: Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null,
+            username: user.Identity?.IsAuthenticated == true ? user.Identity.Name : null,
+            httpStatus: StatusFor(exception),
+            requestPath: request.Path + request.QueryString);
+        return false;
+    }
+
+    /// <summary>The status the handlers below will answer with (kept in step with them).</summary>
+    private static int StatusFor(Exception exception) => exception switch
+    {
+        SuuntoNotConnectedException => StatusCodes.Status409Conflict,
+        SuuntoReauthRequiredException => StatusCodes.Status401Unauthorized,
+        SuuntoApiException { StatusCode: 429 } => 429,
+        SuuntoApiException => 502,
+        Infrastructure.Sync.SyncException => 422,
+        KeyNotFoundException => 404,
+        _ => 500,
+    };
+}
 
 /// <summary>Maps "Suunto needs a new sign-in" to 401 with a code the SPA recognises.</summary>
 public sealed class SuuntoReauthExceptionHandler : IExceptionHandler

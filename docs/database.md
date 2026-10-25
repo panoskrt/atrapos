@@ -41,6 +41,7 @@ Tables:
 | `pois` | Points of interest, either on a route or standalone (soft-deleted) |
 | `source_files` | Original uploaded GPX/FIT file for each imported route |
 | `sync_log` | Audit trail of Suunto sync operations |
+| `error_logs` | Persistent error log: exception, operation, user, time (no foreign keys) |
 | `data_protection_keys` | ASP.NET Core Data Protection key ring |
 | `__EFMigrationsHistory` | EF Core migration bookkeeping |
 
@@ -258,7 +259,37 @@ Operations written by the app:
 | `poi` | `remote_deleted` | Refresh found the POI gone on Suunto (404) |
 | `account` | `refresh` | "Refresh from Suunto" completed |
 
-### 3.6 `data_protection_keys`
+### 3.6 `error_logs`
+
+Persistent record of errors, written by `ErrorLogService`. It has **no foreign key** to `users`: entries outlive the account, and `username` is copied when the error happens.
+
+| Column | Type | Null | Description |
+|---|---|---|---|
+| `id` | `bigint` | no | **PK**, identity |
+| `at` | `timestamptz` | no | When the error was logged |
+| `user_id` | `uuid` | yes | Signed-in user, if any |
+| `username` | `varchar(200)` | yes | Display name from the session; for service-level errors the Suunto username, or `google:<subject>` for Google accounts |
+| `operation` | `varchar(200)` | no | The function or operation that failed: `METHOD route-pattern` for requests (e.g. `POST /api/pois/push`), or a service name (e.g. `PoiSync.Push`) |
+| `exception_type` | `varchar(200)` | yes | Full exception type name |
+| `message` | `text` | no | Exception message, or a descriptive message (cut at 4000 characters) |
+| `stack_trace` | `text` | yes | Full exception text: type, message, stack trace and inner exceptions (cut at 20000 characters) |
+| `http_status` | `integer` | yes | Status the client got, or the status Suunto returned |
+| `request_path` | `varchar(500)` | yes | Actual request path and query string |
+
+Indexes: `ix_error_logs_at`, `ix_error_logs_user_id`.
+
+What is logged:
+- Every exception that reaches the API's exception middleware (`ErrorLogExceptionHandler`, registered before the other handlers). It is logged first and the response is produced as before, so Suunto, sync and not-found errors are included. A request the client aborted is not.
+- Per-POI Suunto failures during a POI push (`PoiSync.Push`), which are caught and shown to the user rather than thrown.
+
+Logging never throws: if the insert fails, the failure goes to the console log only. There is no retention job; clear old rows manually, e.g. `DELETE FROM error_logs WHERE at < now() - interval '90 days'`. Query the latest errors with:
+
+```sql
+SELECT at, username, operation, http_status, exception_type, message
+FROM error_logs ORDER BY at DESC LIMIT 50;
+```
+
+### 3.7 `data_protection_keys`
 
 Standard ASP.NET Core Data Protection key store (`IDataProtectionKeyContext`). The application name is `RoutePoiManager`.
 
@@ -479,6 +510,7 @@ Migrations are EF Core code-first, in `src/RoutePoiManager.Infrastructure/Persis
 | `20261024193328_UserSettings` | 2026-10-24 | `users.default_map` (default `'topo'`), `users.units` (default `'metric'`) |
 | `20261024194351_UserTheme` | 2026-10-24 | `users.theme` (default `'dark'`) |
 | `20261024203327_UserDesign` | 2026-10-24 | `users.design` (default `'classic'`) |
+| `20261025090621_ErrorLogs` | 2026-10-25 | Creates `error_logs` with indexes on `at` and `user_id` |
 
 Working with migrations (the repo pins the EF tool in `dotnet-tools.json`):
 

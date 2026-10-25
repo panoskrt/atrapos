@@ -128,6 +128,7 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.AddHardening(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ErrorLogExceptionHandler>();   // first: logs, then passes on
 builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
 builder.Services.AddExceptionHandler<SyncExceptionHandler>();
 if (!builder.Environment.IsProduction())
