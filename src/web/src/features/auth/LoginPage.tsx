@@ -15,6 +15,9 @@ const errorMessages: Record<string, string> = {
   not_allowed: "This account isn't allowed to use this app. Ask the owner to add it to the allowlist.",
 };
 
+const ROUTE =
+  'M150,760 C210,730 250,690 310,665 S400,600 430,540 S510,485 570,470 S650,410 690,370 S740,290 760,222';
+
 export function LoginPage() {
   const me = useMe();
   const [params] = useSearchParams();
@@ -172,12 +175,12 @@ export function LoginPage() {
           <path className={styles.water} d="M170,330 C220,270 350,280 380,340 C410,400 330,440 270,430 C200,420 140,390 170,330 Z" />
           <path className={styles.trail} d="M90,0 C150,180 120,400 190,560 C230,650 160,720 170,900" />
           <path className={styles.trail} d="M1000,380 C900,420 860,460 800,500 C740,540 700,610 620,660" />
-          <path className={styles.routeCase} d="M150,760 C210,730 250,690 310,665 S400,600 430,540 S510,485 570,470 S650,410 690,370 S740,290 760,222" />
-          <path className={styles.route} d="M150,760 C210,730 250,690 310,665 S400,600 430,540 S510,485 570,470 S650,410 690,370 S740,290 760,222" />
+          <path className={styles.routeCase} pathLength={1} d={ROUTE} />
+          <path className={styles.route} pathLength={1} d={ROUTE} />
           <circle className={styles.start} cx="150" cy="760" r="12" />
-          <circle className={styles.poi} cx="430" cy="540" r="16" />
-          <circle className={styles.poi} cx="690" cy="370" r="16" />
-          <circle className={styles.poi} cx="760" cy="222" r="18" />
+          <circle className={`${styles.poi} ${styles.poi1}`} cx="430" cy="540" r="16" />
+          <circle className={`${styles.poi} ${styles.poi2}`} cx="690" cy="370" r="16" />
+          <circle className={`${styles.poi} ${styles.poi3}`} cx="760" cy="222" r="18" />
         </svg>
       </div>
     </div>
