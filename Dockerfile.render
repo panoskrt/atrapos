@@ -24,6 +24,10 @@ RUN dotnet publish src/RoutePoiManager.Api/RoutePoiManager.Api.csproj -c Release
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
+# Npgsql probes for Kerberos (GSSAPI) when connecting; without this library it logs "Cannot load library libgssapi_krb5.so.2".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app ./
 COPY --from=web /web/dist ./wwwroot
 COPY deploy/render-entrypoint.sh ./render-entrypoint.sh
