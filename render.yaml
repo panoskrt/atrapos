@@ -1,0 +1,46 @@
+# Render Blueprint: one Docker web service plus a PostgreSQL database (PostGIS is available on Render Postgres).
+# Deploy with New > Blueprint. Check the plan names against Render's current pricing before applying.
+# Keep the service at a single instance: caches and rate limits live in the API's memory.
+databases:
+  - name: routepoi-db
+    plan: basic-256mb
+    databaseName: routepoi
+    user: routepoi
+
+services:
+  - type: web
+    name: routepoi
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: starter
+    numInstances: 1
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: routepoi-db
+          property: connectionString
+      - key: Suunto__Mode
+        value: Live
+      - key: Suunto__ClientId
+        sync: false
+      - key: Suunto__ClientSecret
+        sync: false
+      - key: Suunto__SubscriptionKey
+        sync: false
+      - key: Google__ClientId
+        sync: false
+      - key: Google__ClientSecret
+        sync: false
+      # Optional sign-in restrictions (comma-separated); leave empty to allow any account.
+      - key: Auth__AllowedGoogleEmails
+        sync: false
+      - key: Auth__AllowedSuuntoUsernames
+        sync: false
+      # Render terminates TLS and is the only way in, so trust its forwarded headers.
+      - key: Hosting__ForwardedHeaders
+        value: "true"
+      - key: Hosting__Hsts
+        value: "true"
+      # With a custom domain, also set App__PublicBaseUrl and Suunto__RedirectUri to https://your-domain...

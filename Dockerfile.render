@@ -1,0 +1,35 @@
+# Dockerfile for Render (https://render.com). Build context: repository root.
+# Same build as src/RoutePoiManager.Api/Dockerfile, but it listens on Render's $PORT and reads DATABASE_URL
+# (see deploy/render-entrypoint.sh). Configure it with render.yaml.
+
+FROM node:24-alpine AS web
+WORKDIR /web
+COPY src/web/package.json src/web/package-lock.json ./
+RUN npm ci
+COPY src/web/ ./
+RUN rm -rf node_modules && npm ci
+RUN npm run build
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY src/RoutePoiManager.Domain/RoutePoiManager.Domain.csproj src/RoutePoiManager.Domain/
+COPY src/RoutePoiManager.Infrastructure/RoutePoiManager.Infrastructure.csproj src/RoutePoiManager.Infrastructure/
+COPY src/RoutePoiManager.Api/RoutePoiManager.Api.csproj src/RoutePoiManager.Api/
+RUN dotnet restore src/RoutePoiManager.Api/RoutePoiManager.Api.csproj
+COPY src/RoutePoiManager.Domain/ src/RoutePoiManager.Domain/
+COPY src/RoutePoiManager.Infrastructure/ src/RoutePoiManager.Infrastructure/
+COPY src/RoutePoiManager.Api/ src/RoutePoiManager.Api/
+RUN dotnet publish src/RoutePoiManager.Api/RoutePoiManager.Api.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app ./
+COPY --from=web /web/dist ./wwwroot
+COPY deploy/render-entrypoint.sh ./render-entrypoint.sh
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_gcServer=0
+# Render injects PORT (10000 by default); the entrypoint binds to it.
+EXPOSE 10000
+USER $APP_UID
+ENTRYPOINT ["sh", "/app/render-entrypoint.sh"]
