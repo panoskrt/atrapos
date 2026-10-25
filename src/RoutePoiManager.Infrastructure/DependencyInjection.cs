@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using RoutePoiManager.Infrastructure.Diagnostics;
 using RoutePoiManager.Infrastructure.Elevation;
 using RoutePoiManager.Infrastructure.Import;
 using RoutePoiManager.Infrastructure.Persistence;
@@ -37,6 +38,7 @@ public static class DependencyInjection
             .PersistKeysToDbContext<AppDbContext>();
 
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<ErrorLogService>();
 
         // No resilience handler on OAuth: token exchange is not idempotent (codes are single-use).
         services.AddHttpClient<SuuntoOAuthClient>(SuuntoOAuthClient.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(20));

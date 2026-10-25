@@ -15,6 +15,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Poi> Pois => Set<Poi>();
     public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
     public DbSet<SyncLogEntry> SyncLog => Set<SyncLogEntry>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -80,6 +81,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(s => s.Operation).HasMaxLength(32);
             e.HasIndex(s => new { s.UserId, s.At });
             e.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ErrorLog>(e =>
+        {
+            e.Property(x => x.Username).HasMaxLength(200);
+            e.Property(x => x.Operation).HasMaxLength(200);
+            e.Property(x => x.ExceptionType).HasMaxLength(200);
+            e.Property(x => x.RequestPath).HasMaxLength(500);
+            e.HasIndex(x => x.At);
+            e.HasIndex(x => x.UserId);
         });
     }
 }

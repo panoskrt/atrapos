@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RoutePoiManager.Domain;
+using RoutePoiManager.Infrastructure.Diagnostics;
 using RoutePoiManager.Infrastructure.Persistence;
 using RoutePoiManager.Infrastructure.Suunto;
 
@@ -16,7 +17,8 @@ public sealed record PoiPushResult(Guid Id, string Name, PoiPushStatus Status, s
 
 /// <summary>Pushes POIs to the Suunto POI API one at a time: create when new, upsert by key otherwise.
 /// One failure doesn't stop the others.</summary>
-public sealed class PoiSyncService(AppDbContext db, SuuntoTokenService tokens, SuuntoApiClient api, TimeProvider clock)
+public sealed class PoiSyncService(AppDbContext db, SuuntoTokenService tokens, SuuntoApiClient api, TimeProvider clock,
+    ErrorLogService errors)
 {
     private static readonly SyncState[] Pending = [SyncState.LocalOnly, SyncState.LocalChanges, SyncState.Error, SyncState.Conflict];
 
@@ -67,6 +69,7 @@ public sealed class PoiSyncService(AppDbContext db, SuuntoTokenService tokens, S
                 poi.SyncState = SyncState.Error;
                 results.Add(new PoiPushResult(poi.Id, poi.Name, PoiPushStatus.Failed, ex.Message));
                 SyncSupport.Log(db, userId, "poi", poi.Id, "push", ex.StatusCode, ex.Message, now);
+                await errors.LogAsync("PoiSync.Push", ex, $"POI '{poi.Name}' ({poi.Id}): {ex.Message}", userId, httpStatus: ex.StatusCode);
             }
             // Save as we go: a later reauth failure must not lose keys we already got.
             await db.SaveChangesAsync(ct);
