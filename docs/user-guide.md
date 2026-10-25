@@ -79,7 +79,7 @@ The view you choose is remembered in your browser.
 
 **Selecting several routes:** use the checkbox on a route; hold **Shift** and click to select a range. With a selection you can delete several routes at once.
 
-**Per-route buttons:** download as GPX, and delete. Open a route by clicking its name or outline.
+**Per-route buttons:** push the route to Suunto, push its POIs, download as GPX, and delete. The two push buttons appear when your Suunto account is connected. They work as in the editor: **Push route** is disabled when Suunto already has your version, and **Push POIs** when there are no POIs or all are pushed. A toast reports the result; if the route changed in Suunto too, it links to the editor to resolve the conflict. In the Boxes view the four buttons are arranged in two rows (push route and push POIs above, download and delete below). Open a route by clicking its name or outline.
 
 **Creating routes:**
 
@@ -123,7 +123,8 @@ You can mix both in one route and change a segment's mode later by selecting its
 - **Drag a point** to move it. Only the segments next to it are redrawn.
 - **Drag the line** to insert a new point.
 - **Right-click a point** to delete it.
-- **Select a point** to get a bar with more actions: change the segment mode, **trim** everything before or after it, **split** the route there, or delete it.
+- **Select a point** to get a bar with more actions: change the segment mode, **trim** everything before or after it, **split** the route there, **start the loop here** (loops only), or delete it.
+- **Start loop here** appears for a loop (a route that ends within 25 m of where it starts) when you select a point in the middle. The route stays exactly the same, but it now starts and ends at that point. Snap and freehand segments are kept as they are, and it can be undone. The ascent and descent totals can change slightly because the profile begins elsewhere.
 - **Reverse** flips the direction. Snapped segments are redrawn so that one-way paths are respected.
 - **Split here** turns the route into two routes: the first part stays, the second becomes "*name* (part 2)" together with its POIs. A split cannot be undone, so the app asks first.
 
@@ -144,7 +145,7 @@ In the **Route** tab of the side panel you can set:
 
 ### Elevation profile and numbers
 
-The profile under the map shows height along the route. Hovering it highlights the matching spot on the map and the other way round. Distance, ascent and descent are shown for the route. Small bumps in the elevation data are smoothed out so the climbing total is not inflated. Routes imported without elevation stay without it.
+The profile under the map shows height along the route. Hovering it highlights the matching spot on the map and the other way round. Distance, ascent and descent are shown for the route. The climbing totals are calculated from a smoothed profile (about ±50 m), and only climbs and descents of 5 m or more are counted, so noise in the elevation data does not inflate them, and real hills, including small rolling ones, are not lost. The same calculation is used for sections. Routes imported without elevation stay without it.
 
 ### Analysing a section
 
@@ -229,11 +230,11 @@ You need a Suunto account connected (sign in with Suunto, or **Connect Suunto** 
 
 ### Pushing a route
 
-Press **Push route**. The first push creates the route in Suunto; later pushes update it. The button shows **Pushed** when Suunto already has your version, and needs at least two points on the route. A route sent to Suunto is lightly simplified (2 m) to keep it small.
+Press **Push route** (in the editor, or the upload icon on the dashboard). The first push creates the route in Suunto; later pushes update it. The button shows **Pushed** when Suunto already has your version, and needs at least two points on the route. A route sent to Suunto is lightly simplified (2 m) to keep it small.
 
 ### Pushing POIs
 
-Press **Push *n* POIs**. POIs are sent one at a time, and you get a result for each. One failure doesn't stop the others; use **Retry** for those that failed. POIs near the route are also written into the route as waypoints, so push the route again after changing them if you want the route on your watch to have the latest waypoints.
+Press **Push *n* POIs** (or the pin icon with an arrow on the dashboard). POIs are sent one at a time, and you get a result for each. One failure doesn't stop the others; use **Retry** for those that failed. POIs near the route are also written into the route as waypoints, so push the route again after changing them if you want the route on your watch to have the latest waypoints.
 
 On the **All POIs** page you can push a selection of POIs from several routes at once.
 

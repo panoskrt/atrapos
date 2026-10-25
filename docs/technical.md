@@ -206,6 +206,7 @@ A route is edited as an ordered list of **control points**. Each stores the user
 
 - Opening a route never re-routes or re-fetches elevation; editing recomputes only the segments adjacent to the change.
 - Freehand segments are sampled every 50 m so the elevation profile has detail.
+- **Loop rotation** (`rotateLoop` in `store.ts`): a route is a loop when it has ≥ 3 control points and ends within 25 m of its start (`isLoop`). Selecting an inner point and choosing *Start loop here* reorders the points to `[pk … p(n-1), p0, p1 … p(k-1), pk′]`: the old end is dropped and the start takes its place at the seam, so each leg keeps its mode and ends. `EditorPage` first copies the cached closing segment under the key for (p(n-1) → p0), so nothing is re-routed. It is one undoable step; geometry changes only by a possible straight connector at the seam when the old end was off the start.
 - Ascent/descent: the elevation profile is resampled every 5 m, smoothed with a ±50 m moving average (always, regardless of route length), then summed between turning points that differ by ≥ 5 m (peaks/valleys count in full, the last leg is included). `Geo.cs` (server) and `geo.ts` (client) implement the same algorithm and must stay in sync.
 
 ### 6.2 Import pipeline (`ImportShaping`, `ImportService`)
@@ -300,7 +301,7 @@ All are fair-use public services; self-host BRouter and Open Topo Data for heavy
 | Module | Contents |
 |---|---|
 | `auth` | Login page (Google popup / Suunto), `useMe` |
-| `library` | Dashboard: summary tiles, search/filter/sort, Boxes/List/Map views (remembered per browser), multi-select and bulk actions |
+| `library` | Dashboard: summary tiles, search/filter/sort, Boxes/List/Map views (remembered per browser), multi-select and bulk actions, per-route push route / push POIs / download / delete (push uses the same `pushRoute` and `pushRoutePois` calls as the editor, one at a time, results as toasts) |
 | `editor` | `EditorPage`, `MapView`, `MapToolbar`, elevation profile, section analysis, location search, `store.ts` (Zustand + zundo undo/redo), `segments.ts`, `geo.ts`, manual save, keyboard shortcuts |
 | `pois` | All-POIs page (list and map), `PoiCard`, type/icon mapping, placement/snapping |
 | `import` | Import picker and dialog, live simplification preview (`simplify.ts`) |
