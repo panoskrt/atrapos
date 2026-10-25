@@ -10,13 +10,16 @@ public sealed record RouteStats(double DistanceM, double AscentM, double Descent
 public static class Geo
 {
     private const double EarthRadiusM = 6371008.8;
-    private const double ClimbComparisonEpsilonM = 1e-9;
-    private const double ElevationNoiseFilterWindowM = 100;
-    private const double ElevationNoiseRmsThresholdM = 3;
-    private const double ElevationNoiseFilterMinRouteLengthM = 10_000;
 
-    /// <summary>Elevation changes smaller than this are treated as noise when summing ascent/descent.</summary>
-    public const double ClimbHysteresisM = 20;
+    /// <summary>The elevation profile is resampled to this spacing before smoothing, so point density
+    /// (a sparse import or a dense snapped trail) does not change the totals.</summary>
+    private const double ElevationResampleStepM = 5;
+
+    /// <summary>Moving-average half-width, in resampled steps (±50 m): removes DEM/GPS jitter.</summary>
+    private const int ElevationSmoothingHalfWidthSteps = 10;
+
+    /// <summary>A climb or descent only counts once the profile has reversed by this much from its extreme.</summary>
+    public const double ClimbHysteresisM = 5;
 
     public static double DistanceM(GeoPosition a, GeoPosition b)
     {
@@ -36,43 +39,113 @@ public static class Geo
         return total;
     }
 
-    /// <summary>Distance plus hysteresis-filtered ascent and descent. Long, noisy profiles are smoothed for
-    /// the totals only; points without elevation are skipped for climb, not for distance.</summary>
+    /// <summary>Distance plus ascent and descent. The elevation profile is resampled at a fixed spacing,
+    /// smoothed, then summed between turning points that differ by at least <see cref="ClimbHysteresisM"/>.
+    /// Points without elevation are skipped for climb, not for distance.</summary>
     public static RouteStats Stats(IReadOnlyList<GeoPosition> line)
     {
         var cumulative = CumulativeDistances(line);
-        var elevations = line.Select(p => p.Ele).ToArray();
-        if (cumulative.Length > 1 && cumulative[^1] >= ElevationNoiseFilterMinRouteLengthM &&
-            elevations.All(e => e is not null))
-        {
-            // Smooth high-frequency DEM noise for totals without changing the stored elevation profile.
-            var smoothed = SmoothElevations(elevations.Select(e => e!.Value).ToArray(), cumulative);
-            var residualRms = Math.Sqrt(elevations
-                .Select((e, i) => Math.Pow(e!.Value - smoothed[i], 2))
-                .Average());
-            if (residualRms > ElevationNoiseRmsThresholdM)
-                elevations = smoothed.Select(e => (double?)e).ToArray();
-        }
-
-        double ascent = 0, descent = 0;
-        double? anchor = null;
-        foreach (var elevation in elevations)
-        {
-            if (elevation is not { } ele)
-                continue;
-            if (anchor is null)
-            {
-                anchor = ele;
-                continue;
-            }
-            var diff = ele - anchor.Value;
-            if (Math.Abs(diff) < ClimbHysteresisM - ClimbComparisonEpsilonM)
-                continue;
-            if (diff > 0) ascent += diff;
-            else descent -= diff;
-            anchor = ele;
-        }
+        var (ascent, descent) = Climb(line, cumulative);
         return new RouteStats(cumulative.Length > 0 ? cumulative[^1] : 0, ascent, descent);
+    }
+
+    private static (double Ascent, double Descent) Climb(IReadOnlyList<GeoPosition> line, double[] cumulative)
+    {
+        var distances = new List<double>();
+        var elevations = new List<double>();
+        for (var i = 0; i < line.Count; i++)
+        {
+            if (line[i].Ele is not { } ele)
+                continue;
+            // Coincident points would make the interpolation ambiguous; keep the first.
+            if (distances.Count > 0 && cumulative[i] <= distances[^1])
+                continue;
+            distances.Add(cumulative[i]);
+            elevations.Add(ele);
+        }
+        if (distances.Count < 2)
+            return (0, 0);
+
+        var profile = SmoothElevations(Resample(distances, elevations));
+        return SumClimb(profile);
+    }
+
+    /// <summary>Linear interpolation at a fixed spacing from the first to the last known point.</summary>
+    private static double[] Resample(List<double> distances, List<double> elevations)
+    {
+        var span = distances[^1] - distances[0];
+        var count = (int)Math.Ceiling(span / ElevationResampleStepM) + 1;
+        var result = new double[count];
+        var seg = 0;
+        for (var j = 0; j < count; j++)
+        {
+            var d = j == count - 1 ? distances[^1] : distances[0] + j * ElevationResampleStepM;
+            while (seg < distances.Count - 2 && distances[seg + 1] < d)
+                seg++;
+            var t = (d - distances[seg]) / (distances[seg + 1] - distances[seg]);
+            result[j] = elevations[seg] + Math.Clamp(t, 0, 1) * (elevations[seg + 1] - elevations[seg]);
+        }
+        return result;
+    }
+
+    /// <summary>Moving average whose window shrinks symmetrically at the ends, so the start and end
+    /// elevations (and straight ramps) are kept exactly.</summary>
+    private static double[] SmoothElevations(double[] samples)
+    {
+        var prefix = new double[samples.Length + 1];
+        for (var i = 0; i < samples.Length; i++)
+            prefix[i + 1] = prefix[i] + samples[i];
+
+        var smoothed = new double[samples.Length];
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var h = Math.Min(ElevationSmoothingHalfWidthSteps, Math.Min(i, samples.Length - 1 - i));
+            smoothed[i] = (prefix[i + h + 1] - prefix[i - h]) / (2 * h + 1);
+        }
+        return smoothed;
+    }
+
+    /// <summary>Sums the legs between turning points. A leg is committed once the profile reverses by the
+    /// hysteresis from its running extreme, so peaks and valleys count in full and the final leg is included.</summary>
+    private static (double Ascent, double Descent) SumClimb(double[] profile)
+    {
+        double ascent = 0, descent = 0;
+        var last = profile[0]; // last committed turning point
+        var extreme = last;    // furthest point reached in the current direction
+        var direction = 0;     // 1 climbing, -1 descending, 0 not yet decided
+        foreach (var e in profile)
+        {
+            if (direction == 0)
+            {
+                if (e - last >= ClimbHysteresisM) { direction = 1; extreme = e; }
+                else if (last - e >= ClimbHysteresisM) { direction = -1; extreme = e; }
+            }
+            else if (direction == 1)
+            {
+                if (e > extreme) extreme = e;
+                else if (extreme - e >= ClimbHysteresisM)
+                {
+                    ascent += extreme - last;
+                    last = extreme;
+                    direction = -1;
+                    extreme = e;
+                }
+            }
+            else
+            {
+                if (e < extreme) extreme = e;
+                else if (e - extreme >= ClimbHysteresisM)
+                {
+                    descent += last - extreme;
+                    last = extreme;
+                    direction = 1;
+                    extreme = e;
+                }
+            }
+        }
+        if (direction == 1) ascent += extreme - last;
+        else if (direction == -1) descent += last - extreme;
+        return (ascent, descent);
     }
 
     private static double[] CumulativeDistances(IReadOnlyList<GeoPosition> line)
@@ -81,35 +154,6 @@ public static class Geo
         for (var i = 1; i < line.Count; i++)
             cumulative[i] = cumulative[i - 1] + DistanceM(line[i - 1], line[i]);
         return cumulative;
-    }
-
-    private static double[] SmoothElevations(double[] elevations, double[] cumulative)
-    {
-        var smoothed = new double[elevations.Length];
-        var halfWindow = ElevationNoiseFilterWindowM / 2;
-        var left = 0;
-        var right = 0;
-        var count = 0;
-        double sum = 0;
-
-        for (var i = 0; i < elevations.Length; i++)
-        {
-            var start = cumulative[i] - halfWindow;
-            var end = cumulative[i] + halfWindow;
-            while (right < elevations.Length && cumulative[right] <= end)
-            {
-                sum += elevations[right++];
-                count++;
-            }
-            while (left < elevations.Length && cumulative[left] < start)
-            {
-                sum -= elevations[left++];
-                count--;
-            }
-            smoothed[i] = sum / count;
-        }
-
-        return smoothed;
     }
 
     /// <summary>Fills missing elevations by linear interpolation along distance; ends take the nearest known

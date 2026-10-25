@@ -206,7 +206,7 @@ A route is edited as an ordered list of **control points**. Each stores the user
 
 - Opening a route never re-routes or re-fetches elevation; editing recomputes only the segments adjacent to the change.
 - Freehand segments are sampled every 50 m so the elevation profile has detail.
-- Ascent/descent use smoothing so DEM noise does not inflate totals. `Geo.cs` (server) and `geo.ts` (client) implement the same algorithm and must stay in sync.
+- Ascent/descent: the elevation profile is resampled every 5 m, smoothed with a ±50 m moving average (always, regardless of route length), then summed between turning points that differ by ≥ 5 m (peaks/valleys count in full, the last leg is included). `Geo.cs` (server) and `geo.ts` (client) implement the same algorithm and must stay in sync.
 
 ### 6.2 Import pipeline (`ImportShaping`, `ImportService`)
 

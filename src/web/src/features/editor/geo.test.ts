@@ -58,22 +58,50 @@ describe('geo', () => {
     expect(line.map((c) => c[0])).toEqual([0, 1, 2]);
   });
 
-  it('applies the same climb hysteresis as the server', () => {
-    // Same series as GeoTests.Climb_ignores_noise_below_hysteresis.
-    const line: Coord[] = [100, 101, 99.5, 102, 110, 109, 120, 118.5, 100].map((e, i) => [24 + i * 0.001, 60, e]);
+  const at = (eles: number[], lonStep = 0.001): Coord[] => eles.map((e, i) => [24 + i * lonStep, 60, e]);
+
+  it('counts peaks and valleys in full (mirrors GeoTests)', () => {
+    const line = at([100, 105.5, 111, 116.5, 122, 127.5, 133, 138.5, 144, 149.5, 155, 160, 154.5, 149, 143.5, 138, 132.5, 127, 121.5, 116, 110.5, 105, 100]);
     const s = stats(line);
-    expect(s.ascentM).toBeCloseTo(20, 6);
-    expect(s.descentM).toBeCloseTo(20, 6);
+    expect(s.ascentM).toBeGreaterThanOrEqual(55);
+    expect(s.ascentM).toBeLessThanOrEqual(60);
+    expect(s.descentM).toBeGreaterThanOrEqual(55);
+    expect(s.descentM).toBeLessThanOrEqual(60);
   });
 
-  it('ignores repeated small elevation undulations', () => {
-    const line: Coord[] = [100, 104, 100, 104, 100, 104, 100].map((e, i) => [24 + i * 0.001, 60, e]);
-    const s = stats(line);
+  it('includes the final partial leg', () => {
+    const s = stats(at(Array.from({ length: 9 }, (_, i) => 100 + i * 5)));
+    expect(s.ascentM).toBeCloseTo(40, 6);
+    expect(s.descentM).toBe(0);
+  });
+
+  it('ignores small elevation jitter', () => {
+    const s = stats(at([100, 102, 100, 102, 100, 102, 100, 102, 100], 0.0002));
     expect(s.ascentM).toBe(0);
     expect(s.descentM).toBe(0);
   });
 
-  it('smooths high-frequency elevation noise on long routes', () => {
+  it('counts rolling hills below the old 20 m threshold', () => {
+    const s = stats(at(Array.from({ length: 33 }, (_, i) => 107.5 - 7.5 * Math.cos((i * Math.PI) / 4)), 0.0018));
+    expect(s.ascentM).toBeGreaterThanOrEqual(40);
+    expect(s.ascentM).toBeLessThanOrEqual(60);
+    expect(s.descentM).toBeGreaterThanOrEqual(40);
+    expect(s.descentM).toBeLessThanOrEqual(60);
+  });
+
+  it('gives the same totals whatever the point density', () => {
+    const ele = (t: number) => (t < 0.5 ? 100 + 400 * t : 300 - 400 * (t - 0.5));
+    const make = (n: number): Coord[] =>
+      Array.from({ length: n }, (_, i) => [24 + (i / (n - 1)) * 0.2, 60, ele(i / (n - 1))]);
+    const sparse = stats(make(3));
+    const dense = stats(make(400));
+    expect(dense.ascentM).toBeGreaterThanOrEqual(195);
+    expect(dense.ascentM).toBeLessThanOrEqual(201);
+    expect(sparse.ascentM).toBeCloseTo(dense.ascentM, 0);
+    expect(sparse.descentM).toBeCloseTo(dense.descentM, 0);
+  });
+
+  it('smooths high-frequency elevation noise', () => {
     const line: Coord[] = Array.from({ length: 2001 }, (_, i) => [
       24 + i * 0.00009,
       60,
@@ -81,8 +109,14 @@ describe('geo', () => {
     ]);
     const s = stats(line);
     expect(s.ascentM).toBeGreaterThanOrEqual(195);
-    expect(s.ascentM).toBeLessThanOrEqual(205);
-    expect(s.descentM).toBe(0);
+    expect(s.ascentM).toBeLessThanOrEqual(215);
+    expect(s.descentM).toBeLessThanOrEqual(15);
+  });
+
+  it('smooths short noisy routes like long ones', () => {
+    const s = stats(at(Array.from({ length: 151 }, (_, i) => 100 + (i % 2 === 0 ? 3 : -3)), 0.00018));
+    expect(s.ascentM).toBeLessThanOrEqual(5);
+    expect(s.descentM).toBeLessThanOrEqual(5);
   });
 
   it('interpolates position and elevation along the line', () => {
@@ -131,7 +165,7 @@ describe('geo', () => {
     it('measures only the chosen part, whichever order the ends are given', () => {
       const climb = sectionStats(line, cum, cum[0]!, cum[2]!)!;
       expect(climb.distanceM).toBeCloseTo(cum[2]!, 6);
-      expect(climb.ascentM).toBeCloseTo(100, 6);
+      expect(climb.ascentM).toBeCloseTo(100, -1);
       expect(climb.descentM).toBe(0);
       expect(climb.netM).toBeCloseTo(100, 6);
       expect(climb.minEleM).toBe(100);
@@ -142,7 +176,7 @@ describe('geo', () => {
 
       const drop = sectionStats(line, cum, cum[5]!, cum[4]!)!;
       expect(drop.fromM).toBe(cum[4]);
-      expect(drop.descentM).toBeCloseTo(60, 6);
+      expect(drop.descentM).toBeCloseTo(60, -1);
       expect(drop.ascentM).toBe(0);
       expect(drop.netM).toBeCloseTo(-60, 6);
       expect(drop.maxDescentPct).toBeLessThan(0);
