@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RoutePoiManager.Api.Routes;
 using RoutePoiManager.Domain;
 using RoutePoiManager.Infrastructure.Import;
+using RoutePoiManager.Infrastructure.Import.Fit;
 using RoutePoiManager.Infrastructure.Persistence;
 
 namespace RoutePoiManager.IntegrationTests;
@@ -137,42 +138,26 @@ public sealed class ImportApiTests(PostgresFixture pg)
     private static byte[] FitCourse()
     {
         static int Semi(double deg) => (int)Math.Round(deg * 2147483648.0 / 180.0);
-        var t0 = new System.DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
-        using var ms = new MemoryStream();
-        var enc = new Dynastream.Fit.Encode(ms, Dynastream.Fit.ProtocolVersion.V20);
-        var id = new Dynastream.Fit.FileIdMesg();
-        id.SetType(Dynastream.Fit.File.Course);
-        enc.Write(id);
-        var course = new Dynastream.Fit.CourseMesg();
-        course.SetName("Pyhä ridge");
-        course.SetSport(Dynastream.Fit.Sport.Hiking);
-        enc.Write(course);
+        var t0 = new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
+        var fit = new FitWriter();
+        fit.Write(FitMessages.FileId, FitField.Enum(FileIdField.Type, FitProfile.FileCourse));
+        fit.Write(FitMessages.Course,
+            FitField.String(CourseField.Name, "Pyhä ridge"),
+            FitField.Enum(CourseField.Sport, FitProfile.Sport["Hiking"]));
         for (var i = 0; i < 60; i++)
-        {
-            var r = new Dynastream.Fit.RecordMesg();
-            r.SetTimestamp(new Dynastream.Fit.DateTime(t0.AddSeconds(i * 20)));
-            r.SetPositionLat(Semi(67.00 + i * 0.0005));
-            r.SetPositionLong(Semi(27.10 + i * 0.0008));
-            r.SetEnhancedAltitude(300 + i * 3);
-            enc.Write(r);
-        }
-        foreach (var (lat, lon, type, name) in new[]
-                 {
-                     (67.015, 27.124, Dynastream.Fit.CoursePoint.Summit, "Pyhä summit"),
-                     (67.025, 27.140, Dynastream.Fit.CoursePoint.SlightLeft, "Bear left"),
-                 })
-        {
-            var cp = new Dynastream.Fit.CoursePointMesg();
-            cp.SetTimestamp(new Dynastream.Fit.DateTime(t0));
-            cp.SetPositionLat(Semi(lat));
-            cp.SetPositionLong(Semi(lon));
-            cp.SetType(type);
-            cp.SetName(name);
-            enc.Write(new Dynastream.Fit.MesgDefinition(cp));   // see FitFixtures: avoids reused string-field definitions
-            enc.Write(cp);
-        }
-        enc.Close();
-        return ms.ToArray();
+            fit.Write(FitMessages.Record,
+                FitField.Time(CommonField.Timestamp, t0.AddSeconds(i * 20)),
+                FitField.SInt32(RecordField.PositionLat, Semi(67.00 + i * 0.0005)),
+                FitField.SInt32(RecordField.PositionLong, Semi(27.10 + i * 0.0008)),
+                FitField.Scaled(RecordField.EnhancedAltitude, FitBaseType.UInt32, 300 + i * 3, 5, 500));
+        foreach (var (lat, lon, type, name) in new[] { (67.015, 27.124, "Summit", "Pyhä summit"), (67.025, 27.140, "SlightLeft", "Bear left") })
+            fit.Write(FitMessages.CoursePoint,
+                FitField.Time(CoursePointField.Timestamp, t0),
+                FitField.SInt32(CoursePointField.PositionLat, Semi(lat)),
+                FitField.SInt32(CoursePointField.PositionLong, Semi(lon)),
+                FitField.Enum(CoursePointField.Type, FitProfile.CoursePoint[type]),
+                FitField.String(CoursePointField.Name, name));
+        return fit.ToArray();
     }
 
     [Fact]

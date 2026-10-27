@@ -278,7 +278,7 @@ PLAN.md                           design decisions, data model and implementatio
 ```
 
 **Stack:**
-- Backend: .NET 10, ASP.NET Core minimal APIs, EF Core with Npgsql and NetTopologySuite, Garmin FIT SDK, Polly resilience, Serilog
+- Backend: .NET 10, ASP.NET Core minimal APIs, EF Core with Npgsql and NetTopologySuite, a built-in FIT reader/writer, Polly resilience, Serilog
 - Frontend: React 19, TypeScript, Vite, Leaflet / react-leaflet, TanStack Query, Zustand + zundo
 - Database: PostgreSQL 17 with PostGIS
 - Tests: xUnit, Testcontainers, Vitest, Testing Library, Playwright, axe-core
@@ -327,4 +327,4 @@ Third-party libraries, map data and services keep their own licenses and terms.
 
 ## Acknowledgements
 
-Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors · Map styles by [OpenTopoMap](https://opentopomap.org) and [CyclOSM](https://www.cyclosm.org) · Routing by [BRouter](https://brouter.de) · Elevation by [Open Topo Data](https://www.opentopodata.org) · FIT parsing with the [Garmin FIT SDK](https://developer.garmin.com/fit/)
+Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors · Map styles by [OpenTopoMap](https://opentopomap.org) and [CyclOSM](https://www.cyclosm.org) · Routing by [BRouter](https://brouter.de) · Elevation by [Open Topo Data](https://www.opentopodata.org) · FIT profile tables checked against [muktihari/fit](https://github.com/muktihari/fit) and [python-fitparse](https://github.com/dtcooper/python-fitparse)

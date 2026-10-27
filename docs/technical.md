@@ -63,7 +63,7 @@ docker-compose.e2e.yml            overlay: api talks to MockSuunto
 
 Dependency direction: `Api → Infrastructure → Domain`. Domain has no dependency on EF or HTTP (it only uses NetTopologySuite types).
 
-Stack: .NET 10 (SDK pinned in `global.json`), ASP.NET Core minimal APIs, EF Core 10 + Npgsql + NetTopologySuite, Garmin FIT SDK, Polly resilience (`Microsoft.Extensions.Http.Resilience`), Serilog. Frontend: React 19, TypeScript, Vite, Leaflet/react-leaflet, TanStack Query, Zustand + zundo.
+Stack: .NET 10 (SDK pinned in `global.json`), ASP.NET Core minimal APIs, EF Core 10 + Npgsql + NetTopologySuite, a built-in FIT reader/writer (`Infrastructure/Import/Fit`), Polly resilience (`Microsoft.Extensions.Http.Resilience`), Serilog. Frontend: React 19, TypeScript, Vite, Leaflet/react-leaflet, TanStack Query, Zustand + zundo.
 
 ## 3. Backend
 
@@ -93,7 +93,7 @@ Authorization is **deny by default**: a fallback policy requires an authenticate
 | Persistence | `Infrastructure/Persistence` | `AppDbContext`, migrations |
 | Suunto | `Infrastructure/Suunto` | OAuth client, API client, token service (encrypt/refresh/merge), route GPX builder |
 | Sync | `Infrastructure/Sync` | `RouteSyncService`, `PoiSyncService`, `SuuntoRefreshService`, `SyncSupport` |
-| Import | `Infrastructure/Import` | GPX/FIT parsers, shaping, shrinker, GPX⇄FIT converter, `ImportService` |
+| Import | `Infrastructure/Import` | GPX/FIT parsers, FIT reader/writer (`Fit/`), shaping, shrinker, GPX⇄FIT converter, `ImportService` |
 | Geo services | `Infrastructure/Routing`, `Elevation`, `Weather` | BRouter, Open Topo Data, Open-Meteo providers with caching and gates |
 | Domain | `Domain/*` | Entities, `Geo`, `RouteDrawing`, `RouteSplitting`, `ImportShaping`, `PoiBehaviour`, lookups |
 
@@ -211,7 +211,7 @@ A route is edited as an ordered list of **control points**. Each stores the user
 
 ### 6.2 Import pipeline (`ImportShaping`, `ImportService`)
 
-1. Parse GPX (1.0/1.1; tracks, routes, waypoints, Suunto route-point extension) or FIT (courses with course points, activities with laps).
+1. Parse GPX (1.0/1.1; tracks, routes, waypoints, Suunto route-point extension) or FIT (courses with course points, activities with laps). FIT files are read by `FitReader`, which skips CRC checks, keeps the records before a cut-off end, reads chained files in turn and rejects a data message whose definition is missing.
 2. Simplify: 1 m base pass, then Douglas–Peucker at the chosen tolerance. The browser runs an identical algorithm so the preview point count equals what is saved.
 3. Build control points: about 60 m spacing, at least one every 2 km, at most 300; each keeps the original detail as its freehand segment.
 4. Waypoints → POIs with a suggested type (`PoiTypes.FromGpxType`). Waypoints farther than 200 m from the track get no `distance_along_m`. Elevation is taken from the file or the nearest track point; none is looked up on import.

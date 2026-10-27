@@ -1,9 +1,7 @@
 using System.Text;
-using Dynastream.Fit;
 using RoutePoiManager.Domain;
 using RoutePoiManager.Infrastructure.Import;
-using FitDateTime = Dynastream.Fit.DateTime;
-using FitFile = Dynastream.Fit.File;
+using RoutePoiManager.Infrastructure.Import.Fit;
 
 namespace RoutePoiManager.UnitTests;
 
@@ -54,26 +52,32 @@ public sealed class ImportParserTests
             """;
 
         var fit = RouteFileConverter.ToFit(ImportService.Parse(Encoding.UTF8.GetBytes(gpx), "forest.gpx"));
-        var m = Decode(fit);
+        var m = FitReader.Read(fit);
+        var records = m.Where(r => r.Number == FitMessages.Record).ToList();
 
-        var lap = Assert.Single(m.LapMesgs);
-        Assert.Equal(600f, lap.GetTotalElapsedTime());
-        Assert.True(lap.GetTotalDistance() > 2000);
-        Assert.Equal([EventType.Start, EventType.StopDisableAll], m.EventMesgs.Select(e => e.GetEventType()!.Value));
-        Assert.Equal(lap.GetTotalDistance(), m.RecordMesgs[^1].GetDistance());
-        Assert.Equal(new System.DateTime(2026, 10, 1, 8, 5, 0, DateTimeKind.Utc), m.RecordMesgs[1].GetTimestamp().GetDateTime());
+        Assert.Equal(0, FitProtocol.Crc(fit));
+        Assert.Equal(FitMessages.FileId, m[0].Number);
+        Assert.Equal<long?>(FitProfile.FileCourse, m[0].Raw(FileIdField.Type));
+        var lap = Assert.Single(m, r => r.Number == FitMessages.Lap);
+        Assert.Equal(600, lap.Value(LapField.TotalElapsedTime, 1000));
+        Assert.True(lap.Value(LapField.TotalDistance, 100) > 2000);
+        Assert.Equal(new long?[] { FitProfile.EventTypeStart, FitProfile.EventTypeStopDisableAll },
+            m.Where(r => r.Number == FitMessages.Event).Select(e => e.Raw(EventField.EventType)));
+        Assert.Equal(lap.Value(LapField.TotalDistance, 100), records[^1].Value(RecordField.Distance, 100));
+        Assert.Equal(new DateTime(2026, 10, 1, 8, 5, 0, DateTimeKind.Utc), records[1].Time());
+        Assert.All(records, r => Assert.Null(r.Raw(RecordField.Altitude)));   // the GPX has no elevation
 
         // Only the included waypoint becomes a course point, timed and placed at the end of the track, not the start.
-        var coursePoint = Assert.Single(m.CoursePointMesgs);
-        Assert.Equal("Water", coursePoint.GetNameAsString());
-        Assert.Equal(m.RecordMesgs[^1].GetTimestamp().GetTimeStamp(), coursePoint.GetTimestamp().GetTimeStamp());
-        Assert.Equal(m.RecordMesgs[^1].GetDistance(), coursePoint.GetDistance());
+        var coursePoint = Assert.Single(m, r => r.Number == FitMessages.CoursePoint);
+        Assert.Equal("Water", coursePoint.Text(CoursePointField.Name));
+        Assert.Equal(records[^1].Time(), coursePoint.Time(CoursePointField.Timestamp));
+        Assert.Equal(records[^1].Value(RecordField.Distance, 100), coursePoint.Value(CoursePointField.Distance, 100));
     }
 
     [Fact]
     public void Fit_to_gpx_keeps_every_point_and_its_time_but_not_lap_markers()
     {
-        var bytes = FitFixtures.Activity(Sport.Running, SubSport.Trail,
+        var bytes = FitFixtures.Activity("Running", "Trail",
             [(60.30, 24.50, 10f), (60.305, 24.50, 10f), (60.31, 24.50, 10f)],
             laps: [(60.305, 24.50), (60.31, 24.50)]);
 
@@ -85,16 +89,6 @@ public sealed class ImportParserTests
             .Select(p => p.Elements().Single(e => e.Name.LocalName == "time").Value).ToArray();
         Assert.Equal(["2026-10-01T08:00:00Z", "2026-10-01T08:00:10Z", "2026-10-01T08:00:20Z"], times);
         Assert.DoesNotContain(doc.Descendants(), e => e.Name.LocalName == "wpt");
-    }
-
-    private static FitMessages Decode(byte[] fit)
-    {
-        var decoder = new Decode();
-        var listener = new FitListener();
-        decoder.MesgEvent += listener.OnMesg;
-        using var stream = new MemoryStream(fit);
-        Assert.True(decoder.Read(stream));
-        return listener.FitMessages;
     }
 
     [Fact]
@@ -177,9 +171,9 @@ public sealed class ImportParserTests
     [Fact]
     public void Fit_course_with_course_points()
     {
-        var bytes = FitFixtures.Course("Pyhä loop", Sport.Hiking, SubSport.Generic,
+        var bytes = FitFixtures.Course("Pyhä loop", "Hiking", "Generic",
             [(67.00, 27.10, 300f), (67.01, 27.11, 350f), (67.02, 27.12, 420f)],
-            [(67.01, 27.11, CoursePoint.Summit, "Top"), (67.02, 27.12, CoursePoint.Left, "Turn left"), (67.00, 27.10, CoursePoint.Water, "")]);
+            [(67.01, 27.11, "Summit", "Top"), (67.02, 27.12, "Left", "Turn left"), (67.00, 27.10, "Water", "")]);
 
         var parsed = ImportService.Parse(bytes, "course.fit");
 
@@ -199,7 +193,7 @@ public sealed class ImportParserTests
     [Fact]
     public void Fit_activity_with_sport_and_laps()
     {
-        var bytes = FitFixtures.Activity(Sport.Running, SubSport.Trail,
+        var bytes = FitFixtures.Activity("Running", "Trail",
             [(60.30, 24.50, 10f), (60.31, 24.50, 20f), (60.32, 24.51, 30f)],
             laps: [(60.31, 24.50), (60.32, 24.51)]);
 
@@ -220,91 +214,64 @@ public sealed class ImportParserTests
 internal static class FitFixtures
 {
     private const double DegreesToSemicircles = 2147483648.0 / 180.0;
-    private static readonly System.DateTime Start = new(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Start = new(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
 
-    public static byte[] Course(string name, Sport sport, SubSport subSport,
-        (double Lat, double Lon, float Ele)[] points, (double Lat, double Lon, CoursePoint Type, string Name)[] coursePoints)
+    public static byte[] Course(string name, string sport, string subSport,
+        (double Lat, double Lon, float Ele)[] points, (double Lat, double Lon, string Type, string Name)[] coursePoints)
     {
-        return Write(enc =>
-        {
-            enc.Write(FileId(FitFile.Course));
-            var course = new CourseMesg();
-            course.SetName(name);
-            course.SetSport(sport);
-            course.SetSubSport(subSport);
-            enc.Write(course);
-            WriteRecords(enc, points);
-            var i = 0;
-            foreach (var (lat, lon, type, cpName) in coursePoints)
-            {
-                var cp = new CoursePointMesg();
-                cp.SetTimestamp(new FitDateTime(Start.AddMinutes(i++)));
-                cp.SetPositionLat(Semi(lat));
-                cp.SetPositionLong(Semi(lon));
-                cp.SetType(type);
-                if (cpName.Length > 0) cp.SetName(cpName);
-                // The SDK reuses the previous definition when it "supports" a message, which garbles string
-                // fields of different lengths; an explicit definition per message avoids that.
-                enc.Write(new MesgDefinition(cp));
-                enc.Write(cp);
-            }
-        });
+        var fit = new FitWriter();
+        fit.Write(FitMessages.FileId, FileId(FitProfile.FileCourse));
+        fit.Write(FitMessages.Course,
+            FitField.String(CourseField.Name, name),
+            FitField.Enum(CourseField.Sport, FitProfile.Sport[sport]),
+            FitField.Enum(CourseField.SubSport, FitProfile.SubSport[subSport]));
+        WriteRecords(fit, points);
+        var i = 0;
+        foreach (var (lat, lon, type, cpName) in coursePoints)
+            fit.Write(FitMessages.CoursePoint,
+                FitField.Time(CoursePointField.Timestamp, Start.AddMinutes(i++)),
+                FitField.SInt32(CoursePointField.PositionLat, Semi(lat)),
+                FitField.SInt32(CoursePointField.PositionLong, Semi(lon)),
+                FitField.Enum(CoursePointField.Type, FitProfile.CoursePoint[type]),
+                FitField.String(CoursePointField.Name, cpName));   // an empty name reads back as none
+        return fit.ToArray();
     }
 
-    public static byte[] Activity(Sport sport, SubSport subSport, (double Lat, double Lon, float Ele)[] points, (double Lat, double Lon)[] laps)
+    public static byte[] Activity(string sport, string subSport, (double Lat, double Lon, float Ele)[] points, (double Lat, double Lon)[] laps)
     {
-        return Write(enc =>
-        {
-            enc.Write(FileId(FitFile.Activity));
-            WriteRecords(enc, points);
-            var i = 0;
-            foreach (var (lat, lon) in laps)
-            {
-                var lap = new LapMesg();
-                lap.SetTimestamp(new FitDateTime(Start.AddMinutes(++i)));
-                lap.SetEndPositionLat(Semi(lat));
-                lap.SetEndPositionLong(Semi(lon));
-                enc.Write(lap);
-            }
-            var session = new SessionMesg();
-            session.SetTimestamp(new FitDateTime(Start.AddMinutes(10)));
-            session.SetSport(sport);
-            session.SetSubSport(subSport);
-            enc.Write(session);
-        });
+        var fit = new FitWriter();
+        fit.Write(FitMessages.FileId, FileId(FitProfile.FileActivity));
+        WriteRecords(fit, points);
+        var i = 0;
+        foreach (var (lat, lon) in laps)
+            fit.Write(FitMessages.Lap,
+                FitField.Time(CommonField.Timestamp, Start.AddMinutes(++i)),
+                FitField.SInt32(LapField.EndPositionLat, Semi(lat)),
+                FitField.SInt32(LapField.EndPositionLong, Semi(lon)));
+        fit.Write(FitMessages.Session,
+            FitField.Time(CommonField.Timestamp, Start.AddMinutes(10)),
+            FitField.Enum(SessionField.Sport, FitProfile.Sport[sport]),
+            FitField.Enum(SessionField.SubSport, FitProfile.SubSport[subSport]));
+        return fit.ToArray();
     }
 
-    private static FileIdMesg FileId(FitFile type)
-    {
-        var id = new FileIdMesg();
-        id.SetType(type);
-        id.SetManufacturer(Manufacturer.Development);
-        id.SetTimeCreated(new FitDateTime(Start));
-        return id;
-    }
+    private static FitField[] FileId(byte type) =>
+    [
+        FitField.Enum(FileIdField.Type, type),
+        FitField.UInt16(FileIdField.Manufacturer, FitProfile.ManufacturerDevelopment),
+        FitField.Time(FileIdField.TimeCreated, Start),
+    ];
 
-    private static void WriteRecords(Encode enc, (double Lat, double Lon, float Ele)[] points)
+    private static void WriteRecords(FitWriter fit, (double Lat, double Lon, float Ele)[] points)
     {
         var i = 0;
         foreach (var (lat, lon, ele) in points)
-        {
-            var r = new RecordMesg();
-            r.SetTimestamp(new FitDateTime(Start.AddSeconds(10 * i++)));
-            r.SetPositionLat(Semi(lat));
-            r.SetPositionLong(Semi(lon));
-            r.SetEnhancedAltitude(ele);
-            enc.Write(r);
-        }
+            fit.Write(FitMessages.Record,
+                FitField.Time(CommonField.Timestamp, Start.AddSeconds(10 * i++)),
+                FitField.SInt32(RecordField.PositionLat, Semi(lat)),
+                FitField.SInt32(RecordField.PositionLong, Semi(lon)),
+                FitField.Scaled(RecordField.EnhancedAltitude, FitBaseType.UInt32, ele, 5, 500));
     }
 
-    private static int Semi(double degrees) => (int)Math.Round(degrees * DegreesToSemicircles);
-
-    private static byte[] Write(Action<Encode> body)
-    {
-        using var ms = new MemoryStream();
-        var enc = new Encode(ms, ProtocolVersion.V20);
-        body(enc);
-        enc.Close();
-        return ms.ToArray();
-    }
+    public static int Semi(double degrees) => (int)Math.Round(degrees * DegreesToSemicircles);
 }

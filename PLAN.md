@@ -132,7 +132,7 @@ Body: `{ key?, creation, modified, point: { x: LON, y: LAT, z: ALT, name, type }
 **BFF auth pattern:** the browser never sees Suunto tokens. The backend runs the code flow, stores the access and refresh tokens **encrypted** (ASP.NET Data Protection, keys persisted to a volume) and gives the SPA a session cookie. Tokens refresh automatically when less than 5 minutes remain. We send and check a `state` parameter for CSRF (Suunto docs don't mention it, so verify it is echoed back). "Disconnect" calls `/oauth/deauthorize` and wipes the tokens.
 
 ### Tech stack
-- **Backend:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core 10 + Npgsql + NetTopologySuite (PostGIS geometry), `Garmin.FIT.Sdk` (FIT parsing), `System.Xml.Linq` (GPX read/write), `Microsoft.Extensions.Http.Resilience` (retry/backoff on 429/5xx), Serilog, xUnit + Testcontainers.
+- **Backend:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core 10 + Npgsql + NetTopologySuite (PostGIS geometry), a small built-in FIT reader/writer (`Infrastructure/Import/Fit`; it replaced `Garmin.FIT.Sdk`, whose licence forbids distribution under copyleft terms such as the AGPL), `System.Xml.Linq` (GPX read/write), `Microsoft.Extensions.Http.Resilience` (retry/backoff on 429/5xx), Serilog, xUnit + Testcontainers.
 - **Frontend:** React 19 + TypeScript + Vite, `react-leaflet` 5 (Leaflet raster OSM tiles), TanStack Query (server state), Zustand + `zundo` (editor state with undo/redo), Radix UI primitives (accessible dialogs, select, tabs), `simplify-js` (live simplify preview), a small custom SVG elevation chart (synced hover with the map), CSS variables for dark/light theme tokens, Vitest + Playwright.
 - **DB:** `postgis/postgis:17`.
 
