@@ -424,4 +424,3 @@ From the code and design:
 7. **Watch limits are undocumented** (max route points, name length); routes are simplified at 2 m before push.
 8. **Retention:** `sync_log` and POI tombstones grow without a cleanup job.
 9. **No spatial indexes** and no DB-level validation (CHECK constraints); fine at current query patterns.
-10. **License:** none chosen yet (all rights reserved).
