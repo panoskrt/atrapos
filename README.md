@@ -279,7 +279,7 @@ PLAN.md                           design decisions, data model and implementatio
 
 **Stack:**
 - Backend: .NET 10, ASP.NET Core minimal APIs, EF Core with Npgsql and NetTopologySuite, a built-in FIT reader/writer, Polly resilience, Serilog
-- Frontend: React 19, TypeScript, Vite, Leaflet / react-leaflet, TanStack Query, Zustand + zundo
+- Frontend: React 19, TypeScript, Vite, Leaflet, TanStack Query, Zustand + zundo
 - Database: PostgreSQL 17 with PostGIS
 - Tests: xUnit, Testcontainers, Vitest, Testing Library, Playwright, axe-core
 

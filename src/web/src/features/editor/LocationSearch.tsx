@@ -1,5 +1,6 @@
+import L from 'leaflet';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useMap } from 'react-leaflet';
+import { useMap } from '../../components/LeafletMap';
 import { useEditorStore } from './store';
 import styles from './Editor.module.css';
 
@@ -62,6 +63,7 @@ async function searchPlaces(query: string, signal: AbortSignal): Promise<Place[]
 
 export function LocationSearch() {
   const map = useMap();
+  const panelRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[]>([]);
@@ -74,6 +76,13 @@ export function LocationSearch() {
     },
     [],
   );
+
+  // The panel is inside the map's container: without this, a click in it (or Enter, which clicks Search) is also
+  // a map click and adds a route point, a drag pans the map and scrolling the results zooms it.
+  useEffect(() => {
+    L.DomEvent.disableClickPropagation(panelRef.current!);
+    L.DomEvent.disableScrollPropagation(panelRef.current!);
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -108,7 +117,7 @@ export function LocationSearch() {
   };
 
   return (
-    <div className={`leaflet-control ${styles.locationSearch}`}>
+    <div ref={panelRef} className={`leaflet-control ${styles.locationSearch}`}>
       <form className={styles.locationSearchForm} onSubmit={(event) => void submit(event)}>
         <label htmlFor="location-search">Search location</label>
         <div className={styles.locationSearchRow}>

@@ -63,7 +63,7 @@ docker-compose.e2e.yml            overlay: api talks to MockSuunto
 
 Dependency direction: `Api → Infrastructure → Domain`. Domain has no dependency on EF or HTTP (it only uses NetTopologySuite types).
 
-Stack: .NET 10 (SDK pinned in `global.json`), ASP.NET Core minimal APIs, EF Core 10 + Npgsql + NetTopologySuite, a built-in FIT reader/writer (`Infrastructure/Import/Fit`), Polly resilience (`Microsoft.Extensions.Http.Resilience`), Serilog. Frontend: React 19, TypeScript, Vite, Leaflet/react-leaflet, TanStack Query, Zustand + zundo.
+Stack: .NET 10 (SDK pinned in `global.json`), ASP.NET Core minimal APIs, EF Core 10 + Npgsql + NetTopologySuite, a built-in FIT reader/writer (`Infrastructure/Import/Fit`), Polly resilience (`Microsoft.Extensions.Http.Resilience`), Serilog. Frontend: React 19, TypeScript, Vite, Leaflet, TanStack Query, Zustand + zundo.
 
 ## 3. Backend
 
@@ -320,6 +320,8 @@ All are fair-use public services; self-host BRouter and Open Topo Data for heavy
 - **Preferences:** loaded from `/api/settings`, applied as `data-theme` and `data-design` on the root; `public/theme-init.js` sets the theme before first paint (an external script so the CSP can forbid inline scripts). Designs (`classic`, `alpine`, `soft`) override CSS tokens in `styles/designs.css`; layouts are shared.
 
 ### 9.3 Leaflet notes
+
+Leaflet is used directly through a small in-house React layer, `components/LeafletMap.tsx` (map container, tile layer, polyline, circle marker, marker, `useMap`, `useMapEvents`); react-leaflet isn't used because its Hippocratic licence isn't compatible with the AGPL. Layers are created once from their first props and updated in place; event handlers are bound once per event type and call the latest handler.
 
 A marker's icon must never change while it is dragged: `setIcon()` replaces the element the drag is bound to and the drop is lost. Selection is a CSS class on the existing element, handlers are bound once, titles updated in place.
 

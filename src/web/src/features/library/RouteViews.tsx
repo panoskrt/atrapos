@@ -1,9 +1,9 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
-import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { LeafletMap, Marker, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { Spinner } from '../../components/Spinner';
 import { SelectBox, TriCheckbox } from '../../components/SelectionBar';
 import type { Selection } from '../../lib/useSelection';
@@ -346,7 +346,7 @@ export function RouteMap({ routes }: { routes: RouteSummary[] }) {
   return (
     <div className={styles.routeMapWrap}>
       <div className={styles.routeMap} role="region" aria-label="Route map">
-        <MapContainer center={center} zoom={5} scrollWheelZoom>
+        <LeafletMap center={center} zoom={5} scrollWheelZoom>
           <TileLayer
             url={layer.url}
             attribution={layer.attribution}
@@ -362,7 +362,7 @@ export function RouteMap({ routes }: { routes: RouteSummary[] }) {
               <RouteMapPoint key={route.id} route={route} position={positions[0]!} color={color} onSelect={setActiveId} />
             ) : null,
           )}
-        </MapContainer>
+        </LeafletMap>
       </div>
       {active && <RouteMapDetails route={active} onClose={() => setActiveId(null)} />}
       {withoutGeometry.length > 0 && (
@@ -396,7 +396,9 @@ function RouteMapLine({
   const eventHandlers = useMemo<L.LeafletEventHandlerFnMap>(
     () => ({
       click: (event) => {
-        L.DomEvent.stopPropagation(event.originalEvent);
+        // The Leaflet event, not the DOM one: that is what keeps a line click from also reaching the map, whose
+        // background click closes the details again.
+        L.DomEvent.stopPropagation(event);
         onSelect(route.id);
       },
     }),
@@ -418,12 +420,10 @@ function RouteMapLine({
         positions={positions}
         pathOptions={{ color, weight: 5, opacity: 0.95 }}
         eventHandlers={eventHandlers}
-      >
-        <Tooltip sticky>{route.name}</Tooltip>
-      </Polyline>
-      <Marker position={positions[0]!} icon={icon} title={`Show ${route.name}`} eventHandlers={eventHandlers}>
-        <Tooltip>{route.name}</Tooltip>
-      </Marker>
+        tooltip={route.name}
+        tooltipOptions={{ sticky: true }}
+      />
+      <Marker position={positions[0]!} icon={icon} title={`Show ${route.name}`} eventHandlers={eventHandlers} tooltip={route.name} />
     </>
   );
 }
@@ -442,7 +442,7 @@ function RouteMapPoint({
   const eventHandlers = useMemo<L.LeafletEventHandlerFnMap>(
     () => ({
       click: (event) => {
-        L.DomEvent.stopPropagation(event.originalEvent);
+        L.DomEvent.stopPropagation(event);
         onSelect(route.id);
       },
     }),
@@ -458,9 +458,14 @@ function RouteMapPoint({
     [color],
   );
   return (
-    <Marker position={position} icon={icon} title={`Show ${route.name}`} eventHandlers={eventHandlers}>
-      <Tooltip sticky>{route.name}</Tooltip>
-    </Marker>
+    <Marker
+      position={position}
+      icon={icon}
+      title={`Show ${route.name}`}
+      eventHandlers={eventHandlers}
+      tooltip={route.name}
+      tooltipOptions={{ sticky: true }}
+    />
   );
 }
 

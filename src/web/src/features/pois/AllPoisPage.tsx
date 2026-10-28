@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { LeafletMap, Marker, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { useMe } from '../auth/useMe';
 import { SelectBox, SelectionBar, TriCheckbox } from '../../components/SelectionBar';
 import { toast } from '../../components/Toast';
@@ -384,7 +384,7 @@ function PoiMap({
   return (
     <div className={styles.mapWrap}>
       <div className={styles.map} role="region" aria-label="POI map">
-        <MapContainer center={[first.lat, first.lon]} zoom={5} scrollWheelZoom>
+        <LeafletMap center={[first.lat, first.lon]} zoom={5} scrollWheelZoom>
           <TileLayer
             url={layer.url}
             attribution={layer.attribution}
@@ -403,7 +403,7 @@ function PoiMap({
               onOpen={setActiveId}
             />
           ))}
-        </MapContainer>
+        </LeafletMap>
       </div>
       {active ? (
           <PoiDetails

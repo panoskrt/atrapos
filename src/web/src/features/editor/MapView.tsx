@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, LeafletMap, Marker, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
 import { locateOnLine, nearestDistance, positionAtDistance, sectionLine, segmentMidpoint, type Coord, type LonLat } from './geo';
 import { LocationSearch } from './LocationSearch';
@@ -50,15 +50,6 @@ function useMarkerClass(marker: RefObject<L.Marker | null>, className: string | 
   }, [marker, className, on, iconKey]);
 }
 
-/** react-leaflet only applies `title` when the marker is created; keep the tooltip (and its accessible name)
- *  current when points are reordered or POIs renamed. */
-function useMarkerTitle(marker: RefObject<L.Marker | null>, title: string, iconKey: unknown) {
-  useEffect(() => {
-    const el = marker.current?.getElement();
-    if (el) el.title = title;
-  }, [marker, title, iconKey]);
-}
-
 /** The latest value, readable from handlers that are bound once. */
 function useLatest<T>(value: T) {
   const ref = useRef(value);
@@ -86,7 +77,7 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
   const tool = useEditorStore((s) => s.tool);
 
   return (
-    <MapContainer
+    <LeafletMap
       className={`${styles.map} ${tool !== 'select' ? styles.mapExtend : ''}`}
       center={saved ? [saved.lat, saved.lon] : [50, 10]}
       zoom={saved?.zoom ?? 4}
@@ -111,7 +102,7 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
       <SectionLayer line={line} cumulative={cumulative} />
       <PoiLayer line={line} cumulative={cumulative} />
       <LocationSearch />
-    </MapContainer>
+    </LeafletMap>
   );
 }
 
@@ -327,8 +318,6 @@ function VertexMarker({
   const icon = useMemo(() => vertexIcon(kind), [kind]);
   useMarkerClass(markerRef, styles.vertexSelected, selected, icon);
   const title = `Point ${index + 1}. Drag to move, right-click to delete.`;
-  useMarkerTitle(markerRef, title, icon);
-  // A new array every render would make react-leaflet reset the marker mid-drag.
   const position = useMemo<L.LatLngTuple>(() => [display.lat, display.lon], [display.lat, display.lon]);
   const onDragRef = useLatest(onDrag);
   const sectionPick = useLatest({ onSectionPick, display });
@@ -375,7 +364,7 @@ function VertexMarker({
 }
 
 /** A theme colour for Leaflet paths: it takes colours as values, and a `className` in `pathOptions` is only applied
- *  when a layer is created, which react-leaflet doesn't do for them. */
+ *  when a layer is created, which a theme change doesn't do. */
 function themeColor(name: string, fallback: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
@@ -508,7 +497,6 @@ function PoiMarker({
   const icon = useMemo(() => poiIcon(suuntoConnected ? poi.poiType : null), [poi.poiType, suuntoConnected]);
   useMarkerClass(markerRef, styles.poiMarkerSelected, selected, icon);
   const title = `${poi.name}. Click to edit${draggable ? ', drag to move' : ''}.`;
-  useMarkerTitle(markerRef, title, icon);
   const position = useMemo<L.LatLngTuple>(() => [poi.lat, poi.lon], [poi.lat, poi.lon]);
   const geometry = useLatest({ line, cumulative });
 
