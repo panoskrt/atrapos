@@ -1,9 +1,9 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { useSearchParams } from 'react-router';
 import { Icon, type IconName } from '../../components/Icon';
+import { CircleMarker, LeafletMap, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { Spinner } from '../../components/Spinner';
 import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
 import { useUploadLimit } from '../import/api';
@@ -480,7 +480,7 @@ export function GpxToolsPage() {
                 <span>Click the route line to add a split. Click a numbered marker to remove it. Each part needs at least two points.</span>
               </div>
               <div className={styles.splitMap} role="region" aria-label="GPX route split map">
-                <MapContainer
+                <LeafletMap
                   className="rpm-split-map"
                   center={[sourcePoints[0]!.lat, sourcePoints[0]!.lon]}
                   zoom={5}
@@ -522,14 +522,12 @@ export function GpxToolsPage() {
                         pathOptions={{ color: '#fff', weight: 2, fillColor: 'var(--poi)', fillOpacity: 1 }}
                         bubblingMouseEvents={false}
                         eventHandlers={{ click: () => removeCut(cut) }}
-                      >
-                        <Tooltip direction="center" permanent>
-                          {index + 1}
-                        </Tooltip>
-                      </CircleMarker>
+                        tooltip={String(index + 1)}
+                        tooltipOptions={{ direction: 'center', permanent: true }}
+                      />
                     );
                   })}
-                </MapContainer>
+                </LeafletMap>
               </div>
               <p className={styles.mapHint} role="status">{mapHint}</p>
               <p className={styles.note}>
