@@ -187,6 +187,7 @@ The defaults suit one machine. To serve others over the internet:
 3. Set `FORWARDED_HEADERS=true` (and `TRUSTED_PROXIES` to the proxy's IP where you can), so sessions get `Secure` cookies and rate limits count the real client address. Without it behind a proxy, every user shares the proxy's address and its limit.
 4. Set `HSTS=true` once https works, and redirect http to https at the proxy.
 5. Consider `ALLOWED_GOOGLE_EMAILS` / `ALLOWED_SUUNTO_USERNAMES`, and self-hosting BRouter and Open Topo Data (see Limitations), since all users share their fair-use quotas.
+6. Review the footer and the **Privacy and terms** (`/privacy`) and **Cookies** (`/cookies`) pages. They name this project's developer as the operator: change `src/web/src/lib/site.ts` and `src/web/src/features/legal/` to name yours, and point `sourceUrl` at your fork if you changed the code (AGPL section 13).
 
 The built-in rate limits are in memory and per API instance (see `Hosting:RateLimit:*`).
 

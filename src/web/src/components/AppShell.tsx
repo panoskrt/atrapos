@@ -7,6 +7,7 @@ import { useUpdateUserSettings, useUserSettings } from '../features/profile/user
 import { useSuuntoActivity } from '../lib/suuntoActivity';
 import { ConfirmHost, confirmAction } from './ConfirmDialog';
 import { Icon } from './Icon';
+import { SiteFooter } from './SiteFooter';
 import { Spinner } from './Spinner';
 import { toast, ToastHost } from './Toast';
 import styles from './AppShell.module.css';
@@ -50,6 +51,7 @@ export function AppShell() {
       <main id="main" tabIndex={-1} className={styles.main}>
         <Outlet />
       </main>
+      <SiteFooter className={styles.footer} />
       <ConfirmHost />
       <ToastHost />
     </div>
