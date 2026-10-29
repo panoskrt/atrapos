@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { SiteFooter } from '../../components/SiteFooter';
 import { Spinner } from '../../components/Spinner';
 import { useMe } from './useMe';
 import styles from './LoginPage.module.css';
@@ -92,98 +93,101 @@ export function LoginPage() {
   if (me.data) return <Navigate to="/" replace />;
 
   return (
-    <div className={styles.page}>
-      <section className={styles.panel}>
-        <div className={styles.brand}>
-          <span className={styles.mark}>
-            <Icon name="logo" size={22} />
-          </span>
-          <span className="display">Atrapos</span>
-        </div>
-
-        <div className={styles.body}>
-          <h1 className={`display ${styles.title}`}>
-            Plan the route.
-            <br />
-            Pin the POIs.
-            <br />
-            <span className={styles.titleAccent}>Sync to your watch.</span>
-          </h1>
-          <p className={styles.lede}>
-            Sign in with Google for your own app account, or use your Suunto account to work with routes and POIs
-            synced to your watch. These are separate accounts.
-          </p>
-
-          {error && (
-            <div role="alert" className={styles.error}>
-              <Icon name="alert" size={18} />
-              <span>{errorMessages[error] ?? 'Sign-in failed. Please try again.'}</span>
-            </div>
-          )}
-
-          <div className={styles.providers}>
-            <button
-              type="button"
-              className={`btn ${styles.googleCta}`}
-              aria-disabled={opening || undefined}
-              disabled={opening}
-              onClick={openGoogleLogin}
-            >
-              <span className={styles.googleMark} aria-hidden="true">G</span>
-              {opening ? 'Opening Google…' : 'Sign in with Google'}
-            </button>
-            <span className={styles.providerDivider}>or</span>
-            <button
-              type="button"
-              className={`btn btn-primary ${styles.cta}`}
-              aria-disabled={opening || undefined}
-              disabled={opening}
-              onClick={openSuuntoLogin}
-            >
-              {opening ? <Spinner size={20} /> : <Icon name="watch" />}
-              {opening ? 'Opening Suunto…' : 'Sign in with Suunto'}
-            </button>
+    <div className={styles.screen}>
+      <div className={styles.page}>
+        <section className={styles.panel}>
+          <div className={styles.brand}>
+            <span className={styles.mark}>
+              <Icon name="logo" size={22} />
+            </span>
+            <span className="display">Atrapos</span>
           </div>
 
-          <ul className={styles.points}>
-            <li>
-              <Icon name="check" size={18} />
-              Suunto sign-in uses Suunto's own page; this app never sees your Suunto password.
-            </li>
-            <li>
-              <Icon name="check" size={18} />
-              Google and Suunto sign-ins create separate app accounts.
-            </li>
-          </ul>
+          <div className={styles.body}>
+            <h1 className={`display ${styles.title}`}>
+              Plan the route.
+              <br />
+              Pin the POIs.
+              <br />
+              <span className={styles.titleAccent}>Sync to your watch.</span>
+            </h1>
+            <p className={styles.lede}>
+              Sign in with Google for your own app account, or use your Suunto account to work with routes and POIs
+              synced to your watch. These are separate accounts.
+            </p>
+
+            {error && (
+              <div role="alert" className={styles.error}>
+                <Icon name="alert" size={18} />
+                <span>{errorMessages[error] ?? 'Sign-in failed. Please try again.'}</span>
+              </div>
+            )}
+
+            <div className={styles.providers}>
+              <button
+                type="button"
+                className={`btn ${styles.googleCta}`}
+                aria-disabled={opening || undefined}
+                disabled={opening}
+                onClick={openGoogleLogin}
+              >
+                <span className={styles.googleMark} aria-hidden="true">G</span>
+                {opening ? 'Opening Google…' : 'Sign in with Google'}
+              </button>
+              <span className={styles.providerDivider}>or</span>
+              <button
+                type="button"
+                className={`btn btn-primary ${styles.cta}`}
+                aria-disabled={opening || undefined}
+                disabled={opening}
+                onClick={openSuuntoLogin}
+              >
+                {opening ? <Spinner size={20} /> : <Icon name="watch" />}
+                {opening ? 'Opening Suunto…' : 'Sign in with Suunto'}
+              </button>
+            </div>
+
+            <ul className={styles.points}>
+              <li>
+                <Icon name="check" size={18} />
+                Suunto sign-in uses Suunto's own page; this app never sees your Suunto password.
+              </li>
+              <li>
+                <Icon name="check" size={18} />
+                Google and Suunto sign-ins create separate app accounts.
+              </li>
+            </ul>
+          </div>
+
+          <p className={styles.footer}>
+            Atrapos works with Suunto but is not affiliated with or endorsed by Suunto. Suunto is a trademark of its
+            owner. Map data ©{' '}
+            <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+          </p>
+        </section>
+
+        <div className={styles.art} aria-hidden="true">
+          <svg viewBox="0 0 1000 900" preserveAspectRatio="xMidYMid slice">
+            <path className={styles.forest} d="M0,420 C120,380 220,460 300,520 C380,580 360,700 280,780 C200,860 80,900 0,900 Z" />
+            <path className={styles.forest} d="M640,620 C760,560 900,600 1000,660 L1000,900 L560,900 C560,780 580,680 640,620 Z" />
+            <g className={styles.contours}>
+              {[60, 130, 215, 310, 420, 540, 670].map((rx, i) => (
+                <ellipse key={rx} cx={760 - i * 20} cy={220 + i * 25} rx={rx} ry={rx * 0.64} transform={`rotate(-16 ${760 - i * 20} ${220 + i * 25})`} />
+              ))}
+            </g>
+            <path className={styles.water} d="M170,330 C220,270 350,280 380,340 C410,400 330,440 270,430 C200,420 140,390 170,330 Z" />
+            <path className={styles.trail} d="M90,0 C150,180 120,400 190,560 C230,650 160,720 170,900" />
+            <path className={styles.trail} d="M1000,380 C900,420 860,460 800,500 C740,540 700,610 620,660" />
+            <path className={styles.routeCase} pathLength={1} d={ROUTE} />
+            <path className={styles.route} pathLength={1} d={ROUTE} />
+            <circle className={styles.start} cx="150" cy="760" r="12" />
+            <circle className={`${styles.poi} ${styles.poi1}`} cx="430" cy="540" r="16" />
+            <circle className={`${styles.poi} ${styles.poi2}`} cx="690" cy="370" r="16" />
+            <circle className={`${styles.poi} ${styles.poi3}`} cx="760" cy="222" r="18" />
+          </svg>
         </div>
-
-        <p className={styles.footer}>
-          Atrapos works with Suunto but is not affiliated with or endorsed by Suunto. Suunto is a trademark of its
-          owner. Map data ©{' '}
-          <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
-        </p>
-      </section>
-
-      <div className={styles.art} aria-hidden="true">
-        <svg viewBox="0 0 1000 900" preserveAspectRatio="xMidYMid slice">
-          <path className={styles.forest} d="M0,420 C120,380 220,460 300,520 C380,580 360,700 280,780 C200,860 80,900 0,900 Z" />
-          <path className={styles.forest} d="M640,620 C760,560 900,600 1000,660 L1000,900 L560,900 C560,780 580,680 640,620 Z" />
-          <g className={styles.contours}>
-            {[60, 130, 215, 310, 420, 540, 670].map((rx, i) => (
-              <ellipse key={rx} cx={760 - i * 20} cy={220 + i * 25} rx={rx} ry={rx * 0.64} transform={`rotate(-16 ${760 - i * 20} ${220 + i * 25})`} />
-            ))}
-          </g>
-          <path className={styles.water} d="M170,330 C220,270 350,280 380,340 C410,400 330,440 270,430 C200,420 140,390 170,330 Z" />
-          <path className={styles.trail} d="M90,0 C150,180 120,400 190,560 C230,650 160,720 170,900" />
-          <path className={styles.trail} d="M1000,380 C900,420 860,460 800,500 C740,540 700,610 620,660" />
-          <path className={styles.routeCase} pathLength={1} d={ROUTE} />
-          <path className={styles.route} pathLength={1} d={ROUTE} />
-          <circle className={styles.start} cx="150" cy="760" r="12" />
-          <circle className={`${styles.poi} ${styles.poi1}`} cx="430" cy="540" r="16" />
-          <circle className={`${styles.poi} ${styles.poi2}`} cx="690" cy="370" r="16" />
-          <circle className={`${styles.poi} ${styles.poi3}`} cx="760" cy="222" r="18" />
-        </svg>
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -2,10 +2,8 @@ using System.Globalization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using Dynastream.Fit;
 using RoutePoiManager.Domain;
-using FitDateTime = Dynastream.Fit.DateTime;
-using FitFile = Dynastream.Fit.File;
+using RoutePoiManager.Infrastructure.Import.Fit;
 
 namespace RoutePoiManager.Infrastructure.Import;
 
@@ -47,7 +45,7 @@ public static class RouteFileConverter
     {
         var track = FirstTrack(parsed);
         var points = track.Points;
-        var now = System.DateTime.UtcNow;
+        var now = DateTime.UtcNow;
         // Recorded times are kept when every point has one and they never go backwards; otherwise 1 s per point.
         var times = RecordedTimes(track) ?? Enumerable.Range(0, points.Count).Select(i => now.AddSeconds(i)).ToList();
         var distances = new double[points.Count];
@@ -66,68 +64,60 @@ public static class RouteFileConverter
             .ThenBy(c => c.AlongM)
             .ToList();
 
-        using var stream = new MemoryStream();
-        var encoder = new Encode(stream, ProtocolVersion.V20);
-        var fileId = new FileIdMesg();
-        fileId.SetType(FitFile.Course);
-        fileId.SetManufacturer(Manufacturer.Development);
-        fileId.SetTimeCreated(new FitDateTime(now));
-        encoder.Write(fileId);
+        var fit = new FitWriter();
+        fit.Write(FitMessages.FileId,
+            FitField.Enum(FileIdField.Type, FitProfile.FileCourse),
+            FitField.UInt16(FileIdField.Manufacturer, FitProfile.ManufacturerDevelopment),
+            FitField.Time(FileIdField.TimeCreated, now));
 
-        var course = new CourseMesg();
-        course.SetName((parsed.Name ?? track.Name ?? "Converted route")[..Math.Min((parsed.Name ?? track.Name ?? "Converted route").Length, 15)]);
-        course.SetSport(Sport.Generic);
-        course.SetSubSport(SubSport.Generic);
-        encoder.Write(course);
+        var name = parsed.Name ?? track.Name ?? "Converted route";
+        fit.Write(FitMessages.Course,
+            FitField.String(CourseField.Name, name[..Math.Min(name.Length, 15)]),
+            FitField.Enum(CourseField.Sport, FitProfile.Sport["Generic"]),
+            FitField.Enum(CourseField.SubSport, FitProfile.SubSport["Generic"]));
 
-        var duration = (float)(times[^1] - times[0]).TotalSeconds;
-        var lap = new LapMesg();
-        lap.SetMessageIndex(0);
-        lap.SetTimestamp(new FitDateTime(times[^1]));
-        lap.SetStartTime(new FitDateTime(times[0]));
-        lap.SetStartPositionLat(ToSemicircles(points[0].Lat));
-        lap.SetStartPositionLong(ToSemicircles(points[0].Lon));
-        lap.SetEndPositionLat(ToSemicircles(points[^1].Lat));
-        lap.SetEndPositionLong(ToSemicircles(points[^1].Lon));
-        lap.SetTotalElapsedTime(duration);
-        lap.SetTotalTimerTime(duration);
-        lap.SetTotalDistance((float)distances[^1]);
-        encoder.Write(lap);
+        var duration = (times[^1] - times[0]).TotalSeconds;
+        fit.Write(FitMessages.Lap,
+            FitField.UInt16(CommonField.MessageIndex, 0),
+            FitField.Time(CommonField.Timestamp, times[^1]),
+            FitField.Time(LapField.StartTime, times[0]),
+            FitField.SInt32(LapField.StartPositionLat, ToSemicircles(points[0].Lat)),
+            FitField.SInt32(LapField.StartPositionLong, ToSemicircles(points[0].Lon)),
+            FitField.SInt32(LapField.EndPositionLat, ToSemicircles(points[^1].Lat)),
+            FitField.SInt32(LapField.EndPositionLong, ToSemicircles(points[^1].Lon)),
+            FitField.Scaled(LapField.TotalElapsedTime, FitBaseType.UInt32, duration, 1000),
+            FitField.Scaled(LapField.TotalTimerTime, FitBaseType.UInt32, duration, 1000),
+            FitField.Scaled(LapField.TotalDistance, FitBaseType.UInt32, distances[^1], 100));
 
-        encoder.Write(TimerEvent(times[0], EventType.Start));
+        fit.Write(FitMessages.Event, TimerEvent(times[0], FitProfile.EventTypeStart));
 
         var nextCoursePoint = 0;
         for (var i = 0; i < points.Count; i++)
         {
             var point = points[i];
-            var record = new RecordMesg();
-            record.SetTimestamp(new FitDateTime(times[i]));
-            record.SetPositionLat(ToSemicircles(point.Lat));
-            record.SetPositionLong(ToSemicircles(point.Lon));
-            record.SetDistance((float)distances[i]);
-            if (point.Ele is { } elevation && float.IsFinite((float)elevation))
-                record.SetAltitude((float)elevation);
-            encoder.Write(record);
+            fit.Write(FitMessages.Record,
+                FitField.Time(CommonField.Timestamp, times[i]),
+                FitField.SInt32(RecordField.PositionLat, ToSemicircles(point.Lat)),
+                FitField.SInt32(RecordField.PositionLong, ToSemicircles(point.Lon)),
+                FitField.Scaled(RecordField.Distance, FitBaseType.UInt32, distances[i], 100),
+                FitField.Scaled(RecordField.Altitude, FitBaseType.UInt16, point.Ele, 5, 500));
 
             for (; nextCoursePoint < coursePoints.Count && coursePoints[nextCoursePoint].Index == i; nextCoursePoint++)
             {
                 var waypoint = coursePoints[nextCoursePoint].Waypoint;
-                var coursePoint = new CoursePointMesg();
-                coursePoint.SetMessageIndex((ushort)nextCoursePoint);
-                coursePoint.SetTimestamp(new FitDateTime(times[i]));
-                coursePoint.SetPositionLat(ToSemicircles(waypoint.Position.Lat));
-                coursePoint.SetPositionLong(ToSemicircles(waypoint.Position.Lon));
-                coursePoint.SetDistance((float)distances[i]);
-                coursePoint.SetType(CoursePoint.Generic);
-                coursePoint.SetName(waypoint.Name[..Math.Min(waypoint.Name.Length, 15)]);
-                encoder.Write(new MesgDefinition(coursePoint));
-                encoder.Write(coursePoint);
+                fit.Write(FitMessages.CoursePoint,
+                    FitField.UInt16(CommonField.MessageIndex, (ushort)nextCoursePoint),
+                    FitField.Time(CoursePointField.Timestamp, times[i]),
+                    FitField.SInt32(CoursePointField.PositionLat, ToSemicircles(waypoint.Position.Lat)),
+                    FitField.SInt32(CoursePointField.PositionLong, ToSemicircles(waypoint.Position.Lon)),
+                    FitField.Scaled(CoursePointField.Distance, FitBaseType.UInt32, distances[i], 100),
+                    FitField.Enum(CoursePointField.Type, FitProfile.CoursePoint["Generic"]),
+                    FitField.String(CoursePointField.Name, waypoint.Name[..Math.Min(waypoint.Name.Length, 15)]));
             }
         }
 
-        encoder.Write(TimerEvent(times[^1], EventType.StopDisableAll));
-        encoder.Close();
-        return stream.ToArray();
+        fit.Write(FitMessages.Event, TimerEvent(times[^1], FitProfile.EventTypeStopDisableAll));
+        return fit.ToArray();
     }
 
     private static ParsedTrack FirstTrack(ParsedFile parsed)
@@ -142,7 +132,7 @@ public static class RouteFileConverter
     private static IEnumerable<ParsedWaypoint> IncludedWaypoints(ParsedFile parsed) =>
         parsed.Waypoints.Where(waypoint => waypoint.IncludeByDefault);
 
-    private static List<System.DateTime>? RecordedTimes(ParsedTrack track)
+    private static List<DateTime>? RecordedTimes(ParsedTrack track)
     {
         if (track.Times is not { } times || times.Count != track.Points.Count || times.Any(t => t is null))
             return null;
@@ -153,17 +143,15 @@ public static class RouteFileConverter
         return result;
     }
 
-    private static EventMesg TimerEvent(System.DateTime time, EventType type)
-    {
-        var mesg = new EventMesg();
-        mesg.SetTimestamp(new FitDateTime(time));
-        mesg.SetEvent(Event.Timer);
-        mesg.SetEventType(type);
-        mesg.SetEventGroup(0);
-        return mesg;
-    }
+    private static FitField[] TimerEvent(DateTime time, byte type) =>
+    [
+        FitField.Time(CommonField.Timestamp, time),
+        FitField.Enum(EventField.Event, FitProfile.EventTimer),
+        FitField.Enum(EventField.EventType, type),
+        FitField.UInt8(EventField.EventGroup, 0),
+    ];
 
-    private static XElement PointElement(GeoPosition point, System.DateTime? time)
+    private static XElement PointElement(GeoPosition point, DateTime? time)
     {
         var element = new XElement(Gpx + "trkpt",
             new XAttribute("lat", Fmt(point.Lat)),

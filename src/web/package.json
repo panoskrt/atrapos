@@ -2,6 +2,7 @@
   "name": "atrapos-web",
   "private": true,
   "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +17,6 @@
     "leaflet": "^1.9.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-leaflet": "^5.0.0",
     "react-router": "^8.4.0",
     "zundo": "^2.3.0",
     "zustand": "^5.0.15"

@@ -9,6 +9,8 @@
   --radius-md: 12px;
   --radius-lg: 18px;
   --topbar-h: 64px;
+  /* The site footer's height on one line; the desktop editor subtracts it to fit the viewport. */
+  --footer-h: 44px;
   --bottomnav-h: 0px;
   --rail-w: 0px;
   /* The route line on the map. Classic keeps Leaflet's own blue. */

@@ -1,8 +1,8 @@
 import L from 'leaflet';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Polyline, TileLayer, useMap } from 'react-leaflet';
 import { Icon } from '../../components/Icon';
+import { LeafletMap, Polyline, TileLayer, useMap } from '../../components/LeafletMap';
 import { Spinner } from '../../components/Spinner';
 import { usePersistentState } from '../../lib/usePersistentState';
 import { baseLayers, loadBaseLayer } from '../editor/baseLayers';
@@ -148,7 +148,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
           </dl>
 
           <div className={styles.previewMap} role="region" aria-label="Original and shrunk route">
-            <MapContainer className="rpm-split-map" center={[track.coordinates[0]![1], track.coordinates[0]![0]]} zoom={5} scrollWheelZoom>
+            <LeafletMap className="rpm-split-map" center={[track.coordinates[0]![1], track.coordinates[0]![0]]} zoom={5} scrollWheelZoom>
               <TileLayer
                 url={layer.url}
                 attribution={layer.attribution}
@@ -167,7 +167,7 @@ export function ShrinkTool({ file, onFile }: { file: File | null; onFile: (file:
                 pathOptions={{ color: 'var(--accent)', weight: 3, opacity: 0.95 }}
                 interactive={false}
               />
-            </MapContainer>
+            </LeafletMap>
           </div>
           <p className={styles.legend}>
             <span className={styles.legendOriginal} aria-hidden="true" /> Original

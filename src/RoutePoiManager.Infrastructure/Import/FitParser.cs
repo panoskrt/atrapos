@@ -1,6 +1,5 @@
-using Dynastream.Fit;
 using RoutePoiManager.Domain;
-using FitFile = Dynastream.Fit.File;
+using RoutePoiManager.Infrastructure.Import.Fit;
 
 namespace RoutePoiManager.Infrastructure.Import;
 
@@ -9,39 +8,34 @@ public static class FitParser
 {
     private const double SemicirclesToDegrees = 180.0 / 2147483648.0;
 
-    public static bool LooksLikeFit(ReadOnlySpan<byte> header) =>
-        header.Length >= 12 && header[8] == '.' && header[9] == 'F' && header[10] == 'I' && header[11] == 'T';
+    public static bool LooksLikeFit(ReadOnlySpan<byte> header) => FitReader.IsFit(header);
 
-    public static ParsedFile Parse(Stream stream)
+    public static ParsedFile Parse(ReadOnlySpan<byte> content)
     {
-        var decoder = new Decode();
-        var listener = new FitListener();
-        decoder.MesgEvent += listener.OnMesg;
+        if (!FitReader.IsFit(content))
+            throw new ImportException("The file isn't a FIT file.");
+        ILookup<ushort, FitMessage> m;
         try
         {
-            if (!decoder.IsFIT(stream))
-                throw new ImportException("The file isn't a FIT file.");
-            stream.Position = 0;
-            // Integrity (CRC) failures are common on files cut short; read what's there rather than reject.
-            decoder.Read(stream, DecodeMode.Normal);
+            m = FitReader.Read(content).ToLookup(message => message.Number);
         }
-        catch (FitException ex)
+        catch (InvalidDataException ex)
         {
             throw new ImportException("The FIT file couldn't be read.", ex);
         }
 
-        var m = listener.FitMessages;
-        var fileType = m.FileIdMesgs.FirstOrDefault()?.GetType();
-        var isCourse = fileType == FitFile.Course || (fileType is null && m.CourseMesgs.Count > 0);
+        var fileType = m[FitMessages.FileId].FirstOrDefault()?.Raw(FileIdField.Type);
+        var isCourse = fileType == FitProfile.FileCourse || (fileType is null && m[FitMessages.Course].Any());
 
         var points = new List<GeoPosition>();
-        var times = new List<System.DateTime?>();
-        foreach (var r in m.RecordMesgs)
+        var times = new List<DateTime?>();
+        foreach (var r in m[FitMessages.Record])
         {
-            if (ToPosition(r.GetPositionLat(), r.GetPositionLong(), r.GetEnhancedAltitude() ?? r.GetAltitude()) is not { } p)
+            var ele = r.Value(RecordField.EnhancedAltitude, 5, 500) ?? r.Value(RecordField.Altitude, 5, 500);
+            if (ToPosition(r.Raw(RecordField.PositionLat), r.Raw(RecordField.PositionLong), ele) is not { } p)
                 continue;
             points.Add(p);
-            times.Add(r.GetTimestamp()?.GetDateTime());
+            times.Add(r.Time());
         }
         if (points.Count == 0)
             throw new ImportException(isCourse
@@ -50,37 +44,39 @@ public static class FitParser
 
         var waypoints = new List<ParsedWaypoint>();
         string? name;
-        Sport? sport;
-        SubSport? subSport;
+        string? sport;
+        string? subSport;
 
         if (isCourse)
         {
-            var course = m.CourseMesgs.FirstOrDefault();
-            name = Clean(course?.GetNameAsString());
-            sport = course?.GetSport();
-            subSport = course?.GetSubSport();
-            foreach (var cp in m.CoursePointMesgs)
+            var course = m[FitMessages.Course].FirstOrDefault();
+            name = Clean(course?.Text(CourseField.Name));
+            sport = FitProfile.Sport.Name(course?.Raw(CourseField.Sport));
+            subSport = FitProfile.SubSport.Name(course?.Raw(CourseField.SubSport));
+            foreach (var cp in m[FitMessages.CoursePoint])
             {
-                if (ToPosition(cp.GetPositionLat(), cp.GetPositionLong(), null) is not { } p)
+                if (ToPosition(cp.Raw(CoursePointField.PositionLat), cp.Raw(CoursePointField.PositionLong), null) is not { } p)
                     continue;
-                var typeName = cp.GetType() is { } t ? t.ToString() : "Generic";
+                var typeName = FitProfile.CoursePoint.Name(cp.Raw(CoursePointField.Type)) ?? "Generic";
                 var (poiType, include) = PoiTypeMapping.FromFitCoursePoint(typeName);
-                var label = Clean(cp.GetNameAsString());
+                var label = Clean(cp.Text(CoursePointField.Name));
                 waypoints.Add(new ParsedWaypoint(string.IsNullOrWhiteSpace(label) ? typeName : label.Trim(), typeName, poiType, include, p));
             }
         }
         else
         {
-            var session = m.SessionMesgs.FirstOrDefault();
+            var session = m[FitMessages.Session].FirstOrDefault();
+            var sportMessage = m[FitMessages.Sport].FirstOrDefault();
             name = null;
-            sport = session?.GetSport() ?? m.SportMesgs.FirstOrDefault()?.GetSport();
-            subSport = session?.GetSubSport() ?? m.SportMesgs.FirstOrDefault()?.GetSubSport();
+            sport = FitProfile.Sport.Name(session?.Raw(SessionField.Sport) ?? sportMessage?.Raw(SportField.Sport));
+            subSport = FitProfile.SubSport.Name(session?.Raw(SessionField.SubSport) ?? sportMessage?.Raw(SportField.SubSport));
             // Lap markers can become POIs, but most activities have auto-laps every km, so they're off by default.
+            var laps = m[FitMessages.Lap].ToList();
             var lapNo = 0;
-            foreach (var lap in m.LapMesgs)
+            foreach (var lap in laps)
             {
                 lapNo++;
-                if (ToPosition(lap.GetEndPositionLat(), lap.GetEndPositionLong(), null) is { } p && lapNo < m.LapMesgs.Count)
+                if (ToPosition(lap.Raw(LapField.EndPositionLat), lap.Raw(LapField.EndPositionLong), null) is { } p && lapNo < laps.Count)
                     waypoints.Add(new ParsedWaypoint($"Lap {lapNo}", "Lap", PoiTypes.Poi, false, p));
             }
         }
@@ -88,24 +84,23 @@ public static class FitParser
         return new ParsedFile(
             isCourse ? RouteSource.FitCourse : RouteSource.FitActivity,
             string.IsNullOrWhiteSpace(name) ? null : name.Trim(),
-            ActivityMapping.FromSport(sport?.ToString(), subSport?.ToString()),
+            ActivityMapping.FromSport(sport, subSport),
             [new ParsedTrack(name, points, times)],
             waypoints);
     }
 
-    /// <summary>FIT strings are fixed-size fields; writers pad them with NULs.</summary>
-    private static string? Clean(string? s) => s?.Replace("\0", "", StringComparison.Ordinal).Trim() is { Length: > 0 } t ? t : null;
+    private static string? Clean(string? s) => s?.Trim() is { Length: > 0 } t ? t : null;
 
-    private static GeoPosition? ToPosition(int? lat, int? lon, float? ele)
+    /// <summary>The reader leaves out FIT's "invalid" positions, so a missing coordinate means no fix.</summary>
+    private static GeoPosition? ToPosition(long? lat, long? lon, double? ele)
     {
-        // 0x7FFFFFFF is FIT's "invalid" marker; the SDK returns it for missing positions.
-        if (lat is null || lon is null || lat == int.MaxValue || lon == int.MaxValue)
+        if (lat is null || lon is null)
             return null;
         var latDeg = lat.Value * SemicirclesToDegrees;
         var lonDeg = lon.Value * SemicirclesToDegrees;
         if (!Geo.IsValid(lonDeg, latDeg))
             return null;
-        double? e = ele is { } v && float.IsFinite(v) ? Math.Round(v, 1) : null;
+        double? e = ele is { } v && double.IsFinite(v) ? Math.Round(v, 1) : null;
         return new GeoPosition(lonDeg, latDeg, e);
     }
 }

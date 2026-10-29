@@ -27,11 +27,11 @@ public sealed class ImportService(AppDbContext db, TimeProvider clock)
         if (content.Length == 0)
             throw new ImportException("The file is empty.");
 
-        using var stream = new MemoryStream(content, writable: false);
         if (FitParser.LooksLikeFit(content.AsSpan(0, Math.Min(content.Length, 14))))
-            return FitParser.Parse(stream);
+            return FitParser.Parse(content);
         if (fileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
             throw new ImportException("The file has a .fit extension but isn't a FIT file.");
+        using var stream = new MemoryStream(content, writable: false);
         return GpxParser.Parse(stream);
     }
 

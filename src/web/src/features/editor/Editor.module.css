@@ -1,5 +1,5 @@
 .editor {
-  height: calc(100dvh - var(--topbar-h));
+  height: calc(100dvh - var(--topbar-h) - var(--footer-h));
   min-height: 560px;
   display: flex;
   flex-wrap: wrap;

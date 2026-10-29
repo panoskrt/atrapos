@@ -160,7 +160,8 @@
     display: none;
   }
 
-  .main {
+  /* On the shell rather than main, so the footer also stays clear of the tab bar. */
+  .shell {
     padding-bottom: var(--bottomnav-h);
   }
 
@@ -473,5 +474,9 @@
 
   :global(:root[data-design='soft']) .main {
     padding-left: var(--rail-w);
+  }
+
+  :global(:root[data-design='soft']) .footer {
+    margin-left: var(--rail-w);
   }
 }
