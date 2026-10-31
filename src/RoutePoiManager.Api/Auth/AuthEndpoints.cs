@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using RoutePoiManager.Api.Admin;
 using RoutePoiManager.Infrastructure.Persistence;
 using RoutePoiManager.Infrastructure.Suunto;
 
@@ -175,6 +176,7 @@ public static class AuthEndpoints
         app.MapGet("/api/me", async (
             ClaimsPrincipal user,
             IOptions<SuuntoOptions> suunto,
+            AdminAccess admin,
             AppDbContext db,
             CancellationToken ct) =>
         {
@@ -186,7 +188,8 @@ public static class AuthEndpoints
                 account is not null && account.RefreshTokenProtected.Length > 0,
                 account?.GoogleSubject is not null,
                 account?.SuuntoUsername,
-                user.FindFirstValue(SignInClaims.GoogleEmail)));
+                user.FindFirstValue(SignInClaims.GoogleEmail),
+                admin.IsAdmin(user)));
         }).RequireAuthorization();
     }
 
@@ -291,5 +294,6 @@ public sealed record MeResponse(
     bool SuuntoConnected,
     bool GoogleAccount,
     string? SuuntoUsername,
-    string? GoogleEmail);
+    string? GoogleEmail,
+    bool IsAdmin);
 public sealed record DisconnectResponse(bool SessionPreserved);

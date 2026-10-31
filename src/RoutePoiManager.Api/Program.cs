@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RoutePoiManager.Api;
+using RoutePoiManager.Api.Admin;
 using RoutePoiManager.Api.Auth;
 using RoutePoiManager.Api.Routes;
 using RoutePoiManager.Domain;
@@ -39,6 +40,9 @@ builder.Services.AddOptions<AuthOptions>()
 builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
     .Configure<IOptions<AuthOptions>>((cookie, auth) => cookie.ExpireTimeSpan = auth.Value.SessionLifetime);
 
+builder.Services.AddOptions<AdminOptions>().Bind(builder.Configuration.GetSection(AdminOptions.Section));
+builder.Services.AddSingleton<AdminAccess>();
+builder.Services.AddSingleton<RuntimeSettings>();
 builder.Services.AddInfrastructure(builder.Configuration);
 // Multipart bodies default to 128 MB; follow the upload limit so a larger configured limit isn't cut short.
 builder.Services.AddOptions<FormOptions>()
@@ -101,7 +105,11 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
                 new Claim(ClaimTypes.Name, displayName ?? "Google user"),
             ];
             if (!string.IsNullOrWhiteSpace(email))
+            {
                 claims.Add(new Claim(SignInClaims.GoogleEmail, email));
+                claims.Add(new Claim(SignInClaims.GoogleEmailVerified,
+                    SignInAllowlist.IsGoogleEmailVerified(context.User) ? "true" : "false"));
+            }
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
         };
         o.Events.OnRemoteFailure = context =>
@@ -125,7 +133,11 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
 }
 // Deny by default: an endpoint is public only when it says .AllowAnonymous().
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy(AdminAccess.Policy, p => p.RequireAuthenticatedUser()
+        .RequireAssertion(ctx => ctx.Resource is not HttpContext http
+            ? false
+            : http.RequestServices.GetRequiredService<AdminAccess>().IsAdmin(ctx.User)));
 builder.Services.AddHardening(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ErrorLogExceptionHandler>();   // first: logs, then passes on
@@ -141,6 +153,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
+await app.Services.GetRequiredService<RuntimeSettings>().LoadAsync(CancellationToken.None);
 
 app.UseHardening();
 app.UseMiddleware<LocalhostRedirectMiddleware>();
@@ -180,6 +193,7 @@ app.MapRoutingEndpoints();
 app.MapImportEndpoints();
 app.MapSyncEndpoints();
 app.MapRouteToolEndpoints();
+app.MapAdminEndpoints();
 
 var lookups = app.MapGroup("/api/lookups");
 lookups.MapGet("/poi-types", () => PoiTypes.All.Where(t => t.Id != PoiTypes.Unknown)

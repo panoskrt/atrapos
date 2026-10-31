@@ -42,6 +42,7 @@ Tables:
 | `source_files` | Original uploaded GPX/FIT file for each imported route |
 | `sync_log` | Audit trail of Suunto sync operations |
 | `error_logs` | Persistent error log: exception, operation, user, time (no foreign keys) |
+| `app_settings` | Runtime configuration overrides edited in the admin UI (key/value) |
 | `data_protection_keys` | ASP.NET Core Data Protection key ring |
 | `__EFMigrationsHistory` | EF Core migration bookkeeping |
 
@@ -289,7 +290,18 @@ SELECT at, username, operation, http_status, exception_type, message
 FROM error_logs ORDER BY at DESC LIMIT 50;
 ```
 
-### 3.7 `data_protection_keys`
+### 3.7 `app_settings`
+
+Configuration an admin changed in the admin UI. A row overrides the same setting from `appsettings` / environment variables; deleting the row ("Reset to configured") falls back to them. No foreign keys.
+
+| Column | Type | Null | Description |
+|---|---|---|---|
+| `key` | `varchar(100)` | no | **PK**. Configuration key, e.g. `Auth:AllowedGoogleEmails`, `Auth:AllowedSuuntoUsernames` |
+| `value` | `text` | no | Comma-separated list. An empty string means "no restriction" and is different from having no row |
+| `updated_at` | `timestamptz` | no | |
+| `updated_by` | `varchar(200)` | yes | Display name of the admin who saved it |
+
+### 3.8 `data_protection_keys`
 
 Standard ASP.NET Core Data Protection key store (`IDataProtectionKeyContext`). The application name is `RoutePoiManager`.
 
