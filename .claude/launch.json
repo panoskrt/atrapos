@@ -26,6 +26,7 @@
         "App__PublicBaseUrl=http://localhost:5081",
         "Auth__AllowedGoogleEmails=",
         "Auth__AllowedSuuntoUsernames=",
+        "Admin__SuuntoUsernames=admin",
         "Google__ClientId=",
         "Google__ClientSecret=",
         "Elevation__Provider=None",

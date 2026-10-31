@@ -19,6 +19,7 @@ Atrapos (*atrapos*, Greek for a footpath) is a web app to draw or import routes,
 13. [Testing](#13-testing)
 14. [Error handling and observability](#14-error-handling-and-observability)
 15. [Known limitations and open points](#15-known-limitations-and-open-points)
+16. [Admin UI](#16-admin-ui)
 
 ---
 
@@ -194,6 +195,24 @@ All paths except those marked *public* require a session cookie. All non-GET/HEA
 | GET | `/api/lookups/poi-types` | Suunto POI types (without `Unknown`) |
 | GET | `/api/lookups/activity-types` | Suunto activity types |
 
+### Admin (`/api/admin`, admins only)
+
+All routes answer `401` signed out and `403` for anyone who is not an admin. Collections take `page`, `pageSize` (max 200) and `q`, and answer `{ items, total, page, pageSize }`.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/admin/stats` | Row counts, database size, sync-state breakdowns |
+| GET, PUT, DELETE | `/api/admin/users[/{id}]` | List (`q` matches username, Google subject, id); PUT edits preferences only; DELETE cascades; deleting yourself is `409` |
+| POST | `/api/admin/users/{id}/disconnect-suunto` | Blank the stored Suunto tokens |
+| GET, PUT, DELETE | `/api/admin/routes[/{id}]` | Filters `userId`, `syncState`, `source`; PUT edits name, description, activities, routing profile, simplify tolerance, sync state |
+| POST | `/api/admin/routes/{id}/unlink-suunto` | Forget the Suunto id/revision so the next push creates a new route |
+| GET, PUT, DELETE | `/api/admin/pois[/{id}]` | Includes soft-deleted POIs (`deleted=only\|exclude`); PUT can edit location and un-delete; DELETE is permanent |
+| POST | `/api/admin/pois/{id}/unlink-suunto` | As for routes |
+| GET, DELETE | `/api/admin/source-files[/{id}]`, `GET .../{id}/download` | Metadata only in lists; the bytes are only sent by download |
+| GET, DELETE, POST | `/api/admin/sync-log`, `/api/admin/error-logs` | Filters and detail; `POST .../purge` with `{ olderThanDays }` |
+| GET | `/api/admin/config` | Effective allowlists and read-only configuration; secrets are reported only as set / not set |
+| PUT | `/api/admin/config/auth` | Set or reset the sign-in allowlists; `409` if it would remove the caller |
+
 ### Common status codes
 
 `400` validation / missing CSRF header · `401` not signed in or Suunto re-auth needed · `403` forbidden · `404` not found (also used for other users' data) · `409` Suunto not connected, or sync conflict · `422` sync request that cannot proceed (`SyncException`), or no snappable route · `429` rate limited (`Retry-After: 60`; Suunto 429 is surfaced as `suunto_rate_limited`) · `503` upstream router unavailable.
@@ -358,6 +377,7 @@ Settings come from `appsettings.json`, `appsettings.{Environment}.json`, `appset
 | `Suunto` | `Mode`, `ClientId`, `ClientSecret`, `SubscriptionKey`, base URLs, `RedirectUri` (validated on start; missing credential aborts startup) |
 | `Google` | `ClientId`, `ClientSecret` (optional) |
 | `Auth` | `SessionLifetime`, `SessionRevalidationInterval`, allowlists |
+| `Admin` | `GoogleEmails`, `SuuntoUsernames`: who may use the admin UI (default: nobody) |
 | `Uploads` | `MaxFileSizeMb` |
 | `Routing`, `Elevation` | Provider endpoints and limits |
 | `Hosting` | Forwarded headers, trusted proxies, HSTS, CSP, rate limits |
@@ -426,3 +446,17 @@ From the code and design:
 7. **Watch limits are undocumented** (max route points, name length); routes are simplified at 2 m before push.
 8. **Retention:** `sync_log` and POI tombstones grow without a cleanup job.
 9. **No spatial indexes** and no DB-level validation (CHECK constraints); fine at current query patterns.
+
+## 16. Admin UI
+
+A management console for whoever runs the instance, served by the same SPA under `/admin` and backed by `/api/admin` (section 5).
+
+**Who is an admin.** Nobody by default. `Admin:GoogleEmails` and `Admin:SuuntoUsernames` (env `ADMIN_GOOGLE_EMAILS`, `ADMIN_SUUNTO_USERNAMES`) list them; the `Admin` authorization policy (`AdminAccess`) checks the identity the session signed in with, read live. A Google email only counts when Google reported it verified (the `rpm:google_email_verified` claim, set at sign-in; sessions from before this was added must sign in again). The `/api/me` response carries `isAdmin`, which only decides whether the SPA shows the **Admin** link: the server enforces access on every call.
+
+**What it manages.** Every table the app owns: users (preferences, disconnect Suunto, delete), routes and POIs (edit, unlink from Suunto, delete; POIs include soft-deleted ones), source files (download, delete), sync log and error log (filter, delete, purge by age). Identity columns and OAuth tokens are never editable or sent to the browser. `data_protection_keys` is deliberately not exposed.
+
+**Runtime configuration.** The sign-in allowlists can be edited live. Edits are stored in `app_settings` and held in memory by `RuntimeSettings` (loaded at startup, refreshed on write; the app is a single instance). `SignInAllowlist` prefers an override over `Auth:*`, and "Reset to configured" removes it. Saving a list that would exclude the admin making the change is refused (`409`). Everything else in configuration is shown read-only, with secrets reduced to set / not set.
+
+**Frontend** (`src/web/src/features/admin`): one page per collection built from shared pieces in `AdminUi.tsx` (table, pager, modal, fields). Filters and the page number live in the URL (`useListParams`) so views can be linked. Edits open in a modal; destructive actions use the shared confirmation dialog.
+
+**Tests.** `AdminApiTests` covers access (signed out, non-admin, no admin configured), cross-user edit/delete, un-deleting a POI, the self-delete guard, the allowlist lockout guard, secret masking and log purging.

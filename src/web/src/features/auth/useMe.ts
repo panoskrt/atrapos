@@ -9,6 +9,7 @@ export interface Me {
   googleAccount: boolean;
   suuntoUsername: string | null;
   googleEmail: string | null;
+  isAdmin: boolean;
 }
 
 export const meQueryKey = ['me'] as const;

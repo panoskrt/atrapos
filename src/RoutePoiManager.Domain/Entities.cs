@@ -185,3 +185,13 @@ public sealed class ErrorLog
     public int? HttpStatus { get; set; }
     public string? RequestPath { get; set; }
 }
+
+/// <summary>A runtime configuration override edited in the admin UI. Takes precedence over appsettings and
+/// environment variables for the keys the app lets an admin change (see <c>RuntimeSettings</c>).</summary>
+public sealed class AppSetting
+{
+    public required string Key { get; set; }
+    public required string Value { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public string? UpdatedBy { get; set; }
+}
