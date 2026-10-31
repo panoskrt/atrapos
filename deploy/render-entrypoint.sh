@@ -41,6 +41,8 @@ map_env REQUIRE_OAUTH_STATE App__RequireOAuthState
 map_env MAX_UPLOAD_MB Uploads__MaxFileSizeMb
 map_env FORWARDED_HEADERS Hosting__ForwardedHeaders
 map_env TRUSTED_PROXIES Hosting__TrustedProxies
+map_env ADMIN_GOOGLE_EMAILS Admin__GoogleEmails
+map_env ADMIN_SUUNTO_USERNAMES Admin__SuuntoUsernames
 map_env HSTS Hosting__Hsts
 
 # Default the public URLs to the service's own Render URL; set them explicitly when using a custom domain.
