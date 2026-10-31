@@ -87,6 +87,12 @@ function TopBar({ me }: { me: Me }) {
           <Icon name="scissors" size={20} className={styles.navIcon} />
           <span>GPX tools</span>
         </NavLink>
+        {me.isAdmin && (
+          <NavLink to="/admin" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
+            <Icon name="list" size={20} className={styles.navIcon} />
+            <span>Admin</span>
+          </NavLink>
+        )}
       </nav>
       <div className={styles.spacer} />
       {/* Doubles as the app-wide indicator for calls to Suunto's servers, which can take a few seconds. */}

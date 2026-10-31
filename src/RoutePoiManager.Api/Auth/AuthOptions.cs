@@ -17,7 +17,4 @@ public sealed class AuthOptions
 
     /// <summary>How often a session cookie is checked against the database and the allowlists.</summary>
     public TimeSpan SessionRevalidationInterval { get; set; } = TimeSpan.FromMinutes(5);
-
-    internal bool HasAllowlist =>
-        !string.IsNullOrWhiteSpace(AllowedGoogleEmails) || !string.IsNullOrWhiteSpace(AllowedSuuntoUsernames);
 }

@@ -54,6 +54,11 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 - From a Google account, choose **Connect Suunto** in the account menu to associate your Suunto account; existing Suunto routes and POIs are merged into the Google account, keeping the Suunto account's copy if a route or POI is already present
 - **Disconnect Suunto** revokes this app's access while keeping you signed in with Google; a Suunto-only account is signed out when disconnected
 
+**Admin UI** (opt-in, for whoever runs the instance)
+- Browse, edit and delete every user, route, POI (including soft-deleted ones), source file, sync log entry and error log entry, with search, filters and paging
+- Edit the sign-in allowlists live, and see the effective configuration (secrets are never shown)
+- Enabled by listing yourself in `ADMIN_GOOGLE_EMAILS` or `ADMIN_SUUNTO_USERNAMES`; an **Admin** link then appears in the top bar
+
 **Profile and preferences**
 - A profile page shows your connected accounts and lets you set a **default map**, **units** (metric or imperial) and **appearance** (dark or light). Preferences are saved to your account (`/api/settings`), so they follow you across browsers.
 - Choose a **design**: *Classic* (the original dark glass look), *Alpine* (light and editorial, with serif headings) or *Soft* (warm and rounded, with a left icon rail). Each works in both dark and light appearance, and the choice is saved to your account like the other preferences.
@@ -149,6 +154,8 @@ Set these in `.env` for Docker Compose:
 | `GOOGLE_CLIENT_SECRET` | | Google OAuth web client secret |
 | `ALLOWED_GOOGLE_EMAILS` | | Optional¹: comma-separated verified Google emails allowed to sign in with Google |
 | `ALLOWED_SUUNTO_USERNAMES` | | Optional¹: comma-separated Suunto usernames allowed to sign in with Suunto (a Google account connecting Suunto needs no entry) |
+| `ADMIN_GOOGLE_EMAILS` | | Optional: comma-separated verified Google emails that may open the [admin UI](docs/technical.md#16-admin-ui) at `/admin` |
+| `ADMIN_SUUNTO_USERNAMES` | | Optional: comma-separated Suunto usernames that may open the admin UI. Both empty (default): nobody is an admin |
 | `SUUNTO_DIAGNOSTICS` | | `true` logs the shape of Suunto responses (never tokens or keys); for troubleshooting |
 | `REQUIRE_OAUTH_STATE` | | Default `true`: OAuth callbacks must carry the matching `state` |
 | `POSTGRES_PASSWORD` | | Database password; only takes effect before the database volume is first created |

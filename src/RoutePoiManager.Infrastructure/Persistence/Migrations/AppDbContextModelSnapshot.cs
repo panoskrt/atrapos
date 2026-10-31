@@ -47,6 +47,33 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("RoutePoiManager.Domain.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("value");
+
+                    b.HasKey("Key")
+                        .HasName("pk_app_settings");
+
+                    b.ToTable("app_settings", (string)null);
+                });
+
             modelBuilder.Entity("RoutePoiManager.Domain.ErrorLog", b =>
                 {
                     b.Property<long>("Id")

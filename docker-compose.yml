@@ -43,6 +43,9 @@ services:
       # Optional: restrict sign-in to these accounts. Empty = any Google or Suunto account.
       Auth__AllowedGoogleEmails: ${ALLOWED_GOOGLE_EMAILS:-}
       Auth__AllowedSuuntoUsernames: ${ALLOWED_SUUNTO_USERNAMES:-}
+      # Who may open the admin UI (/admin). Empty = nobody.
+      Admin__GoogleEmails: ${ADMIN_GOOGLE_EMAILS:-}
+      Admin__SuuntoUsernames: ${ADMIN_SUUNTO_USERNAMES:-}
       Uploads__MaxFileSizeMb: ${MAX_UPLOAD_MB:-20}
       # Only for hosting behind a TLS reverse proxy; see the README ("Hosting for other people").
       Hosting__ForwardedHeaders: ${FORWARDED_HEADERS:-false}
