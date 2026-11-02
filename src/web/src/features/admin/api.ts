@@ -236,3 +236,29 @@ export function useLookups() {
     profiles: profiles.data ?? [],
   };
 }
+
+export type Bucket = 'day' | 'week' | 'month';
+
+export interface TimeSeriesMetric {
+  key: string;
+  label: string;
+  values: number[];
+  total: number;
+}
+
+export interface AdminTimeSeries {
+  from: string;
+  to: string;
+  bucket: Bucket;
+  buckets: string[];
+  metrics: TimeSeriesMetric[];
+}
+
+export function useTimeSeries(from: string, to: string, bucket: string) {
+  return useQuery({
+    queryKey: ['admin', 'timeseries', from, to, bucket],
+    queryFn: () => api.get<AdminTimeSeries>(adminPath('stats/timeseries', { from, to, bucket: bucket || undefined })),
+    placeholderData: keepPreviousData,
+    enabled: from !== '' && to !== '' && from <= to,
+  });
+}

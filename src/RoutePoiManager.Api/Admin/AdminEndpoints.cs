@@ -68,6 +68,7 @@ public static class AdminEndpoints
         var admin = app.MapGroup("/api/admin").RequireAuthorization(AdminAccess.Policy);
 
         admin.MapGet("/stats", GetStats);
+        admin.MapAdminStatsEndpoints();
         MapUsers(admin.MapGroup("/users"));
         MapRoutes(admin.MapGroup("/routes"));
         MapPois(admin.MapGroup("/pois"));

@@ -202,6 +202,7 @@ All routes answer `401` signed out and `403` for anyone who is not an admin. Col
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/admin/stats` | Row counts, database size, sync-state breakdowns |
+| GET | `/api/admin/stats/timeseries` | `from`, `to` (dates, default last 30 days), `bucket` (`auto`\|`day`\|`week`\|`month`). Zero-filled counts per bucket for users, routes, POIs, imported files, route and POI pushes and errors. Bucketed in UTC, weeks start Monday; `400` for an inverted range, more than 10 years, or more than 400 buckets |
 | GET, PUT, DELETE | `/api/admin/users[/{id}]` | List (`q` matches username, Google subject, id); PUT edits preferences only; DELETE cascades; deleting yourself is `409` |
 | POST | `/api/admin/users/{id}/disconnect-suunto` | Blank the stored Suunto tokens |
 | GET, PUT, DELETE | `/api/admin/routes[/{id}]` | Filters `userId`, `syncState`, `source`; PUT edits name, description, activities, routing profile, simplify tolerance, sync state |
@@ -454,6 +455,8 @@ A management console for whoever runs the instance, served by the same SPA under
 **Who is an admin.** Nobody by default. `Admin:GoogleEmails` and `Admin:SuuntoUsernames` (env `ADMIN_GOOGLE_EMAILS`, `ADMIN_SUUNTO_USERNAMES`) list them; the `Admin` authorization policy (`AdminAccess`) checks the identity the session signed in with, read live. A Google email only counts when Google reported it verified (the `rpm:google_email_verified` claim, set at sign-in; sessions from before this was added must sign in again). The `/api/me` response carries `isAdmin`, which only decides whether the SPA shows the **Admin** link: the server enforces access on every call.
 
 **What it manages.** Every table the app owns: users (preferences, disconnect Suunto, delete), routes and POIs (edit, unlink from Suunto, delete; POIs include soft-deleted ones), source files (download, delete), sync log and error log (filter, delete, purge by age). Identity columns and OAuth tokens are never editable or sent to the browser. `data_protection_keys` is deliberately not exposed.
+
+**Statistics.** `/admin/statistics` charts activity for a chosen date range (presets or custom dates, grouped by day, week or month; automatic picks one by range length). `AdminStatsEndpoints` counts rows per bucket with `date_trunc` in SQL and fills empty buckets with zeros, so charts never have gaps. Pushes come from `sync_log` (`route` import/update, `poi` create/upsert). Charts are dependency-free SVG (`BarChart.tsx`): one series per chart, hover and arrow-key readout, and a table view of the same data.
 
 **Runtime configuration.** The sign-in allowlists can be edited live. Edits are stored in `app_settings` and held in memory by `RuntimeSettings` (loaded at startup, refreshed on write; the app is a single instance). `SignInAllowlist` prefers an override over `Auth:*`, and "Reset to configured" removes it. Saving a list that would exclude the admin making the change is refused (`409`). Everything else in configuration is shown read-only, with secrets reduced to set / not set.
 
