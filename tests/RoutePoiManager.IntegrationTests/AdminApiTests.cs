@@ -195,6 +195,42 @@ public sealed class AdminApiTests(PostgresFixture pg)
             (await admin.PostAsJsonAsync("/api/admin/error-logs/purge", new PurgeRequest(-1), Json)).StatusCode);
     }
 
+    [Fact]
+    public async Task Time_series_is_zero_filled_per_bucket_and_validates_the_range()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = NewApi(suunto);
+        using var admin = await TestAuth.SignInAsync(api, suunto, Admin);
+        await SeedAsync(api, "series-user");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = today.AddDays(-6);
+        var series = await admin.GetFromJsonAsync<AdminTimeSeries>($"/api/admin/stats/timeseries?from={from:yyyy-MM-dd}&to={today:yyyy-MM-dd}&bucket=day", Json);
+        Assert.Equal(7, series!.Buckets.Count);
+        Assert.Equal(from, series.Buckets[0]);
+        var routes = series.Metrics.Single(m => m.Key == "routes");
+        Assert.Equal(7, routes.Values.Count);
+        Assert.Equal(1, routes.Total);
+        Assert.Equal(1, routes.Values[^1]);
+        Assert.Equal(1, series.Metrics.Single(m => m.Key == "routePushes").Total);
+        Assert.Equal(0, series.Metrics.Single(m => m.Key == "errors").Total);
+
+        // Auto picks weeks for a long range and starts on a Monday; data outside the range is not counted.
+        var year = await admin.GetFromJsonAsync<AdminTimeSeries>($"/api/admin/stats/timeseries?from={today.AddDays(-200):yyyy-MM-dd}&to={today:yyyy-MM-dd}", Json);
+        Assert.Equal("week", year!.Bucket);
+        Assert.Equal(DayOfWeek.Monday, year.Buckets[0].DayOfWeek);
+        var past = await admin.GetFromJsonAsync<AdminTimeSeries>($"/api/admin/stats/timeseries?from=2020-01-01&to=2020-03-31&bucket=month", Json);
+        Assert.Equal([new DateOnly(2020, 1, 1), new DateOnly(2020, 2, 1), new DateOnly(2020, 3, 1)], past!.Buckets);
+        Assert.All(past.Metrics, m => Assert.Equal(0, m.Total));
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await admin.GetAsync($"/api/admin/stats/timeseries?from={today:yyyy-MM-dd}&to={from:yyyy-MM-dd}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await admin.GetAsync("/api/admin/stats/timeseries?from=2024-01-01&to=2026-01-01&bucket=day")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await admin.GetAsync("/api/admin/stats/timeseries?bucket=hour")).StatusCode);
+    }
+
     private static async Task<(Guid UserId, Guid RouteId, Guid PoiId)> SeedAsync(ApiFactory api, string suuntoUsername)
     {
         await using var scope = api.Services.CreateAsyncScope();
