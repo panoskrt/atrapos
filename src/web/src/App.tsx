@@ -8,6 +8,7 @@ import { OverviewPage } from './features/admin/OverviewPage';
 import { PoisPage } from './features/admin/PoisPage';
 import { RoutesPage } from './features/admin/RoutesPage';
 import { SettingsPage } from './features/admin/SettingsPage';
+import { StatisticsPage } from './features/admin/StatisticsPage';
 import { SourceFilesPage } from './features/admin/SourceFilesPage';
 import { UsersPage } from './features/admin/UsersPage';
 import { LoginPage } from './features/auth/LoginPage';
@@ -45,6 +46,7 @@ export const routes: RouteObject[] = [
         errorElement: <ErrorPage />,
         children: [
           { index: true, element: <OverviewPage /> },
+          { path: 'statistics', element: <StatisticsPage /> },
           { path: 'users', element: <UsersPage /> },
           { path: 'routes', element: <RoutesPage /> },
           { path: 'pois', element: <PoisPage /> },

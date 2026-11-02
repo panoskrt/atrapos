@@ -5,6 +5,7 @@ import styles from './Admin.module.css';
 
 const sections = [
   { to: '/admin', label: 'Overview', end: true },
+  { to: '/admin/statistics', label: 'Statistics' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/routes', label: 'Routes' },
   { to: '/admin/pois', label: 'POIs' },

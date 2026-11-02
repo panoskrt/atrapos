@@ -56,6 +56,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 
 **Admin UI** (opt-in, for whoever runs the instance)
 - Browse, edit and delete every user, route, POI (including soft-deleted ones), source file, sync log entry and error log entry, with search, filters and paging
+- **Statistics** for any date range: new users, routes, POIs, imports, Suunto pushes and errors per day, week or month
 - Edit the sign-in allowlists live, and see the effective configuration (secrets are never shown)
 - Enabled by listing yourself in `ADMIN_GOOGLE_EMAILS` or `ADMIN_SUUNTO_USERNAMES`; an **Admin** link then appears in the top bar
 
