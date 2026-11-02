@@ -1,0 +1,267 @@
+/* The sign-in page fills the window, with the site footer full width below it. */
+.screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+/* The sign-in card floats over the full-bleed map. */
+.panel {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  padding: 40px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 16px 12px;
+  }
+
+  .panel {
+    padding: 28px 20px;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.mark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 44px);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.titleAccent {
+  color: var(--accent);
+}
+
+.lede {
+  margin: 0;
+  max-width: 400px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.error {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 500;
+}
+
+.error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cta {
+  align-self: flex-start;
+  height: 52px;
+  padding: 0 24px;
+  font-size: 16px;
+}
+
+.providers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.googleCta {
+  height: 52px;
+  padding: 0 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.googleCta:hover {
+  background: var(--panel-elevated);
+}
+
+.googleMark {
+  color: #4285f4;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.providerDivider {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.points li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.points svg {
+  color: var(--ok);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.footer {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.art svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.forest {
+  fill: color-mix(in srgb, var(--ok) 10%, var(--panel-2));
+}
+
+.contours {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.2;
+}
+
+.water {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--panel-2));
+}
+
+.trail {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  opacity: 0.6;
+}
+
+.routeCase {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: draw 10s ease-in-out infinite;
+}
+
+.route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: draw 10s ease-in-out infinite;
+}
+
+.start {
+  fill: var(--panel);
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+
+.poi {
+  fill: var(--poi);
+  stroke: var(--panel);
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pin 10s ease-out infinite;
+}
+
+.poi2 { animation-delay: 1.2s; }
+.poi3 { animation-delay: 2.4s; }
+
+@keyframes draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  40% { stroke-dashoffset: 0; }
+  92% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes pin {
+  0%, 10% { transform: scale(0); opacity: 0; }
+  18% { transform: scale(1.25); opacity: 1; }
+  24%, 92% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeCase, .route, .poi {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

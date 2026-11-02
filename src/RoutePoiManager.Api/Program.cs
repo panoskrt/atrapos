@@ -1,0 +1,212 @@
+using System.Security.Claims;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using RoutePoiManager.Api;
+using RoutePoiManager.Api.Admin;
+using RoutePoiManager.Api.Auth;
+using RoutePoiManager.Api.Routes;
+using RoutePoiManager.Domain;
+using RoutePoiManager.Infrastructure;
+using RoutePoiManager.Infrastructure.Import;
+using RoutePoiManager.Infrastructure.Persistence;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+// Added last, so it overrides everything; integration tests must never pick up a developer's database or secrets.
+if (!builder.Environment.IsEnvironment("Testing"))
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
+builder.Services.AddSerilog((_, lc) => lc
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
+
+builder.Services.AddOptions<AppOptions>()
+    .Bind(builder.Configuration.GetSection(AppOptions.Section))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<AuthOptions>()
+    .Bind(builder.Configuration.GetSection(AuthOptions.Section))
+    .Validate(o => o.SessionLifetime > TimeSpan.Zero, "Auth:SessionLifetime must be positive.")
+    .ValidateOnStart();
+builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .Configure<IOptions<AuthOptions>>((cookie, auth) => cookie.ExpireTimeSpan = auth.Value.SessionLifetime);
+
+builder.Services.AddOptions<AdminOptions>().Bind(builder.Configuration.GetSection(AdminOptions.Section));
+builder.Services.AddSingleton<AdminAccess>();
+builder.Services.AddSingleton<RuntimeSettings>();
+builder.Services.AddInfrastructure(builder.Configuration);
+// Multipart bodies default to 128 MB; follow the upload limit so a larger configured limit isn't cut short.
+builder.Services.AddOptions<FormOptions>()
+    .Configure<IOptions<UploadOptions>>((form, uploads) => form.MultipartBodyLengthLimit = uploads.Value.MaxFileBytes + 1024 * 1024);
+builder.Services.AddScoped<GoogleAccountService>();
+builder.Services.AddSingleton<SignInAllowlist>();
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
+
+var authentication = builder.Services
+    .AddAuthentication(o =>
+    {
+        o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
+    .AddCookie(o =>
+    {
+        o.Cookie.Name = "rpm.session";
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        o.SlidingExpiration = true;
+        // An API never redirects to a login page; the SPA handles 401/403.
+        o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
+        o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
+        o.Events.OnValidatePrincipal = SessionValidation.ValidateAsync;
+    });
+
+var googleClientId = builder.Configuration["Google:ClientId"];
+var googleClientSecret = builder.Configuration["Google:ClientSecret"];
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authentication.AddGoogle(GoogleDefaults.AuthenticationScheme, o =>
+    {
+        o.ClientId = googleClientId;
+        o.ClientSecret = googleClientSecret;
+        o.CallbackPath = "/auth/google-callback";
+        o.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.Events.OnCreatingTicket = async context =>
+        {
+            var subject = context.Identity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(subject))
+                throw new InvalidOperationException("Google did not return a stable account identifier.");
+
+            var email = context.Identity?.FindFirst(ClaimTypes.Email)?.Value;
+            var name = context.Identity?.FindFirst(ClaimTypes.Name)?.Value;
+            var allowlist = context.HttpContext.RequestServices.GetRequiredService<SignInAllowlist>();
+            // Checked before the account is created, so a refused sign-in leaves nothing behind.
+            if (!allowlist.AllowsGoogle(email, SignInAllowlist.IsGoogleEmailVerified(context.User)))
+                throw new SignInNotAllowedException($"Google account {email ?? subject} is not on the allowlist.");
+
+            var accounts = context.HttpContext.RequestServices.GetRequiredService<GoogleAccountService>();
+            var user = await accounts.GetOrCreateAsync(subject, context.HttpContext.RequestAborted);
+            var displayName = !string.IsNullOrWhiteSpace(name) ? name : email;
+            List<Claim> claims =
+            [
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, displayName ?? "Google user"),
+            ];
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                claims.Add(new Claim(SignInClaims.GoogleEmail, email));
+                claims.Add(new Claim(SignInClaims.GoogleEmailVerified,
+                    SignInAllowlist.IsGoogleEmailVerified(context.User) ? "true" : "false"));
+            }
+            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
+        };
+        o.Events.OnRemoteFailure = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var notAllowed = context.Failure is SignInNotAllowedException;
+            if (notAllowed)
+                logger.LogWarning("Google sign-in refused: {Reason}", context.Failure!.Message);
+            else
+                logger.LogWarning(context.Failure, "Google sign-in failed");
+            context.HandleResponse();
+            var home = context.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>()
+                .Value.PublicBaseUrl;
+            var error = notAllowed ? SignInNotAllowedException.Code : "google_auth_failed";
+            context.Response.ContentType = "text/html; charset=utf-8";
+            return context.Response.WriteAsync(
+                AuthEndpoints.GoogleAuthPopupHtml(home, $"/login?error={error}", false, error),
+                context.HttpContext.RequestAborted);
+        };
+    });
+}
+// Deny by default: an endpoint is public only when it says .AllowAnonymous().
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy(AdminAccess.Policy, p => p.RequireAuthenticatedUser()
+        .RequireAssertion(ctx => ctx.Resource is not HttpContext http
+            ? false
+            : http.RequestServices.GetRequiredService<AdminAccess>().IsAdmin(ctx.User)));
+builder.Services.AddHardening(builder.Configuration);
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ErrorLogExceptionHandler>();   // first: logs, then passes on
+builder.Services.AddExceptionHandler<SuuntoReauthExceptionHandler>();
+builder.Services.AddExceptionHandler<SyncExceptionHandler>();
+if (!builder.Environment.IsProduction())
+    builder.Services.AddOpenApi();
+
+var app = builder.Build();
+
+if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+}
+await app.Services.GetRequiredService<RuntimeSettings>().LoadAsync(CancellationToken.None);
+
+app.UseHardening();
+app.UseMiddleware<LocalhostRedirectMiddleware>();
+
+// OpenAPI document at /openapi/v1.json and Swagger UI at /swagger; never exposed in Production.
+if (!app.Environment.IsProduction())
+{
+    app.MapOpenApi().AllowAnonymous();
+    app.UseSwaggerUI(o =>
+    {
+        o.SwaggerEndpoint("/openapi/v1.json", "Atrapos API v1");
+        // "Try it out" on unsafe /api and /auth calls needs the CSRF header the SPA sends.
+        // Swashbuckle only reads parameters from "(...)", so this must not be a bare-parameter arrow function.
+        o.UseRequestInterceptor($"function (req) {{ req.headers['{CsrfHeaderMiddleware.HeaderName}'] = '1'; return req; }}");
+    });
+}
+
+app.UseExceptionHandler();
+app.UseSerilogRequestLogging();
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.UseMiddleware<CsrfHeaderMiddleware>();
+app.UseAuthentication();
+app.UseRequestLimits();
+app.UseAuthorization();
+
+app.MapGet("/healthz", async (AppDbContext db, CancellationToken ct) =>
+    await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.StatusCode(503))
+    .AllowAnonymous();
+
+app.MapAuthEndpoints();
+app.MapRouteEndpoints();
+app.MapUserSettingsEndpoints();
+app.MapWeatherEndpoints();
+app.MapElevationEndpoints();
+app.MapRoutingEndpoints();
+app.MapImportEndpoints();
+app.MapSyncEndpoints();
+app.MapRouteToolEndpoints();
+app.MapAdminEndpoints();
+
+var lookups = app.MapGroup("/api/lookups");
+lookups.MapGet("/poi-types", () => PoiTypes.All.Where(t => t.Id != PoiTypes.Unknown)
+    .Select(t => new { t.Id, t.Name }));
+lookups.MapGet("/activity-types", () => ActivityTypes.All);
+
+// Unknown API routes are 404s (401 when signed out), never the SPA shell.
+app.Map("/api/{**rest}", () => Results.NotFound());
+app.Map("/auth/{**rest}", () => Results.NotFound());
+// The SPA shell must load signed out so it can show the login page.
+app.MapFallbackToFile("index.html").AllowAnonymous();
+
+await app.RunAsync();
+return 0;
+
+public partial class Program;

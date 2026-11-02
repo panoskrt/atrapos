@@ -1,0 +1,615 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 38px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+}
+
+.toolPicker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.toolTile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.toolTile:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.toolTileActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-bg) 55%, var(--panel));
+  box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow-soft);
+}
+
+.toolTile .toolIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.toolTileActive .toolIcon {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.toolTileText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolTileText strong {
+  font-size: 15px;
+}
+
+.toolTileText span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tool {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(155deg, var(--panel), color-mix(in srgb, var(--panel) 90%, var(--accent-bg)));
+  box-shadow: var(--shadow-soft);
+}
+
+.toolHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.toolIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.toolHeader h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.toolHeader p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.nameField {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.nameField input {
+  height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.fileList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.orderPrompt {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.file {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.orderPosition {
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.file + .file {
+  border-top: 1px solid var(--border);
+}
+
+.fileIcon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fileInfo strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileInfo span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.fileActions {
+  display: flex;
+  gap: 3px;
+}
+
+.iconButton {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.iconButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dropTarget {
+  min-height: 174px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-bg) 35%, var(--panel));
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.dropTarget svg {
+  color: var(--accent);
+}
+
+.dropTarget strong {
+  color: var(--text);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.note {
+  margin: 0;
+  max-width: 560px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.error,
+.success {
+  margin: 14px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.success {
+  color: var(--ok);
+}
+
+.splitSettings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 18px;
+}
+
+.splitSettings input {
+  height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.mapHelp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.mapHelp > span {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.splitMap {
+  height: 390px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.splitMap :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  background: var(--panel-2);
+}
+
+.splitMap :global(.leaflet-interactive) {
+  cursor: crosshair;
+}
+
+.splitMap :global(.leaflet-tooltip) {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0;
+}
+
+.splitMap :global(.leaflet-tooltip-center::before) {
+  display: none;
+}
+
+.mapHint {
+  min-height: 20px;
+  margin: 8px 0 4px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.cutList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.cut > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cut > span > span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.createRoutes {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  font-weight: 600;
+}
+
+.createRoutes input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.toleranceField {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0 14px;
+}
+
+.toleranceField > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toleranceField > span > span {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.toleranceField input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.stats > div {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.stats dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stats dd {
+  margin: 2px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats dd strong {
+  font-size: 17px;
+}
+
+.previewMap {
+  height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.previewMap :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  background: var(--panel-2);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.legendOriginal,
+.legendShrunk {
+  display: inline-block;
+  width: 18px;
+  border-radius: 999px;
+}
+
+.legendOriginal {
+  height: 7px;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+
+.legendShrunk {
+  height: 3px;
+  margin-left: 10px;
+  background: var(--accent);
+}
+
+.dropOverlay {
+  position: fixed;
+  inset: 12px;
+  z-index: 50;
+  border: 3px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .toolPicker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px 80px;
+  }
+
+  .toolPicker {
+    gap: 8px;
+  }
+
+  .toolTile {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .toolTile .toolIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .toolTileText span {
+    display: none;
+  }
+
+  .toleranceField > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toleranceField > span > span {
+    text-align: left;
+  }
+
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .previewMap {
+    height: 260px;
+  }
+
+  .tool {
+    padding: 18px 14px;
+  }
+
+  .controls,
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mapHelp {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mapHelp > span {
+    text-align: left;
+  }
+
+  .splitMap {
+    height: 320px;
+  }
+
+  .cut {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .file {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .fileActions {
+    gap: 0;
+  }
+}

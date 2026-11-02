@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="e2e fixture">
+  <metadata><name>Fixture metadata name</name></metadata>
+  <wpt lat="60.3000" lon="24.5000"><name>Begin</name><type>Begin</type></wpt>
+  <wpt lat="60.3045" lon="24.5103"><ele>48</ele><name>Spring</name><sym>Drinking Water</sym></wpt>
+  <wpt lat="60.3120" lon="24.5250"><ele>62</ele><name>Lookout</name><type>Sight</type></wpt>
+  <trk>
+    <name>Two lakes</name>
+    <type>hiking</type>
+    <trkseg>
+      <trkpt lat="60.3000" lon="24.5000"><ele>30</ele></trkpt>
+      <trkpt lat="60.3004" lon="24.5011"><ele>31</ele></trkpt>
+      <trkpt lat="60.3009" lon="24.5020"><ele>33</ele></trkpt>
+      <trkpt lat="60.3013" lon="24.5032"><ele>35</ele></trkpt>
+      <trkpt lat="60.3018" lon="24.5041"><ele>36</ele></trkpt>
+      <trkpt lat="60.3022" lon="24.5053"><ele>38</ele></trkpt>
+      <trkpt lat="60.3027" lon="24.5061"><ele>40</ele></trkpt>
+      <trkpt lat="60.3031" lon="24.5074"><ele>42</ele></trkpt>
+      <trkpt lat="60.3036" lon="24.5082"><ele>44</ele></trkpt>
+      <trkpt lat="60.3040" lon="24.5095"><ele>46</ele></trkpt>
+      <trkpt lat="60.3045" lon="24.5103"><ele>48</ele></trkpt>
+      <trkpt lat="60.3052" lon="24.5112"><ele>49</ele></trkpt>
+      <trkpt lat="60.3060" lon="24.5124"><ele>51</ele></trkpt>
+      <trkpt lat="60.3067" lon="24.5131"><ele>52</ele></trkpt>
+      <trkpt lat="60.3074" lon="24.5145"><ele>54</ele></trkpt>
+      <trkpt lat="60.3081" lon="24.5152"><ele>55</ele></trkpt>
+      <trkpt lat="60.3089" lon="24.5167"><ele>57</ele></trkpt>
+      <trkpt lat="60.3096" lon="24.5174"><ele>58</ele></trkpt>
+      <trkpt lat="60.3103" lon="24.5190"><ele>59</ele></trkpt>
+      <trkpt lat="60.3108" lon="24.5203"><ele>60</ele></trkpt>
+      <trkpt lat="60.3112" lon="24.5218"><ele>61</ele></trkpt>
+      <trkpt lat="60.3116" lon="24.5234"><ele>61</ele></trkpt>
+      <trkpt lat="60.3120" lon="24.5250"><ele>62</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

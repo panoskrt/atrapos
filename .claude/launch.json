@@ -1,0 +1,61 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview-mock-suunto",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ASPNETCORE_ENVIRONMENT=Development",
+        "ASPNETCORE_URLS=http://localhost:5091",
+        "dotnet",
+        "run",
+        "--no-launch-profile",
+        "--project",
+        "src/RoutePoiManager.MockSuunto"
+      ],
+      "port": 5091
+    },
+    {
+      "name": "preview-api",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ASPNETCORE_ENVIRONMENT=Testing",
+        "ASPNETCORE_URLS=http://localhost:5081",
+        "ASPNETCORE_WEBROOT=../web/dist",
+        "ConnectionStrings__Db=Host=localhost;Port=5432;Database=routepoi_preview;Username=routepoi;Password=routepoi",
+        "App__PublicBaseUrl=http://localhost:5081",
+        "Auth__AllowedGoogleEmails=",
+        "Auth__AllowedSuuntoUsernames=",
+        "Admin__SuuntoUsernames=admin",
+        "Google__ClientId=",
+        "Google__ClientSecret=",
+        "Elevation__Provider=None",
+        "Suunto__Mode=Mock",
+        "Suunto__ClientId=mock-client",
+        "Suunto__ClientSecret=mock-secret",
+        "Suunto__SubscriptionKey=mock-subscription-key",
+        "Suunto__AuthorizeBaseUrl=http://localhost:5091",
+        "Suunto__OAuthBaseUrl=http://localhost:5091",
+        "Suunto__ApiBaseUrl=http://localhost:5091",
+        "Suunto__RedirectUri=http://localhost:5081/auth/callback",
+        "dotnet",
+        "run",
+        "--no-launch-profile",
+        "--project",
+        "src/RoutePoiManager.Api"
+      ],
+      "port": 5081
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "src/web",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    }
+  ]
+}

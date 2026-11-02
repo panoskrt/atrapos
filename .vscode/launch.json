@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "BFF",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "dotnet run --project src/RoutePoiManager.Api",
+      "cwd": "${workspaceFolder}",
+      // The API serves no UI in dev, so open the endpoint explorer instead of a 404.
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      }
+    },
+    {
+      "name": "Web app",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/src/web",
+      // Vite prints "Local" in bold, so colour codes sit before the ":" and in the URL: match the bare
+      // label and open the fixed port (strictPort in vite.config.ts).
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Local",
+        "uriFormat": "http://localhost:5173"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "BFF + Web app",
+      "configurations": ["BFF", "Web app"],
+      "stopAll": true
+    }
+  ]
+}

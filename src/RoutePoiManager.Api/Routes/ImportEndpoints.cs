@@ -1,0 +1,206 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using RoutePoiManager.Api.Auth;
+using RoutePoiManager.Domain;
+using RoutePoiManager.Infrastructure.Import;
+using RoutePoiManager.Infrastructure.Persistence;
+
+namespace RoutePoiManager.Api.Routes;
+
+public sealed record ImportTrackDto(string? Name, int OriginalPointCount, double DistanceM, bool HasElevation, double?[][] Coordinates);
+
+public sealed record ImportWaypointDto(
+    string Name,
+    string SourceType,
+    int PoiType,
+    bool Include,
+    double Lon,
+    double Lat,
+    double? Ele,
+    string? Description);
+
+public sealed record ImportPreviewDto(
+    string FileName,
+    RouteSource Kind,
+    string? Name,
+    int[] SuggestedActivityIds,
+    double BaseToleranceM,
+    List<ImportTrackDto> Tracks,
+    List<ImportWaypointDto> Waypoints);
+
+public sealed record UploadLimitsDto(long MaxFileBytes);
+
+public static class ImportEndpoints
+{
+    private const int MaxWaypoints = 2000;
+
+    public static void MapImportEndpoints(this IEndpointRouteBuilder app)
+    {
+        // Read once: the request size limit below is fixed when the endpoints are mapped.
+        var maxFileBytes = app.ServiceProvider.GetRequiredService<IOptions<UploadOptions>>().Value.MaxFileBytes;
+
+        // Multipart endpoints: CsrfHeaderMiddleware protects them, so ASP.NET's form antiforgery is off.
+        var g = app.MapGroup("/api/imports").RequireAuthorization().DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(maxFileBytes + 1024 * 1024));
+
+        // The web app checks files against this before uploading them.
+        g.MapGet("/limits", () => new UploadLimitsDto(maxFileBytes));
+
+        g.MapPost("/preview", async (IFormFile? file, CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
+            if (error is not null)
+                return error;
+
+            ParsedFile parsed;
+            try
+            {
+                parsed = ImportService.Parse(content!, file!.FileName);
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "import_failed" });
+            }
+
+            var tracks = parsed.Tracks.Select(t =>
+            {
+                var baseTrack = ImportService.BaseTrack(t);
+                return new ImportTrackDto(
+                    t.Name,
+                    t.Points.Count,
+                    Math.Round(Geo.LengthM(baseTrack), 1),
+                    baseTrack.Any(p => p.Ele is not null),
+                    baseTrack.Select(p => new double?[] { Math.Round(p.Lon, 6), Math.Round(p.Lat, 6), p.Ele is { } e ? Math.Round(e, 1) : null }).ToArray());
+            }).ToList();
+
+            return Results.Ok(new ImportPreviewDto(
+                file.FileName,
+                parsed.Kind,
+                parsed.Name,
+                parsed.SuggestedActivityIds,
+                ImportService.BaseToleranceM,
+                tracks,
+                parsed.Waypoints.Take(MaxWaypoints).Select(w => new ImportWaypointDto(
+                    w.Name, w.SourceType, w.PoiType, w.IncludeByDefault,
+                    Math.Round(w.Position.Lon, 6), Math.Round(w.Position.Lat, 6), w.Position.Ele, w.Description)).ToList()));
+        });
+
+        g.MapPost("/convert", async (IFormFile? file, CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
+            if (error is not null)
+                return error;
+
+            var extension = Path.GetExtension(file!.FileName);
+            if (!extension.Equals(".fit", StringComparison.OrdinalIgnoreCase) &&
+                !extension.Equals(".gpx", StringComparison.OrdinalIgnoreCase))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a .fit or .gpx file."] });
+
+            var isFit = extension.Equals(".fit", StringComparison.OrdinalIgnoreCase);
+            var outputExtension = isFit ? ".gpx" : ".fit";
+            ParsedFile parsed;
+            try
+            {
+                parsed = ImportService.Parse(content!, file.FileName);
+                var output = isFit ? RouteFileConverter.ToGpx(parsed) : RouteFileConverter.ToFit(parsed);
+                return Results.File(output, isFit ? "application/gpx+xml" : "application/vnd.ant.fit",
+                    SafeName(file.FileName, "converted-route") + outputExtension);
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "conversion_failed" });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.Problem(title: "The route could not be converted.", statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "conversion_failed" });
+            }
+        });
+
+        // Same format out as in: a smaller file for the watch, the route itself unchanged within the tolerance.
+        g.MapPost("/shrink", async (IFormFile? file, [FromForm] double? toleranceM, CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
+            if (error is not null)
+                return error;
+            if (toleranceM is not { } tolerance || !double.IsFinite(tolerance) || tolerance < ImportService.BaseToleranceM ||
+                tolerance > ImportService.MaxToleranceM)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["toleranceM"] = [$"Choose a tolerance from {ImportService.BaseToleranceM} to {ImportService.MaxToleranceM} m."],
+                });
+
+            var extension = Path.GetExtension(file!.FileName);
+            var isFit = extension.Equals(".fit", StringComparison.OrdinalIgnoreCase);
+            if (!isFit && !extension.Equals(".gpx", StringComparison.OrdinalIgnoreCase))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a .fit or .gpx file."] });
+
+            try
+            {
+                var shrunk = RouteFileShrinker.Shrink(ImportService.Parse(content!, file.FileName), tolerance);
+                var output = isFit ? RouteFileConverter.ToFit(shrunk) : RouteFileConverter.ToGpx(shrunk);
+                return Results.File(output, isFit ? "application/vnd.ant.fit" : "application/gpx+xml",
+                    $"{SafeName(file.FileName, "route")}-shrunk{(isFit ? ".fit" : ".gpx")}");
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "shrink_failed" });
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.Problem(title: "The route could not be shrunk.", statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "shrink_failed" });
+            }
+        });
+
+        g.MapPost("/", async (HttpContext http, IFormFile? file, [FromForm] string? options, ImportService imports, AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var (content, error) = await ReadAsync(file, maxFileBytes, ct);
+            if (error is not null)
+                return error;
+
+            ImportOptions? opts;
+            try
+            {
+                opts = string.IsNullOrWhiteSpace(options)
+                    ? null
+                    : JsonSerializer.Deserialize<ImportOptions>(options, JsonSerializerOptions.Web);
+            }
+            catch (JsonException)
+            {
+                opts = null;
+            }
+            if (opts is null || opts.Waypoints is null || opts.ActivityIds is null)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["options"] = ["Import options are missing or malformed."] });
+
+            try
+            {
+                var route = await imports.CreateRouteAsync(http.User.GetUserId(), content!, file!.FileName, opts, ct);
+                return Results.Created($"/api/routes/{route.Id}", RouteEndpoints.ToDetail(route, await RoutePois.ActiveAsync(db, route.Id, ct)));
+            }
+            catch (ImportException ex)
+            {
+                return Results.Problem(title: ex.Message, statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "import_failed" });
+            }
+        });
+    }
+
+    /// <summary>The upload's name without extension, reduced to letters, digits, '-' and '_'.</summary>
+    private static string SafeName(string fileName, string fallback)
+    {
+        var safe = string.Concat(Path.GetFileNameWithoutExtension(fileName).Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '-')).Trim('-');
+        return string.IsNullOrWhiteSpace(safe) ? fallback : safe;
+    }
+
+    private static async Task<(byte[]? Content, IResult? Error)> ReadAsync(IFormFile? file, long maxFileBytes, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return (null, Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a GPX or FIT file."] }));
+        if (file.Length > maxFileBytes)
+            return (null, Results.Problem(title: $"The file is larger than {maxFileBytes / (1024 * 1024)} MB.", statusCode: 413));
+
+        using var ms = new MemoryStream((int)file.Length);
+        await file.CopyToAsync(ms, ct);
+        return (ms.ToArray(), null);
+    }
+}

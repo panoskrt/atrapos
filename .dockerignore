@@ -1,0 +1,20 @@
+# Dependencies installed inside the image
+node_modules
+
+# Frontend build and test output
+dist
+coverage
+playwright-report
+test-results
+
+# Local environment and editor files
+.env
+.env.*
+**/appsettings.Local.json
+.DS_Store
+.vscode
+.idea
+
+# .NET build output
+**/bin
+**/obj

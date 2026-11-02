@@ -1,0 +1,4 @@
+[*.cs]
+# xUnit conventions: collection definition classes, fixtures disposed via IAsyncLifetime.
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1001.severity = none

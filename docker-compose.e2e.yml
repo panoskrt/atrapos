@@ -1,0 +1,27 @@
+# End-to-end tests: the app talks to the mock Suunto (never your real account) and the public elevation API is off,
+# so runs are fast, repeatable and leave nothing in Suunto.
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up --build -d
+# Switch back to the real Suunto afterwards with: docker compose up -d --remove-orphans
+services:
+  mock-suunto:
+    build:
+      context: .
+      dockerfile: src/RoutePoiManager.MockSuunto/Dockerfile
+    ports:
+      - "127.0.0.1:5090:8080"
+
+  api:
+    depends_on:
+      mock-suunto:
+        condition: service_started
+    environment:
+      Elevation__Provider: None
+      Suunto__Mode: Mock
+      Suunto__ClientId: mock-client
+      Suunto__ClientSecret: mock-secret
+      Suunto__SubscriptionKey: mock-subscription-key
+      # The browser opens the authorize page on the host; the API talks to the mock over the compose network.
+      Suunto__AuthorizeBaseUrl: http://localhost:5090
+      Suunto__OAuthBaseUrl: http://mock-suunto:8080
+      Suunto__ApiBaseUrl: http://mock-suunto:8080
+      Suunto__DiagnosticLogging: "false"

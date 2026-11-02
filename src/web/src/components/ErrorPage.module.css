@@ -1,0 +1,40 @@
+.page {
+  min-height: 60vh;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  display: grid;
+  place-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.text {
+  margin: 0;
+  max-width: 420px;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}

@@ -1,0 +1,6 @@
+@baseUrl = http://localhost:5080
+@routeId = 00000000-0000-0000-0000-000000000000
+
+### Seven-day forecast for a saved route (requires the authenticated session cookie)
+GET {{baseUrl}}/api/routes/{{routeId}}/weather
+Accept: application/json

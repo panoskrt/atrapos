@@ -1,0 +1,441 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  /* Room at the bottom for the floating selection bar. */
+  padding: 32px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px 96px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.header :global(.btn:disabled:not([aria-busy='true'])) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.heading {
+  flex: 1;
+  min-width: 220px;
+}
+
+.title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.sub {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.empty {
+  padding: 40px 24px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty svg {
+  color: var(--poi);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.groupTitle a {
+  color: var(--text);
+}
+
+.count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--poi-bg);
+  color: var(--poi);
+  font-size: 12px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.badge {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--poi);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.badge path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rowText strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ok,
+.warn,
+.danger,
+.muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.iconBtn:hover {
+  background: var(--panel-2);
+  color: var(--danger);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 12px;
+}
+
+.row.selected {
+  background: var(--selected-bg);
+}
+
+.empty p {
+  margin: 0 0 12px;
+}
+
+.desc {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* List / map switch, matching the library's layout toggle. */
+.viewToggle {
+  display: inline-flex;
+}
+
+.toolBtn {
+  height: 40px;
+  min-width: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-weight: 600;
+}
+
+.toolBtn:hover {
+  background: var(--panel-2);
+}
+
+.toolBtn:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.toolBtn:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin-left: -1px;
+}
+
+.toolBtn[aria-pressed='true'] {
+  position: relative;
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .toggleText {
+    display: none;
+  }
+}
+
+/* Map view: details float over the map on wide screens and sit under it on phones. */
+.mapWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.map {
+  height: min(640px, calc(100dvh - 260px));
+  min-height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel-2);
+}
+
+.map :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  background: var(--panel-2);
+  font: inherit;
+}
+
+.mapHint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pin {
+  border-radius: 50%;
+  background: var(--poi);
+  border: 3px solid var(--panel);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  color: #fff;
+  display: grid !important;
+  place-items: center;
+}
+
+.pin path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pin:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A ring rather than an outline, so it stays clear of the focus outline. */
+.pinSelected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+/* The open POI is drawn larger (via its icon size: Leaflet owns the marker's transform). */
+.pinActive svg {
+  width: 20px;
+  height: 20px;
+}
+
+.details {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  /* Above Leaflet's panes and controls. */
+  z-index: 1000;
+  width: 320px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel-elevated);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .map {
+    height: 60dvh;
+    min-height: 320px;
+  }
+
+  .details {
+    position: static;
+    width: auto;
+    max-height: none;
+    box-shadow: none;
+  }
+}
+
+.detailsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detailsTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.closeBtn:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.detailsDesc {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.facts a {
+  color: var(--accent);
+}
+
+.detailsSelect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+  cursor: pointer;
+}

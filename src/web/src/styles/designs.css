@@ -1,0 +1,200 @@
+/* Alternative designs, chosen in the profile. "classic" is the default look from tokens.css and base.css, so it has no
+   rules here. Each design overrides tokens (fonts, radii, colours) for both themes, then a few shared pieces. The
+   top bar and navigation overrides live in AppShell.module.css. */
+
+/* ---------- Alpine: light, editorial, hairline borders ---------- */
+
+:root[data-design='alpine'] {
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --route-color: #d9481f;
+  --route-casing: #ffffff;
+  --poi: #d9481f;
+  --poi-bg: rgb(217 72 31 / 0.12);
+}
+
+:root[data-design='alpine'][data-theme='light'] {
+  --bg: #f7f5ef;
+  --bg-radial: #f7f5ef;
+  --panel: #fbfaf6;
+  --panel-2: #efece2;
+  --panel-elevated: #e9e5d8;
+  --border: #ddd9cd;
+  --text: #1f2a24;
+  --text-muted: #5d6a62;
+  --accent: #2f6b4f;
+  --accent-strong: #1f4a37;
+  --on-accent: #ffffff;
+  --accent-bg: rgb(47 107 79 / 0.12);
+  --ok: #2f6b4f;
+  --warn: #9a5a00;
+  --warn-bg: rgb(154 90 0 / 0.12);
+  --danger: #b3321f;
+  --danger-solid: #b3321f;
+  --selected-bg: #e7efe9;
+  --shadow: 0 10px 28px rgb(31 42 36 / 0.1);
+  --shadow-soft: 0 1px 2px rgb(31 42 36 / 0.05);
+  --scrim: rgb(31 42 36 / 0.4);
+}
+
+:root[data-design='alpine'][data-theme='dark'] {
+  --bg: #0f1511;
+  --bg-radial: #0f1511;
+  --panel: #151c17;
+  --panel-2: #1c251f;
+  --panel-elevated: #243029;
+  --border: #2b372f;
+  --text: #e8efea;
+  --text-muted: #9fb0a5;
+  --accent: #7bc9a0;
+  --accent-strong: #4fa77c;
+  --on-accent: #07150e;
+  --accent-bg: rgb(123 201 160 / 0.16);
+  --ok: #7bc9a0;
+  --warn: #f0b155;
+  --danger: #ff9a8a;
+  --danger-solid: #d6513e;
+  --selected-bg: #1d2b23;
+  --shadow: 0 12px 30px rgb(0 0 0 / 0.4);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+:root[data-design='alpine'] .display {
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+:root[data-design='alpine'] .btn {
+  box-shadow: none;
+  background: var(--panel);
+}
+
+:root[data-design='alpine'] .btn:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+:root[data-design='alpine'] .btn-primary,
+:root[data-design='alpine'] .btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+:root[data-design='alpine'] .btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+:root[data-design='alpine'] .btn-danger,
+:root[data-design='alpine'] .btn-danger:hover:not(:disabled) {
+  background: var(--danger-solid);
+  box-shadow: none;
+}
+
+/* ---------- Soft: warm, rounded, friendly ---------- */
+
+:root[data-design='soft'] {
+  --font-ui: 'Nunito', system-ui, sans-serif;
+  --font-display: 'Nunito', system-ui, sans-serif;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --rail-w: 76px;
+  --route-color: #e0580f;
+  --route-casing: #ffffff;
+  --poi: #1f7a8c;
+  --poi-bg: rgb(31 122 140 / 0.14);
+}
+
+@media (max-width: 700px) {
+  :root[data-design='soft'] {
+    --rail-w: 0px;
+  }
+}
+
+:root[data-design='soft'][data-theme='light'] {
+  --bg: #fff8f2;
+  --bg-radial: #fff8f2;
+  --panel: #ffffff;
+  --panel-2: #fff0e3;
+  --panel-elevated: #fbe3d0;
+  --border: #f0dccb;
+  --text: #2b2118;
+  --text-muted: #7d6350;
+  --accent: #d2500c;
+  --accent-strong: #b4400a;
+  --on-accent: #ffffff;
+  --accent-bg: rgb(210 80 12 / 0.12);
+  --ok: #1e7a4f;
+  --warn: #9a5a00;
+  --warn-bg: rgb(154 90 0 / 0.12);
+  --danger: #c0392b;
+  --danger-solid: #c0392b;
+  --selected-bg: #fff0e3;
+  --shadow: 0 14px 32px rgb(120 70 30 / 0.14);
+  --shadow-soft: 0 4px 14px rgb(120 70 30 / 0.08);
+  --scrim: rgb(43 33 24 / 0.4);
+}
+
+:root[data-design='soft'][data-theme='dark'] {
+  --bg: #19130f;
+  --bg-radial: #19130f;
+  --panel: #231b16;
+  --panel-2: #2d231c;
+  --panel-elevated: #392d24;
+  --border: #43342a;
+  --text: #f7ebdf;
+  --text-muted: #bfa793;
+  --accent: #ff8a4c;
+  --accent-strong: #f26b21;
+  --on-accent: #2b1204;
+  --accent-bg: rgb(255 138 76 / 0.16);
+  --ok: #6fd3a2;
+  --warn: #f5bd58;
+  --danger: #ff9a8a;
+  --danger-solid: #d8503e;
+  --selected-bg: #33261d;
+  --shadow: 0 14px 34px rgb(0 0 0 / 0.45);
+  --shadow-soft: 0 4px 14px rgb(0 0 0 / 0.3);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+:root[data-design='soft'] .display {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
+:root[data-design='soft'] .btn {
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+:root[data-design='soft'] .btn:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+:root[data-design='soft'] .btn-icon {
+  border-radius: 50%;
+}
+
+:root[data-design='soft'] .btn-primary,
+:root[data-design='soft'] .btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+:root[data-design='soft'] .btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+:root[data-design='soft'] .btn-danger,
+:root[data-design='soft'] .btn-danger:hover:not(:disabled) {
+  background: var(--danger-solid);
+  box-shadow: none;
+}

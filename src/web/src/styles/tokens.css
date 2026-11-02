@@ -1,0 +1,111 @@
+/* Design tokens from the UI design canvas. Dark is the default; light via [data-theme="light"]
+   or the OS preference when the user hasn't chosen. */
+
+:root {
+  --font-ui: 'Barlow', system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --topbar-h: 64px;
+  /* The site footer's height on one line; the desktop editor subtracts it to fit the viewport. */
+  --footer-h: 44px;
+  --bottomnav-h: 0px;
+  --rail-w: 0px;
+  /* The route line on the map. Classic keeps Leaflet's own blue. */
+  --route-color: #3388ff;
+  --route-casing: #3388ff;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  @media (max-width: 700px) {
+    --topbar-h: 56px;
+    --bottomnav-h: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* dark */
+  --bg: #0b1117;
+  --bg-radial: radial-gradient(circle at top, rgb(25 145 191 / 0.24), transparent 28%),
+    radial-gradient(circle at bottom right, rgb(107 80 210 / 0.16), transparent 30%), var(--bg);
+  --panel: rgb(17 23 30 / 0.88);
+  --panel-2: #1a2129;
+  --panel-elevated: #202a33;
+  --border: #2d3742;
+  --text: #edf3f8;
+  --text-muted: #99a9b6;
+  --accent: #59c5ff;
+  --accent-strong: #1aa0f3;
+  --on-accent: #05141d;
+  --accent-bg: rgb(89 197 255 / 0.18);
+  --poi: #ef8a49;
+  --poi-bg: rgb(239 138 73 / 0.18);
+  --ok: #3fd49c;
+  --warn: #f5bd58;
+  --warn-bg: rgb(245 189 88 / 0.14);
+  --danger: #ff8b8b;
+  --danger-solid: #db5353;
+  --selected-bg: #1f2d3a;
+  --shadow: 0 18px 40px rgb(2 8 14 / 0.42);
+  --shadow-soft: 0 10px 24px rgb(14 20 26 / 0.22);
+  --scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #edf2f7;
+    --bg-radial: radial-gradient(circle at top, rgb(121 200 255 / 0.24), transparent 26%),
+      radial-gradient(circle at bottom right, rgb(145 129 255 / 0.12), transparent 28%), var(--bg);
+    --panel: rgb(255 255 255 / 0.88);
+    --panel-2: #f4f7fb;
+    --panel-elevated: #edf4f9;
+    --border: #dfe8f0;
+    --text: #111b27;
+    --text-muted: #617282;
+    --accent: #0976b7;
+    --accent-strong: #055d92;
+    --on-accent: #ffffff;
+    --accent-bg: rgb(9 118 183 / 0.1);
+    --poi: #d96c22;
+    --poi-bg: rgb(217 108 34 / 0.12);
+    --ok: #1f8f64;
+    --warn: #9a6900;
+    --warn-bg: rgb(154 105 0 / 0.12);
+    --danger: #c73d3d;
+    --danger-solid: #c73d3d;
+    --selected-bg: #ebf4fb;
+    --shadow: 0 20px 38px rgb(24 41 55 / 0.12);
+    --shadow-soft: 0 10px 22px rgb(31 51 70 / 0.08);
+    --scrim: rgb(16 24 32 / 0.4);
+    color-scheme: light;
+  }
+}
+
+:root[data-theme='light'] {
+  --bg: #edf2f7;
+  --bg-radial: radial-gradient(circle at top, rgb(121 200 255 / 0.24), transparent 26%),
+    radial-gradient(circle at bottom right, rgb(145 129 255 / 0.12), transparent 28%), var(--bg);
+  --panel: rgb(255 255 255 / 0.88);
+  --panel-2: #f4f7fb;
+  --panel-elevated: #edf4f9;
+  --border: #dfe8f0;
+  --text: #111b27;
+  --text-muted: #617282;
+  --accent: #0976b7;
+  --accent-strong: #055d92;
+  --on-accent: #ffffff;
+  --accent-bg: rgb(9 118 183 / 0.1);
+  --poi: #d96c22;
+  --poi-bg: rgb(217 108 34 / 0.12);
+  --ok: #1f8f64;
+  --warn: #9a6900;
+  --warn-bg: rgb(154 105 0 / 0.12);
+  --danger: #c73d3d;
+  --danger-solid: #c73d3d;
+  --selected-bg: #ebf4fb;
+  --shadow: 0 20px 38px rgb(24 41 55 / 0.12);
+  --shadow-soft: 0 10px 22px rgb(31 51 70 / 0.08);
+  --scrim: rgb(16 24 32 / 0.4);
+  color-scheme: light;
+}

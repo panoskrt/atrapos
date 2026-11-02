@@ -1,0 +1,1112 @@
+.editor {
+  height: calc(100dvh - var(--topbar-h) - var(--footer-h));
+  min-height: 560px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.centered {
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  flex: 1 1 320px;
+  max-width: 360px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+/* Phones and narrow windows: the map comes first and the settings follow below it. */
+.actionBar {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .editor {
+    height: auto;
+  }
+
+  .actionBar {
+    order: -2;
+    flex: 0 0 100%;
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 15;
+    height: 52px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .actionBar :global(.btn) {
+    height: 36px;
+  }
+
+  .sidebar {
+    order: 0;
+    max-width: none;
+    height: auto;
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Back and Save are in the bar above the map. */
+  .sideTopRow {
+    display: none;
+  }
+}
+
+.sideHead {
+  padding: 16px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sideTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.saveActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.back:hover {
+  color: var(--text);
+}
+
+.saveStatus,
+.saveError {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.saveError {
+  color: var(--danger);
+}
+
+.linkBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.nameInput {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  margin-left: -6px;
+  min-width: 0;
+}
+
+.nameInput:hover,
+.nameInput:focus {
+  border-color: var(--border);
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats {
+  margin: 6px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stats div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.stats dt {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tabs {
+  display: flex;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab,
+.tabOn {
+  flex: 1;
+  height: 44px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tabOn {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.tabCount {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--poi-bg);
+  color: var(--poi);
+  font-size: 12px;
+}
+
+.sideBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldset {
+  border: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldset legend {
+  margin-bottom: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip,
+.chipOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: transparent;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chip input,
+.chipOn input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.select,
+.textarea {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  padding: 0 10px;
+}
+
+.select {
+  height: 40px;
+}
+
+.select:disabled {
+  opacity: 0.6;
+}
+
+.textarea {
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.downloadBtn {
+  flex-shrink: 0;
+}
+
+.downloadBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.toggleRow input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.sideFoot {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.syncRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.syncRow :global(.btn) {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.syncRow :global(.btn:disabled:not([aria-busy='true'])) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.syncText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Map ---------- */
+
+.mapColumn {
+  flex: 999 1 560px;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 899px) {
+  .mapColumn {
+    order: -1;
+    flex: 0 0 100%;
+    /* Fill the screen under the top bar and action bar, above the tab bar. */
+    height: max(480px, calc(100dvh - var(--topbar-h) - var(--bottomnav-h) - 52px));
+  }
+}
+
+.mapWrap {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  overflow: hidden;
+  background: var(--panel-2);
+  /* Overlays respond to the map's width, not the window's. */
+  container-type: inline-size;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  background: var(--panel-2);
+  font-family: var(--font-ui);
+}
+
+.mapExtend :global(.leaflet-grab),
+.mapExtend:global(.leaflet-container) {
+  cursor: crosshair;
+}
+
+.routeCasing {
+  stroke: var(--bg);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.routeLine {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.routeHit {
+  stroke: transparent;
+  fill: none;
+}
+
+.rubberBand {
+  stroke: var(--accent);
+  stroke-dasharray: 4 6;
+  fill: none;
+}
+
+.hoverMarker {
+  fill: var(--panel);
+  fill-opacity: 1;
+  stroke: var(--text);
+}
+
+.vertex {
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  display: grid !important;
+  place-items: center;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.vertex_start,
+.vertex_end {
+  border-width: 3px;
+}
+
+.vertex_end {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.vertexSelected {
+  outline: 3px solid var(--warn);
+  outline-offset: 2px;
+}
+
+.poiMarker {
+  border-radius: 50%;
+  background: var(--poi);
+  border: 3px solid var(--panel);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  color: #fff;
+  display: grid !important;
+  place-items: center;
+}
+
+.poiMarker path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.poiMarkerSelected {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.profilePoi {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  background: var(--poi);
+  cursor: pointer;
+}
+
+.profilePoiOn {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.insertHandle {
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  opacity: 0.55;
+}
+
+.insertHandle:hover {
+  opacity: 1;
+}
+
+.toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* A narrow map: one row of tools that scrolls sideways, instead of a stack that covers the map. */
+@container (max-width: 560px) {
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .toolbar > * {
+    flex-shrink: 0;
+  }
+}
+
+.toolBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.toolBtn:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.toolBtn:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolBtnOn,
+.toolBtnOn:hover:not(:disabled) {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.tool_poi {
+  color: var(--poi);
+}
+
+.tool_danger:not(:disabled) {
+  color: var(--danger);
+}
+
+.toolSep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.seg,
+.segOn {
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.segOn {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.seg:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.layers {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.locationSearch {
+  position: absolute;
+  top: 68px;
+  left: 12px;
+  z-index: 1000;
+  width: min(360px, calc(100% - 24px));
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.locationSearchForm label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.locationSearchRow {
+  display: flex;
+  gap: 6px;
+}
+
+.locationSearchRow input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.locationSearchRow button {
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.locationSearchRow button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.locationSearchMessage {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.locationSearchResults {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.locationSearchResults button {
+  width: 100%;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+}
+
+.locationSearchResults button:hover,
+.locationSearchResults button:focus-visible {
+  background: var(--panel-2);
+}
+
+.locationSearchAttribution {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+/* Too narrow for toolbar and switcher side by side: switcher goes bottom-left, above the attribution. */
+@container (max-width: 900px) {
+  .layers {
+    top: auto;
+    bottom: 28px;
+    left: 12px;
+    right: auto;
+  }
+}
+
+.layer,
+.layerOn {
+  height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.layerOn {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.hint {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 200px);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+@container (max-width: 900px) {
+  .hint {
+    display: none;
+  }
+}
+
+.notice,
+.pointBar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: calc(100% - 24px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+}
+
+.notice {
+  top: 76px;
+  color: var(--text);
+}
+
+.notice > svg {
+  color: var(--warn);
+  flex-shrink: 0;
+}
+
+.pointBar {
+  bottom: 44px;
+}
+
+/* The base-map switcher moves bottom-left in narrow maps; keep the point bar above it. */
+@container (max-width: 900px) {
+  .pointBar {
+    bottom: 80px;
+  }
+}
+
+.pointBarBtn {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.pointBarBtnPlain {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.pointBarBtnPlain:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.noticeClose {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.noticeClose:hover {
+  background: var(--panel-2);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ---------- Elevation profile ---------- */
+
+.profile {
+  height: 176px;
+  flex-shrink: 0;
+  padding: 10px 16px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.profileTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.profileBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.yAxis {
+  width: 40px;
+  padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.plotWrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.plot {
+  position: relative;
+  flex: 1;
+  cursor: crosshair;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+
+.area {
+  fill: var(--accent);
+  fill-opacity: 0.18;
+}
+
+.profileLine {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+
+.cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--text);
+  pointer-events: none;
+}
+
+.tooltip {
+  position: absolute;
+  top: 2px;
+  margin: 0 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.xAxis {
+  height: 16px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.profileEmpty {
+  margin: auto 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------- Section selection ---------- */
+
+.selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-bg);
+  border-left: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  top: 50%;
+  left: -9px;
+  width: 16px;
+  height: 36px;
+  margin-top: -18px;
+  border-radius: 6px;
+  background: var(--accent);
+  cursor: ew-resize;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+
+.handleEnd {
+  left: auto;
+  right: -9px;
+}
+
+.pendingMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.sectionCard {
+  position: absolute;
+  left: 12px;
+  bottom: 44px;
+  z-index: 1000;
+  width: min(320px, calc(100% - 24px));
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sectionMetrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 10px;
+}
+
+.sectionMetrics dt {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sectionMetrics dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sectionFine summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sectionFine .sectionMetrics {
+  margin-top: 8px;
+}
+
+.sectionRanges {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sectionRanges input {
+  width: 100%;
+}
