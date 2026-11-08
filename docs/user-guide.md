@@ -126,7 +126,7 @@ You can mix both in one route and change a segment's mode later by selecting its
 - **Select a point** to get a bar with more actions: change the segment mode, **trim** everything before or after it, **split** the route there, **start the loop here** (loops only), or delete it.
 - **Start loop here** appears for a loop (a route that ends within 25 m of where it starts) when you select a point in the middle. The route stays exactly the same, but it now starts and ends at that point. Snap and freehand segments are kept as they are, and it can be undone. The ascent and descent totals can change slightly because the profile begins elsewhere.
 - **Reverse** flips the direction. Snapped segments are redrawn so that one-way paths are respected.
-- **Split here** turns the route into two routes: the first part stays, the second becomes "*name* (part 2)" together with its POIs. A split cannot be undone, so the app asks first.
+- **Split here** turns the route into two routes: the first part stays, the second becomes "*name* (part 2)" together with its POIs. In the Route panel, **Split into new routes** opens a dialog for distance-based splitting. It creates a separate route for every part at the nearest control points to the chosen interval; part lengths may differ from the target. The original route stays unchanged, and POIs are copied to their part. Splitting cannot be undone.
 
 Every edit except split can be undone with **Ctrl+Z** and redone with **Ctrl+Y**.
 
@@ -209,7 +209,7 @@ The **GPX tools** page works on route files without needing them in your library
 | Tool | What it does |
 |---|---|
 | **Merge GPX files** | Combine several tracks or routes into one ordered route and create it in the app |
-| **Split a GPX route** | View a file on a map, click to add split points, then download the parts or create a route for each part |
+| **Split a GPX route** | Split manually by clicking the map, or set a distance interval to create parts at the nearest available GPX points; download the parts or create a route for each part. A completion dialog confirms the result and links to created routes or GPX downloads |
 | **Shrink a GPX or FIT file** | Reduce the size and number of points, then download the smaller file |
 | **Convert FIT and GPX** | Turn a GPX into a FIT course or a FIT into a GPX, and download it. The first track is converted point for point; elevation, recorded times and waypoints are kept where the format supports them |
 
@@ -273,6 +273,8 @@ Open your profile from the account menu. It shows the accounts you have connecte
 | **Units** | Metric or imperial |
 | **Appearance** | Dark or light |
 | **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded, with a left icon rail). Each works in both dark and light appearance |
+| **Default routing profile** | Choose a profile for new routes, or leave blank to match the selected sport |
+| **Favorite sports** | Choose the sports shown as quick checkboxes in the route editor; other sports remain in its activity list |
 
 The moon/sun button in the top bar also switches between dark and light.
 

@@ -301,19 +301,159 @@
   color: var(--ok);
 }
 
+.splitResultDialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(90dvh, 680px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.splitResultDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.splitResultDialog::backdrop {
+  background: var(--scrim);
+}
+
+.splitResultHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.splitResultHead h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 24px;
+}
+
+.splitResultClose {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.splitResultClose:hover {
+  background: var(--panel-2);
+}
+
+.splitResultBody {
+  overflow: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.splitResultSuccess {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.splitResultList {
+  max-height: 260px;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.splitResultList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+}
+
+.splitResultList li + li {
+  border-top: 1px solid var(--border);
+}
+
+.splitResultList a {
+  color: var(--accent);
+}
+
+.splitResultActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .splitSettings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  align-items: start;
+  gap: 14px;
   margin-bottom: 18px;
 }
 
-.splitSettings input {
+.splitSettings > .nameField input,
+.distanceField input {
   height: 44px;
   width: 100%;
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg);
+}
+
+.splitMode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.splitMode legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.splitMode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.splitMode input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.distanceField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.distanceField > span:last-child {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .mapHelp {

@@ -22,13 +22,13 @@ public sealed class UserSettingsTests(PostgresFixture pg)
 
         using var browser = await TestAuth.SignInAsync(api, suunto, "settings-user");
         var initial = await browser.GetFromJsonAsync<UserSettingsDto>("/api/settings");
-        Assert.Equal(new UserSettingsDto("topo", "metric", "dark", "classic"), initial);
+        AssertSettings(initial, new UserSettingsDto("topo", "metric", "dark", "classic", [11, 22, 1, 70, 10, 2, 0, 99, 31, 3]));
 
-        var updated = new UserSettingsDto("cyclosm", "imperial", "light", "alpine");
+        var updated = new UserSettingsDto("cyclosm", "imperial", "light", "alpine", [2, 99], "gravel");
         var response = await browser.PutAsJsonAsync("/api/settings", updated);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(updated, await response.Content.ReadFromJsonAsync<UserSettingsDto>());
-        Assert.Equal(updated, await browser.GetFromJsonAsync<UserSettingsDto>("/api/settings"));
+        AssertSettings(await response.Content.ReadFromJsonAsync<UserSettingsDto>(), updated);
+        AssertSettings(await browser.GetFromJsonAsync<UserSettingsDto>("/api/settings"), updated);
 
         await using var scope = api.Services.CreateAsyncScope();
         var user = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Users.SingleAsync();
@@ -36,6 +36,35 @@ public sealed class UserSettingsTests(PostgresFixture pg)
         Assert.Equal("imperial", user.Units);
         Assert.Equal("light", user.Theme);
         Assert.Equal("alpine", user.Design);
+        Assert.Equal([2, 99], user.FavoriteActivityIds);
+        Assert.Equal("gravel", user.DefaultRoutingProfile);
+    }
+
+    [Fact]
+    public async Task Settings_reject_invalid_favorite_sports_and_routing_profiles()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        using var browser = await TestAuth.SignInAsync(api, suunto, "invalid-routing-settings-user");
+
+        var invalidFavorite = await browser.PutAsJsonAsync(
+            "/api/settings", new UserSettingsDto("topo", "metric", "dark", "classic", [999]));
+        var invalidProfile = await browser.PutAsJsonAsync(
+            "/api/settings", new UserSettingsDto("topo", "metric", "dark", "classic", [], "unknown"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, invalidFavorite.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidProfile.StatusCode);
+    }
+
+    private static void AssertSettings(UserSettingsDto? actual, UserSettingsDto expected)
+    {
+        Assert.NotNull(actual);
+        Assert.Equal(expected.DefaultMap, actual.DefaultMap);
+        Assert.Equal(expected.Units, actual.Units);
+        Assert.Equal(expected.Theme, actual.Theme);
+        Assert.Equal(expected.Design, actual.Design);
+        Assert.Equal(expected.FavoriteActivityIds, actual.FavoriteActivityIds);
+        Assert.Equal(expected.DefaultRoutingProfile, actual.DefaultRoutingProfile);
     }
 
     [Theory]

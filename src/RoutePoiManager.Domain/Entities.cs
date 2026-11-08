@@ -58,6 +58,8 @@ public sealed class User
     public string Theme { get; set; } = "dark";
     /// <summary>Visual design: classic, alpine or soft. Independent of the dark/light theme.</summary>
     public string Design { get; set; } = "classic";
+    public int[] FavoriteActivityIds { get; set; } = [11, 22, 1, 70, 10, 2, 0, 99, 31, 3];
+    public string? DefaultRoutingProfile { get; set; }
 }
 
 /// <summary>A point the user placed while drawing. <see cref="Segment"/> caches the computed line from this

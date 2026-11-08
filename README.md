@@ -21,9 +21,9 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 **Route editor**
 - OpenStreetMap base maps: OSM, OpenTopoMap and CyclOSM, with a dark and a light theme
 - **Place search** on the map (OpenStreetMap Nominatim) to jump to a town, peak or address
-- **Snap-to-trail** routing with [BRouter](https://brouter.de) (8 hiking and bike profiles) or **freehand** straight segments, chosen per segment
+- **Snap-to-trail** routing with [BRouter](https://brouter.de) (8 hiking and bike profiles) or **freehand** straight segments, chosen per segment; profile suggestions follow the selected sport, with cycling prioritized
 - Drag points to move them, drag the line to insert a point, right-click to delete
-- Reverse, trim before or after a point, and split into two routes
+- Reverse, trim before or after a point, and split a saved route into new routes at a chosen distance without changing the original
 - **Undo/redo** for every edit (`Ctrl+Z` / `Ctrl+Y`)
 - **Elevation profile**, kept in sync with the map as you hover, plus distance, ascent and descent (ascent and descent ignore small DEM noise, so totals aren't inflated)
 - **Section analysis:** drag across the elevation profile (then drag the handles to adjust), or pick the **ruler** tool and click two points on the route or two of its markers, to measure just that part: distance, ascent, descent, net change, average and steepest grades, highest and lowest point, and the POIs in it. The section is highlighted on the map and **Zoom to section** fits it. `Esc` clears it.
@@ -39,7 +39,7 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 
 **GPX tools**
 - Merge multiple GPX tracks or routes into one ordered route and create it in the app
-- View a GPX track or route on a map and click to add split points; download the parts or create a route for each part
+- Split a GPX track or route manually on the map or at a chosen distance; download the parts or create a route for each part
 - **Shrink** a GPX or FIT file to reduce its size and point count, then download it
 - Convert a GPX file to FIT or a FIT file to GPX and download the converted file; the first track is converted point for point, with elevation, recorded times and waypoints preserved where supported (GPX→FIT produces a FIT course with lap, timer events and course points placed along the track)
 
@@ -63,6 +63,8 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 **Profile and preferences**
 - A profile page shows your connected accounts and lets you set a **default map**, **units** (metric or imperial) and **appearance** (dark or light). Preferences are saved to your account (`/api/settings`), so they follow you across browsers.
 - Choose a **design**: *Classic* (the original dark glass look), *Alpine* (light and editorial, with serif headings) or *Soft* (warm and rounded, with a left icon rail). Each works in both dark and light appearance, and the choice is saved to your account like the other preferences.
+- Choose **favorite sports** to show as alphabetical quick-checkbox options in route planning; other sports remain available in the activity list.
+- Set an optional **default routing profile** for new routes. Leave it blank to suggest a profile based on the selected sport, prioritizing cycling when multiple sport types are selected.
 
 **Suunto sync**
 - Sign in with your Suunto account (OAuth 2). The app never sees your password.

@@ -56,6 +56,45 @@ public sealed class RouteToolTests(PostgresFixture pg)
     }
 
     [Fact]
+    public async Task Split_by_distance_creates_route_parts_and_moves_pois_with_them()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = new ApiFactory(pg, suunto);
+        var http = await TestAuth.SignInAsync(api, suunto, "distance-splitter");
+        var id = await CreateRoute(http, "Long day",
+        [
+            new PoiInput(Guid.NewGuid(), "Early spring", null, PoiTypes.Water, 24.005, 60.0, null),
+            new PoiInput(Guid.NewGuid(), "Late peak", null, PoiTypes.Peak, 24.025, 60.0, null),
+        ]);
+        var original = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{id}", Json))!;
+
+        var res = await http.PostAsJsonAsync($"/api/routes/{id}/split-by-distance", new DistanceSplitRequest(500), Json);
+        Assert.True(res.IsSuccessStatusCode, await res.Content.ReadAsStringAsync());
+        var split = (await res.Content.ReadFromJsonAsync<DistanceSplitResponse>(Json))!;
+
+        Assert.Equal(["Long day (part 1)", "Long day (part 2)", "Long day (part 3)"], split.Routes.Select(route => route.Name));
+        Assert.Equal(["Early spring"], split.Routes[0].Pois.Select(poi => poi.Name));
+        Assert.Empty(split.Routes[1].Pois);
+        Assert.Equal(["Late peak"], split.Routes[2].Pois.Select(poi => poi.Name));
+        Assert.All(split.Routes, part => Assert.InRange(part.DistanceM, 500, 600));
+        Assert.All(split.Routes.SelectMany(part => part.Pois), poi =>
+        {
+            Assert.Equal(SyncState.LocalOnly, poi.SyncState);
+            Assert.Null(poi.SuuntoPoiKey);
+        });
+
+        var unchanged = (await http.GetFromJsonAsync<RouteDetailDto>($"/api/routes/{id}", Json))!;
+        Assert.Equal(original.Id, unchanged.Id);
+        Assert.Equal(original.Name, unchanged.Name);
+        Assert.Equal(original.DistanceM, unchanged.DistanceM);
+        Assert.Equal(original.ControlPoints.Count, unchanged.ControlPoints.Count);
+        Assert.Equal(original.Pois.Select(poi => poi.Id), unchanged.Pois.Select(poi => poi.Id));
+
+        var bad = await http.PostAsJsonAsync($"/api/routes/{id}/split-by-distance", new DistanceSplitRequest(5000), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+    }
+
+    [Fact]
     public async Task Gpx_download_has_the_route_and_every_poi()
     {
         await using var suunto = new MockSuuntoFactory();

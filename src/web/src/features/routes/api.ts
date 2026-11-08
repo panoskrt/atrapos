@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 
 export type SegmentMode = 'snap' | 'freehand';
 export type SyncState = 'localOnly' | 'synced' | 'localChanges' | 'remoteNewer' | 'conflict' | 'error';
@@ -152,6 +153,10 @@ export function splitRoute(id: string, pointIndex: number) {
   return api.post<{ route: RouteDetail; created: RouteDetail }>(`/api/routes/${id}/split`, { pointIndex });
 }
 
+export function splitRouteByDistance(id: string, distanceM: number) {
+  return api.post<{ routes: RouteDetail[] }>(`/api/routes/${id}/split-by-distance`, { distanceM });
+}
+
 export function gpxDownloadUrl(id: string) {
   return `/api/routes/${id}/gpx`;
 }
@@ -179,7 +184,7 @@ export function useActivityTypes(enabled = true) {
 }
 
 /** Activities offered as one-tap chips; everything else is in the "More" list. */
-export const COMMON_ACTIVITY_IDS = [11, 22, 1, 70, 10, 2, 0, 99, 31, 3];
+export const COMMON_ACTIVITY_IDS = DEFAULT_FAVORITE_ACTIVITY_IDS;
 
 export const syncStateLabel: Record<SyncState, string> = {
   localOnly: 'Local only',
