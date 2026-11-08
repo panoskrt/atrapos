@@ -15,13 +15,19 @@ import {
   stats,
   type Coord,
 } from './geo';
-import { applyUserSettings } from '../../lib/userPreferences';
+import { applyUserSettings, DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 
 describe('geo', () => {
-  afterEach(() => applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic' }));
+  afterEach(() => applyUserSettings({
+    defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic',
+    favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+  }));
 
   it('formats values using the selected unit system', () => {
-    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic' });
+    applyUserSettings({
+      defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic',
+      favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+    });
     expect(formatDistance(1609.344)).toBe('1.0 mi');
     expect(formatElevation(100)).toBe('328 ft');
     expect(formatTemperature(0)).toBe('32°');

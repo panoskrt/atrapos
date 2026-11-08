@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 
 export type SegmentMode = 'snap' | 'freehand';
 export type SyncState = 'localOnly' | 'synced' | 'localChanges' | 'remoteNewer' | 'conflict' | 'error';
@@ -183,7 +184,7 @@ export function useActivityTypes(enabled = true) {
 }
 
 /** Activities offered as one-tap chips; everything else is in the "More" list. */
-export const COMMON_ACTIVITY_IDS = [11, 22, 1, 70, 10, 2, 0, 99, 31, 3];
+export const COMMON_ACTIVITY_IDS = DEFAULT_FAVORITE_ACTIVITY_IDS;
 
 export const syncStateLabel: Record<SyncState, string> = {
   localOnly: 'Local only',

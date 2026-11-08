@@ -273,6 +273,8 @@ Open your profile from the account menu. It shows the accounts you have connecte
 | **Units** | Metric or imperial |
 | **Appearance** | Dark or light |
 | **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded, with a left icon rail). Each works in both dark and light appearance |
+| **Default routing profile** | Choose a profile for new routes, or leave blank to match the selected sport |
+| **Favorite sports** | Choose the sports shown as quick checkboxes in the route editor; other sports remain in its activity list |
 
 The moon/sun button in the top bar also switches between dark and light.
 

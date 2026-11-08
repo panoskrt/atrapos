@@ -8,7 +8,6 @@ import { PoiList } from '../pois/PoiList';
 import { SyncPanel } from '../sync/SyncPanel';
 import { toast } from '../../components/Toast';
 import {
-  COMMON_ACTIVITY_IDS,
   downloadRouteGpx,
   routeKeys,
   splitRouteByDistance,
@@ -21,6 +20,10 @@ import { formatDistance, formatElevation, type RouteStats } from './geo';
 import { useEditorStore } from './store';
 import type { SaveStatus } from './useManualSave';
 import { WeatherPanel } from '../weather/WeatherPanel';
+import { preferredRoutingGroup, prioritizeRoutingProfileGroups, suggestedRoutingProfile } from './routingProfilePreference';
+import { useUserSettings } from '../profile/userSettings';
+import { DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
+import type { UserSettings } from '../../lib/userPreferences';
 import styles from './Editor.module.css';
 
 interface Props {
@@ -57,11 +60,21 @@ export function EditorSidebar({
   const hasLine = useEditorStore((s) => s.points.length > 1);
   const pointCount = useEditorStore((s) => s.points.length);
   const poiCount = useEditorStore((s) => s.pois.length);
+  const setRoutingProfile = useEditorStore((s) => s.setRoutingProfile);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const tool = useEditorStore((s) => s.tool);
   const [tab, setTab] = useState<'route' | 'pois' | 'weather'>('route');
   const [downloading, setDownloading] = useState(false);
+  const userSettings = useUserSettings();
+  const appliedDefaultProfile = useRef<string | null>(null);
 
+  useEffect(() => {
+    if (!isDraft || !userSettings.data || appliedDefaultProfile.current === routeId) return;
+    appliedDefaultProfile.current = routeId;
+    if (userSettings.data.defaultRoutingProfile) {
+      setRoutingProfile(userSettings.data.defaultRoutingProfile);
+    }
+  }, [isDraft, routeId, setRoutingProfile, userSettings.data]);
   // Placing or selecting a POI shows the POI list.
   useEffect(() => {
     if (selectedPoiId || tool === 'poi') setTab('pois');
@@ -161,7 +174,7 @@ export function EditorSidebar({
 
       <div className={styles.sideBody} role="tabpanel">
         {tab === 'route' ? (
-          <RouteTab suuntoConnected={suuntoConnected} />
+          <RouteTab suuntoConnected={suuntoConnected} settings={userSettings.data} />
         ) : tab === 'pois' ? (
           <PoiList locations={poiLocations} onFocus={onFocus} suuntoConnected={suuntoConnected} />
         ) : (
@@ -339,7 +352,7 @@ function DistanceSplitDialog({
   );
 }
 
-function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
+function RouteTab({ suuntoConnected, settings }: { suuntoConnected: boolean; settings?: UserSettings }) {
   const activityIds = useEditorStore((s) => s.activityIds);
   const toggleActivity = useEditorStore((s) => s.toggleActivity);
   const turnWaypoints = useEditorStore((s) => s.turnWaypointsEnabled);
@@ -353,30 +366,68 @@ function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
   const profileGroups = Object.entries(
     Object.groupBy(profiles.data ?? [{ id: routingProfile, label: routingProfile, group: 'Profile' }], (p) => p.group),
   ) as [string, RoutingProfile[]][];
+  const prioritizedProfileGroups = prioritizeRoutingProfileGroups(profileGroups, activityIds);
   const descId = useId();
   const moreId = useId();
   const turnId = useId();
 
   const nameOf = (id: number) => activities.data?.find((a) => a.id === id)?.name ?? `Activity ${id}`;
-  const chipIds = [...new Set([...activityIds, ...COMMON_ACTIVITY_IDS])];
-  const others = (activities.data ?? []).filter((a) => !chipIds.includes(a.id));
+  const favoriteActivityIds = settings?.favoriteActivityIds ?? DEFAULT_FAVORITE_ACTIVITY_IDS;
+  const activityName = (id: number) => nameOf(id);
+  const sortedFavoriteActivityIds = [...favoriteActivityIds].sort((a, b) => activityName(a).localeCompare(activityName(b)));
+  const selectedOtherActivityIds = activityIds
+    .filter((id) => !favoriteActivityIds.includes(id))
+    .sort((a, b) => activityName(a).localeCompare(activityName(b)));
+  const chipIds = [...new Set([...activityIds, ...favoriteActivityIds])];
+  const others = (activities.data ?? [])
+    .filter((a) => !chipIds.includes(a.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const toggleSport = (id: number) => {
+    if ((activityIds.includes(id) && activityIds.length === 1) || (!activityIds.includes(id) && activityIds.length >= 10)) return;
+    const nextActivityIds = activityIds.includes(id) ? activityIds.filter((activityId) => activityId !== id) : [...activityIds, id];
+    toggleActivity(id);
+
+    const preferredGroup = preferredRoutingGroup(nextActivityIds);
+    const currentGroup = profiles.data?.find((profile) => profile.id === routingProfile)?.group;
+    if (preferredGroup && currentGroup && currentGroup !== preferredGroup) {
+      const userDefault = profiles.data?.find((profile) => profile.id === settings?.defaultRoutingProfile);
+      const suggestedProfile = userDefault?.group === preferredGroup
+        ? userDefault.id
+        : suggestedRoutingProfile(nextActivityIds);
+      if (suggestedProfile && profiles.data?.some((profile) => profile.id === suggestedProfile)) {
+        setRoutingProfile(suggestedProfile);
+      }
+    }
+  };
 
   return (
     <>
       {suuntoConnected && (
         <fieldset className={styles.fieldset}>
           <legend className={styles.label}>Suunto activities</legend>
-          <div className={styles.chips}>
-            {chipIds.map((id) => {
-              const on = activityIds.includes(id);
-              return (
-                <label key={id} className={on ? styles.chipOn : styles.chip}>
-                  <input type="checkbox" checked={on} onChange={() => toggleActivity(id)} />
+          {favoriteActivityIds.length > 0 && (
+            <div className={styles.chips}>
+              {sortedFavoriteActivityIds.map((id) => {
+                const on = activityIds.includes(id);
+                return (
+                  <label key={id} className={on ? styles.chipOn : styles.chip}>
+                    <input type="checkbox" checked={on} onChange={() => toggleSport(id)} />
+                    {nameOf(id)}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {selectedOtherActivityIds.length > 0 && (
+            <div className={styles.chips} aria-label="Selected other activities">
+              {selectedOtherActivityIds.map((id) => (
+                <label key={id} className={styles.chipOn}>
+                  <input type="checkbox" checked onChange={() => toggleSport(id)} />
                   {nameOf(id)}
                 </label>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
           {others.length > 0 && (
             <>
               <label htmlFor={moreId} className="visually-hidden">
@@ -386,7 +437,7 @@ function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
                 id={moreId}
                 className={styles.select}
                 value=""
-                onChange={(e) => e.target.value && toggleActivity(Number(e.target.value))}
+                onChange={(e) => e.target.value && toggleSport(Number(e.target.value))}
               >
                 <option value="">More activities…</option>
                 {others.map((a) => (
@@ -403,7 +454,7 @@ function RouteTab({ suuntoConnected }: { suuntoConnected: boolean }) {
       <label className={styles.field}>
         <span className={styles.label}>Routing profile (BRouter)</span>
         <select className={styles.select} value={routingProfile} onChange={(e) => setRoutingProfile(e.target.value)}>
-          {profileGroups.map(([group, items]) => (
+          {prioritizedProfileGroups.map(([group, items]) => (
             <optgroup key={group} label={group}>
               {items.map((p) => (
                 <option key={p.id} value={p.id}>

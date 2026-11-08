@@ -1,6 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyUserSettings } from '../../lib/userPreferences';
+import { applyUserSettings, DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 import { SectionAnalysis } from './SectionAnalysis';
 import { cumulativeDistances, type Coord } from './geo';
 import { useSectionStore } from './store';
@@ -11,7 +11,10 @@ const cumulative = cumulativeDistances(line);
 describe('SectionAnalysis', () => {
   afterEach(() => {
     act(() => useSectionStore.getState().clear());
-    applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic' });
+    applyUserSettings({
+      defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic',
+      favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+    });
   });
 
   it('shows nothing until a section is chosen', () => {
@@ -42,7 +45,10 @@ describe('SectionAnalysis', () => {
   });
 
   it('uses the chosen unit system', () => {
-    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic' });
+    applyUserSettings({
+      defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic',
+      favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+    });
     render(<SectionAnalysis line={line} cumulative={cumulative} pois={[]} />);
     act(() => useSectionStore.getState().setRange(0, cumulative[2]!));
     const card = screen.getByRole('region', { name: 'Section analysis' });
