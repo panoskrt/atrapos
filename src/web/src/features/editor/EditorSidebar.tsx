@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { useMe } from '../auth/useMe';
@@ -6,11 +7,14 @@ import type { PoiLocation } from '../pois/placement';
 import { PoiList } from '../pois/PoiList';
 import { SyncPanel } from '../sync/SyncPanel';
 import { toast } from '../../components/Toast';
-import { downloadRouteGpx } from '../routes/api';
 import {
   COMMON_ACTIVITY_IDS,
+  downloadRouteGpx,
+  routeKeys,
+  splitRouteByDistance,
   useActivityTypes,
   useRoutingProfiles,
+  type RouteDetail,
   type RoutingProfile,
 } from '../routes/api';
 import { formatDistance, formatElevation, type RouteStats } from './geo';
@@ -51,6 +55,7 @@ export function EditorSidebar({
   const name = useEditorStore((s) => s.name);
   const setName = useEditorStore((s) => s.setName);
   const hasLine = useEditorStore((s) => s.points.length > 1);
+  const pointCount = useEditorStore((s) => s.points.length);
   const poiCount = useEditorStore((s) => s.pois.length);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
   const tool = useEditorStore((s) => s.tool);
@@ -106,6 +111,15 @@ export function EditorSidebar({
               <Icon name="download" size={18} />
             </button>
           )}
+          {!isDraft && (
+            <DistanceSplitControl
+              routeId={routeId}
+              routeName={name}
+              distanceM={stats.distanceM}
+              pointCount={pointCount}
+              flush={save.flush}
+            />
+          )}
         </div>
         <dl className={styles.stats}>
           <div>
@@ -157,6 +171,171 @@ export function EditorSidebar({
 
       {suuntoConnected && !isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
     </aside>
+  );
+}
+
+function DistanceSplitControl({
+  routeId,
+  routeName,
+  distanceM,
+  pointCount,
+  flush,
+}: {
+  routeId: string;
+  routeName: string;
+  distanceM: number;
+  pointCount: number;
+  flush: () => Promise<boolean>;
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`btn ${styles.openSplitDialog}`}
+        onClick={() => setOpen(true)}
+        disabled={pointCount < 3}
+        title={pointCount < 3 ? 'At least three route points are needed' : 'Split into new routes by distance'}
+        aria-label="Split into new routes by distance"
+      >
+        <Icon name="scissors" size={16} />
+        Split
+      </button>
+      {open && (
+        <DistanceSplitDialog
+          routeId={routeId}
+          routeName={routeName}
+          distanceM={distanceM}
+          pointCount={pointCount}
+          flush={flush}
+          queryClient={queryClient}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function DistanceSplitDialog({
+  routeId,
+  routeName,
+  distanceM,
+  pointCount,
+  flush,
+  queryClient,
+  onClose,
+}: {
+  routeId: string;
+  routeName: string;
+  distanceM: number;
+  pointCount: number;
+  flush: () => Promise<boolean>;
+  queryClient: ReturnType<typeof useQueryClient>;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const inputId = useId();
+  const [intervalKm, setIntervalKm] = useState('5');
+  const [splitting, setSplitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [createdRoutes, setCreatedRoutes] = useState<RouteDetail[] | null>(null);
+  const intervalM = Number(intervalKm) * 1000;
+  const canSplit = Number.isFinite(intervalM) && intervalM > 0 && intervalM < distanceM && pointCount >= 3;
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+  }, []);
+
+  const split = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSplit || splitting) return;
+
+    setSplitting(true);
+    setError(null);
+    try {
+      if (!(await flush())) throw new Error('Save your changes before splitting the route.');
+      const result = await splitRouteByDistance(routeId, intervalM);
+      void queryClient.invalidateQueries({ queryKey: routeKeys.all, exact: true });
+      setCreatedRoutes(result.routes);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The route could not be split.');
+    } finally {
+      setSplitting(false);
+    }
+  };
+
+  return (
+    <dialog ref={ref} className={styles.splitDialog} aria-labelledby={titleId} onClose={onClose}>
+      <div className={styles.splitDialogHead}>
+        <h2 id={titleId} className="display">{createdRoutes ? 'Routes created' : 'Split into new routes'}</h2>
+        <button type="button" className={styles.splitDialogClose} onClick={() => ref.current?.close()} aria-label="Close">
+          <Icon name="close" />
+        </button>
+      </div>
+      {createdRoutes ? (
+        <div className={styles.splitDialogBody}>
+          <p role="status" className={styles.splitDialogSuccess}>
+            Created {createdRoutes.length} new {createdRoutes.length === 1 ? 'route' : 'routes'} from “{routeName}”.
+            The original route is unchanged.
+          </p>
+          <ul className={styles.splitResultList} aria-label="Created routes">
+            {createdRoutes.map((route) => (
+              <li key={route.id}>
+                <Link to={`/routes/${route.id}`} onClick={() => ref.current?.close()}>
+                  {route.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className={styles.splitDialogActions}>
+            <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form className={styles.splitDialogBody} onSubmit={(event) => void split(event)}>
+          <p>
+            Create new route parts from “{routeName}”. The original route will stay unchanged. Cuts use the nearest saved
+            control points, so part lengths may differ slightly. POIs are copied to their part.
+          </p>
+          <label className={styles.field} htmlFor={inputId}>
+            Distance between parts (km)
+            <input
+              id={inputId}
+              className={styles.select}
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={intervalKm}
+              onChange={(event) => setIntervalKm(event.target.value)}
+            />
+          </label>
+          {pointCount < 3 ? (
+            <p className={styles.splitDistanceHint}>At least three route points are needed to create multiple routes.</p>
+          ) : !canSplit ? (
+            <p className={styles.splitDistanceHint}>Enter a distance greater than zero and shorter than this route.</p>
+          ) : null}
+          {error && <p role="alert" className={styles.splitDialogError}>{error}</p>}
+          <div className={styles.splitDialogActions}>
+            <button type="button" className="btn" onClick={() => ref.current?.close()} disabled={splitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={!canSplit || splitting}>
+              <Icon name="scissors" size={16} />
+              {splitting ? 'Creating routes…' : 'Create routes'}
+            </button>
+          </div>
+        </form>
+      )}
+    </dialog>
   );
 }
 

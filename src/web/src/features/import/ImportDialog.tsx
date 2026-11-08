@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { useMe } from '../auth/useMe';
 import { formatDistance, type Coord } from '../editor/geo';
-import { COMMON_ACTIVITY_IDS, routeKeys, useActivityTypes, type RouteSource } from '../routes/api';
+import { COMMON_ACTIVITY_IDS, routeKeys, useActivityTypes, type RouteDetail, type RouteSource } from '../routes/api';
 import { commitImport, previewImport, usePoiTypes, type ImportPreview, type ImportWaypoint } from './api';
 import { offsetFromLine, simplifyIndices } from './simplify';
 import styles from './ImportDialog.module.css';
@@ -25,7 +25,7 @@ const ON_ROUTE_MAX_OFFSET_M = 200;
 interface Props {
   file: File;
   onClose: () => void;
-  onImported?: () => void;
+  onImported?: (route: RouteDetail) => void;
   onDownload?: () => void;
 }
 
@@ -101,7 +101,7 @@ function ImportForm({
   file: File;
   preview: ImportPreview;
   onCancel: () => void;
-  onImported?: () => void;
+  onImported?: (route: RouteDetail) => void;
   onDownload?: () => void;
   suuntoConnected: boolean;
 }) {
@@ -142,7 +142,7 @@ function ImportForm({
       }),
     onSuccess: (route) => {
       void qc.invalidateQueries({ queryKey: routeKeys.all, exact: true });
-      if (onImported) onImported();
+      if (onImported) onImported(route);
       else navigate(`/routes/${route.id}`);
     },
   });

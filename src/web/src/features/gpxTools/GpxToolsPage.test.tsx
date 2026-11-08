@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -96,5 +96,70 @@ describe('GpxToolsPage', () => {
     expect(await screen.findByText(/Downloaded ridge-shrunk\.fit/)).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith('/api/imports/shrink', expect.objectContaining({ method: 'POST' }));
     expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('creates downloadable GPX parts at the chosen distance interval', async () => {
+    renderPage('/gpx-tools?tool=split');
+    const user = userEvent.setup();
+    const routePoints = Array.from({ length: 10 }, (_, index) => `<rtept lat="0" lon="${index * 0.001}" />`).join('');
+    const input = document.querySelector<HTMLInputElement>('input[type=file]:not([multiple])')!;
+    await user.upload(
+      input,
+      new File([`<gpx xmlns="http://www.topografix.com/GPX/1/1"><rte>${routePoints}</rte></gpx>`], 'ridge.gpx'),
+    );
+
+    await user.click(screen.getByRole('radio', { name: 'Split by distance' }));
+    fireEvent.change(document.querySelector('input[type=number]')!, { target: { value: '0.2' } });
+    await user.click(screen.getByRole('checkbox', { name: 'Create a route in the app for each split part' }));
+    await user.click(screen.getByRole('button', { name: 'Split GPX' }));
+
+    const parts = await screen.findByRole('list', { name: 'Split GPX parts' });
+    expect(parts.querySelectorAll('li')).toHaveLength(4);
+    expect(parts).toHaveTextContent('Split route - Part 1.gpx');
+    expect(parts).toHaveTextContent('Split route - Part 4.gpx');
+    const completionDialog = await screen.findByRole('dialog', { name: 'Split complete' });
+    expect(within(completionDialog).getByRole('status')).toHaveTextContent('Created 4 GPX files, ready to download.');
+    expect(screen.getByRole('list', { name: 'Created GPX files' }).querySelectorAll('li')).toHaveLength(4);
+  });
+
+  it('confirms when all split parts have been created as routes', async () => {
+    let imported = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes('/api/imports/limits'))
+          return new Response(JSON.stringify({ maxFileBytes: 3 * 1024 * 1024 }), { status: 200 });
+        if (url.includes('/api/imports/preview'))
+          return new Response(JSON.stringify(preview), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        if (url === '/api/me') return new Response(null, { status: 401 });
+        if (url === '/api/imports' && init?.method === 'POST') {
+          imported++;
+          return new Response(JSON.stringify({ id: `route-${imported}`, name: `Created part ${imported}` }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    renderPage('/gpx-tools?tool=split');
+    const user = userEvent.setup();
+    const routePoints = Array.from({ length: 10 }, (_, index) => `<rtept lat="0" lon="${index * 0.001}" />`).join('');
+    const input = document.querySelector<HTMLInputElement>('input[type=file]:not([multiple])')!;
+    await user.upload(
+      input,
+      new File([`<gpx xmlns="http://www.topografix.com/GPX/1/1"><rte>${routePoints}</rte></gpx>`], 'ridge.gpx'),
+    );
+    await user.click(screen.getByRole('radio', { name: 'Split by distance' }));
+    fireEvent.change(document.querySelector('input[type=number]')!, { target: { value: '0.2' } });
+    await user.click(screen.getByRole('button', { name: 'Split and create routes' }));
+
+    for (let index = 0; index < 4; index++) {
+      await user.click(await screen.findByRole('button', { name: 'Import & open editor' }));
+    }
+
+    const completionDialog = await screen.findByRole('dialog', { name: 'Split complete' });
+    expect(within(completionDialog).getByRole('status')).toHaveTextContent('Created 4 new routes in your library.');
+    expect(screen.getByRole('list', { name: 'Created routes' }).querySelectorAll('li')).toHaveLength(4);
   });
 });

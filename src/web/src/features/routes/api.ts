@@ -152,6 +152,10 @@ export function splitRoute(id: string, pointIndex: number) {
   return api.post<{ route: RouteDetail; created: RouteDetail }>(`/api/routes/${id}/split`, { pointIndex });
 }
 
+export function splitRouteByDistance(id: string, distanceM: number) {
+  return api.post<{ routes: RouteDetail[] }>(`/api/routes/${id}/split-by-distance`, { distanceM });
+}
+
 export function gpxDownloadUrl(id: string) {
   return `/api/routes/${id}/gpx`;
 }
