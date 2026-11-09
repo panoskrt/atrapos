@@ -305,14 +305,16 @@ function Editor({
             fitRequest={fitRequest}
             locateRequest={locateRequest}
             focus={focus}
+            controls={
+              <MapToolbar
+                canFit={line.length > 1}
+                onFit={() => setFitRequest((n) => n + 1)}
+                onLocate={() => setLocateRequest((n) => n + 1)}
+                onReverse={reverseRoute}
+              />
+            }
           />
           <PoiCard line={line} cumulative={cumulative} locations={poiLocations} />
-          <MapToolbar
-            canFit={line.length > 1}
-            onFit={() => setFitRequest((n) => n + 1)}
-            onLocate={() => setLocateRequest((n) => n + 1)}
-            onReverse={reverseRoute}
-          />
           <LayerSwitcher
             value={baseLayer}
             onChange={(l) => {

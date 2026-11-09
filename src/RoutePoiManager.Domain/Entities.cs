@@ -58,6 +58,8 @@ public sealed class User
     public string Theme { get; set; } = "dark";
     /// <summary>Visual design: classic, alpine or soft. Independent of the dark/light theme.</summary>
     public string Design { get; set; } = "classic";
+    /// <summary>Where the main navigation sits on wider screens: left (icon rail) or top. Phones always use a tab bar.</summary>
+    public string MenuPosition { get; set; } = "left";
     public int[] FavoriteActivityIds { get; set; } = [11, 22, 1, 70, 10, 2, 0, 99, 31, 3];
     public string? DefaultRoutingProfile { get; set; }
 }

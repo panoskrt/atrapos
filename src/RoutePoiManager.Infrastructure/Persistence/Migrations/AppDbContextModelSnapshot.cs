@@ -486,6 +486,11 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_suunto_refresh_at");
 
+                    b.Property<string>("MenuPosition")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("menu_position");
+
                     b.Property<string>("RefreshTokenProtected")
                         .IsRequired()
                         .HasColumnType("text")

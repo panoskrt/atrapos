@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeafletMap, useMapEvents } from '../../components/LeafletMap';
@@ -14,6 +14,28 @@ beforeEach(() => useEditorStore.getState().startNew());
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LocationSearch', () => {
+  it('can be collapsed and expanded without losing the search field', async () => {
+    render(
+      <LeafletMap center={[50, 10]} zoom={4}>
+        <LocationSearch />
+      </LeafletMap>,
+    );
+    expect(screen.getByRole('button', { name: 'Show location search' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByLabelText('Search location')).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show location search' }));
+    expect(screen.getByRole('button', { name: 'Hide location search' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Search location')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide location search' }));
+    expect(screen.getByRole('button', { name: 'Show location search' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByLabelText('Search location')).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show location search' }));
+    expect(screen.getByRole('button', { name: 'Hide location search' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Search location')).toBeVisible();
+  });
+
   it('keeps its clicks off the map, so picking a place starts the route there and nowhere else', async () => {
     vi.stubGlobal(
       'fetch',
@@ -28,6 +50,7 @@ describe('LocationSearch', () => {
     );
     const user = userEvent.setup();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Show location search' }));
     // Enter clicks the Search button, which is a click in the panel too.
     await user.click(screen.getByLabelText('Search location'));
     await user.keyboard('Nuuksio{Enter}');

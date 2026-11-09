@@ -22,9 +22,9 @@ public sealed class UserSettingsTests(PostgresFixture pg)
 
         using var browser = await TestAuth.SignInAsync(api, suunto, "settings-user");
         var initial = await browser.GetFromJsonAsync<UserSettingsDto>("/api/settings");
-        AssertSettings(initial, new UserSettingsDto("topo", "metric", "dark", "classic", [11, 22, 1, 70, 10, 2, 0, 99, 31, 3]));
+        AssertSettings(initial, new UserSettingsDto("topo", "metric", "dark", "classic", [11, 22, 1, 70, 10, 2, 0, 99, 31, 3], null, "left"));
 
-        var updated = new UserSettingsDto("cyclosm", "imperial", "light", "alpine", [2, 99], "gravel");
+        var updated = new UserSettingsDto("cyclosm", "imperial", "light", "alpine", [2, 99], "gravel", "top");
         var response = await browser.PutAsJsonAsync("/api/settings", updated);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         AssertSettings(await response.Content.ReadFromJsonAsync<UserSettingsDto>(), updated);
@@ -38,6 +38,11 @@ public sealed class UserSettingsTests(PostgresFixture pg)
         Assert.Equal("alpine", user.Design);
         Assert.Equal([2, 99], user.FavoriteActivityIds);
         Assert.Equal("gravel", user.DefaultRoutingProfile);
+        Assert.Equal("top", user.MenuPosition);
+
+        // A client that doesn't know about the menu position keeps the stored choice.
+        var withoutMenu = await browser.PutAsJsonAsync("/api/settings", updated with { MenuPosition = null });
+        Assert.Equal("top", (await withoutMenu.Content.ReadFromJsonAsync<UserSettingsDto>())!.MenuPosition);
     }
 
     [Fact]
@@ -51,9 +56,12 @@ public sealed class UserSettingsTests(PostgresFixture pg)
             "/api/settings", new UserSettingsDto("topo", "metric", "dark", "classic", [999]));
         var invalidProfile = await browser.PutAsJsonAsync(
             "/api/settings", new UserSettingsDto("topo", "metric", "dark", "classic", [], "unknown"));
+        var invalidMenu = await browser.PutAsJsonAsync(
+            "/api/settings", new UserSettingsDto("topo", "metric", "dark", "classic", [], null, "bottom"));
 
         Assert.Equal(HttpStatusCode.BadRequest, invalidFavorite.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidProfile.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidMenu.StatusCode);
     }
 
     private static void AssertSettings(UserSettingsDto? actual, UserSettingsDto expected)
@@ -65,6 +73,7 @@ public sealed class UserSettingsTests(PostgresFixture pg)
         Assert.Equal(expected.Design, actual.Design);
         Assert.Equal(expected.FavoriteActivityIds, actual.FavoriteActivityIds);
         Assert.Equal(expected.DefaultRoutingProfile, actual.DefaultRoutingProfile);
+        Assert.Equal(expected.MenuPosition, actual.MenuPosition);
     }
 
     [Theory]

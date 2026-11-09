@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using RoutePoiManager.Api.Auth;
+using RoutePoiManager.Api.Routes;
 using RoutePoiManager.Domain;
 using RoutePoiManager.Infrastructure.Persistence;
 using Route = RoutePoiManager.Domain.Route;
@@ -13,9 +14,11 @@ public sealed record PagedResult<T>(List<T> Items, int Total, int Page, int Page
 public sealed record AdminUserRow(
     Guid Id, string? SuuntoUsername, bool GoogleAccount, bool SuuntoConnected,
     DateTimeOffset CreatedAt, DateTimeOffset? LastSuuntoRefreshAt,
-    string DefaultMap, string Units, string Theme, string Design, int RouteCount, int PoiCount);
+    string DefaultMap, string Units, string Theme, string Design, string MenuPosition, int RouteCount,
+    int PoiCount);
 
-public sealed record AdminUserUpdate(string DefaultMap, string Units, string Theme, string Design);
+public sealed record AdminUserUpdate(
+    string DefaultMap, string Units, string Theme, string Design, string? MenuPosition = null);
 
 public sealed record AdminRouteRow(
     Guid Id, Guid UserId, string? Owner, string Name, RouteSource Source, SyncState SyncState,
@@ -141,6 +144,8 @@ public static class AdminEndpoints
             if (!UnitSystems.Contains(body.Units)) errors["units"] = ["Choose metric or imperial units."];
             if (!Themes.Contains(body.Theme)) errors["theme"] = ["Choose light or dark."];
             if (!Designs.Contains(body.Design)) errors["design"] = ["Choose an available design."];
+            if (body.MenuPosition is not null && !UserSettingsEndpoints.MenuPositions.Contains(body.MenuPosition))
+                errors["menuPosition"] = ["Choose left or top."];
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
             var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id, ct);
@@ -149,6 +154,7 @@ public static class AdminEndpoints
             user.Units = body.Units;
             user.Theme = body.Theme;
             user.Design = body.Design;
+            if (body.MenuPosition is not null) user.MenuPosition = body.MenuPosition;
             await db.SaveChangesAsync(ct);
             return Results.Ok(await UserRows(db, db.Users.AsNoTracking().Where(u => u.Id == id)).SingleAsync(ct));
         });
@@ -178,7 +184,7 @@ public static class AdminEndpoints
     private static IQueryable<AdminUserRow> UserRows(AppDbContext db, IQueryable<User> users) =>
         users.Select(u => new AdminUserRow(
             u.Id, u.SuuntoUsername, u.GoogleSubject != null, u.RefreshTokenProtected != "",
-            u.CreatedAt, u.LastSuuntoRefreshAt, u.DefaultMap, u.Units, u.Theme, u.Design,
+            u.CreatedAt, u.LastSuuntoRefreshAt, u.DefaultMap, u.Units, u.Theme, u.Design, u.MenuPosition,
             db.Routes.Count(r => r.UserId == u.Id), db.Pois.Count(p => p.UserId == u.Id)));
 
     // ---- Routes ---------------------------------------------------------------------------------------------

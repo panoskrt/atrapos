@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
+import { usePersistentState } from '../../lib/usePersistentState';
 import { useMe } from '../auth/useMe';
 import type { PoiLocation } from '../pois/placement';
 import { PoiList } from '../pois/PoiList';
@@ -53,6 +54,7 @@ export function EditorSidebar({
   savePending,
   canSave,
 }: Props) {
+  const [collapsed, setCollapsed] = usePersistentState('editor.sidebarCollapsed', false, isBoolean);
   const me = useMe();
   const suuntoConnected = me.data?.suuntoConnected ?? false;
   const name = useEditorStore((s) => s.name);
@@ -94,96 +96,144 @@ export function EditorSidebar({
     }
   };
 
+  const saveLabel = savePending ? 'Saving…' : 'Save';
+  const saveState =
+    save.status === 'error' ? 'Save failed' : save.status === 'saved' ? 'Saved' : save.status === 'saving' ? 'Saving…' : 'Unsaved changes';
+
   return (
-    <aside className={styles.sidebar}>
-      <div className={styles.sideHead}>
-        <div className={styles.sideTopRow}>
-          <SaveControls save={save} onSave={onSave} savePending={savePending} canSave={canSave} />
-        </div>
-        <label htmlFor={nameId} className={styles.label}>
-          Route name
-        </label>
-        <div className={styles.nameRow}>
-          <input
-            id={nameId}
-            className={styles.nameInput}
-            value={name}
-            maxLength={200}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Untitled route"
-          />
-          {!isDraft && (
+    <>
+      {collapsed && (
+        <aside className={styles.sideRail} aria-label="Route panel (collapsed)">
+          <button
+            type="button"
+            className={styles.panelToggle}
+            aria-label="Show route panel"
+            title="Show route panel"
+            aria-expanded={false}
+            onClick={() => setCollapsed(false)}
+          >
+            <Icon name="chevronRight" size={18} />
+          </button>
+          <Link to="/" className={styles.panelToggle} aria-label="Library" title="Library">
+            <Icon name="list" size={18} />
+          </Link>
+          <button
+            type="button"
+            className={`btn btn-primary btn-icon ${styles.railSave}`}
+            onClick={onSave}
+            disabled={!canSave || savePending}
+            aria-label={saveLabel}
+            title={`${saveLabel} · ${saveState}`}
+          >
+            <Icon name="check" size={18} />
+          </button>
+          {save.status === 'error' && (
+            <span className={styles.railError} role="status" title={save.error ?? 'Save failed'}>
+              <Icon name="alert" size={18} />
+            </span>
+          )}
+        </aside>
+      )}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+        <div className={styles.sideHead}>
+          <div className={styles.sideTopRow}>
+            <SaveControls save={save} onSave={onSave} savePending={savePending} canSave={canSave} />
             <button
               type="button"
-              className={`btn btn-icon ${styles.downloadBtn}`}
-              onClick={() => void download()}
-              disabled={!hasLine || downloading}
-              title={hasLine ? 'Download GPX' : 'Draw at least two points first'}
-              aria-label="Download GPX"
+              className={styles.panelToggle}
+              aria-label="Hide route panel"
+              title="Hide route panel"
+              aria-expanded
+              onClick={() => setCollapsed(true)}
             >
-              <Icon name="download" size={18} />
+              <Icon name="chevronLeft" size={18} />
             </button>
-          )}
-          {!isDraft && (
-            <DistanceSplitControl
-              routeId={routeId}
-              routeName={name}
-              distanceM={stats.distanceM}
-              pointCount={pointCount}
-              flush={save.flush}
+          </div>
+          <label htmlFor={nameId} className={styles.label}>
+            Route name
+          </label>
+          <div className={styles.nameRow}>
+            <input
+              id={nameId}
+              className={styles.nameInput}
+              value={name}
+              maxLength={200}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Untitled route"
             />
+            {!isDraft && (
+              <button
+                type="button"
+                className={`btn btn-icon ${styles.downloadBtn}`}
+                onClick={() => void download()}
+                disabled={!hasLine || downloading}
+                title={hasLine ? 'Download GPX' : 'Draw at least two points first'}
+                aria-label="Download GPX"
+              >
+                <Icon name="download" size={18} />
+              </button>
+            )}
+            {!isDraft && (
+              <DistanceSplitControl
+                routeId={routeId}
+                routeName={name}
+                distanceM={stats.distanceM}
+                pointCount={pointCount}
+                flush={save.flush}
+              />
+            )}
+          </div>
+          <dl className={styles.stats}>
+            <div>
+              <dt>Distance</dt>
+              <dd>{formatDistance(stats.distanceM)}</dd>
+            </div>
+            <div>
+              <dt>Ascent</dt>
+              <dd>+{formatElevation(stats.ascentM)}</dd>
+            </div>
+            <div>
+              <dt>Descent</dt>
+              <dd>−{formatElevation(stats.descentM)}</dd>
+            </div>
+            <div>
+              <dt>Points</dt>
+              <dd>{vertexCount.toLocaleString('en-US')}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div role="tablist" aria-label="Editor panels" className={styles.tabs}>
+          <button type="button" role="tab" aria-selected={tab === 'route'} className={tab === 'route' ? styles.tabOn : styles.tab} onClick={() => setTab('route')}>
+            Route
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'pois'} className={tab === 'pois' ? styles.tabOn : styles.tab} onClick={() => setTab('pois')}>
+            POIs <span className={styles.tabCount}>{poiCount}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'weather'}
+            className={tab === 'weather' ? styles.tabOn : styles.tab}
+            onClick={() => setTab('weather')}
+          >
+            Weather
+          </button>
+        </div>
+
+        <div className={styles.sideBody} role="tabpanel">
+          {tab === 'route' ? (
+            <RouteTab suuntoConnected={suuntoConnected} settings={userSettings.data} />
+          ) : tab === 'pois' ? (
+            <PoiList locations={poiLocations} onFocus={onFocus} suuntoConnected={suuntoConnected} />
+          ) : (
+            <WeatherPanel routeId={routeId} isDraft={isDraft} />
           )}
         </div>
-        <dl className={styles.stats}>
-          <div>
-            <dt>Distance</dt>
-            <dd>{formatDistance(stats.distanceM)}</dd>
-          </div>
-          <div>
-            <dt>Ascent</dt>
-            <dd>+{formatElevation(stats.ascentM)}</dd>
-          </div>
-          <div>
-            <dt>Descent</dt>
-            <dd>−{formatElevation(stats.descentM)}</dd>
-          </div>
-          <div>
-            <dt>Points</dt>
-            <dd>{vertexCount.toLocaleString('en-US')}</dd>
-          </div>
-        </dl>
-      </div>
 
-      <div role="tablist" aria-label="Editor panels" className={styles.tabs}>
-        <button type="button" role="tab" aria-selected={tab === 'route'} className={tab === 'route' ? styles.tabOn : styles.tab} onClick={() => setTab('route')}>
-          Route
-        </button>
-        <button type="button" role="tab" aria-selected={tab === 'pois'} className={tab === 'pois' ? styles.tabOn : styles.tab} onClick={() => setTab('pois')}>
-          POIs <span className={styles.tabCount}>{poiCount}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'weather'}
-          className={tab === 'weather' ? styles.tabOn : styles.tab}
-          onClick={() => setTab('weather')}
-        >
-          Weather
-        </button>
-      </div>
-
-      <div className={styles.sideBody} role="tabpanel">
-        {tab === 'route' ? (
-          <RouteTab suuntoConnected={suuntoConnected} settings={userSettings.data} />
-        ) : tab === 'pois' ? (
-          <PoiList locations={poiLocations} onFocus={onFocus} suuntoConnected={suuntoConnected} />
-        ) : (
-          <WeatherPanel routeId={routeId} isDraft={isDraft} />
-        )}
-      </div>
-
-      {suuntoConnected && !isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
-    </aside>
+        {suuntoConnected && !isDraft && <SyncPanel routeId={routeId} flush={save.flush} onReload={onReload} />}
+      </aside>
+    </>
   );
 }
 
@@ -543,3 +593,5 @@ function SaveIndicator({ status, error, retry }: Props['save']) {
     </span>
   );
 }
+
+const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';

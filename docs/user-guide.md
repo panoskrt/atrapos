@@ -27,7 +27,7 @@ Atrapos lets you plan routes on a map, add points of interest (POIs), and send b
 - **Your data stays in this app** until you press a **Push** button. Nothing is sent to Suunto automatically.
 - **Suunto changes come to you only when you ask.** Use **Refresh from Suunto** to fetch changes made in the Suunto app.
 
-The top navigation has three pages: **Library** (your routes), **All POIs** and **GPX tools**. Your account menu (top right) holds your profile, Suunto connection and sign out.
+The main menu has three pages: **Library** (your routes), **All POIs** and **GPX tools**. It sits in a rail on the left, or along the top if you choose that in your profile. Your account menu (top right) holds your profile, Suunto connection and sign out.
 
 ## 2. Signing in
 
@@ -107,7 +107,11 @@ Open a route (or choose **New route**) to get the editor: a map with a toolbar, 
 | **Go to my location** | Centre the map on where you are |
 | **Base map** | Switch between OpenStreetMap, OpenTopoMap and CyclOSM |
 
-You can also search for a town, peak or address with the **place search** on the map to jump there.
+The map tools bar starts collapsed. Select the **cog** to show the tools; select it again to hide them.
+
+You can also search for a town, peak or address with the **place search** on the map to jump there. The search starts collapsed to free up map space; select its search button to open it, and select it again to collapse it.
+
+For more map, hide the side panels: the arrow at the top of the route panel folds it into a slim strip (Save and Library stay there), and the arrow on the **Elevation** bar folds the profile down to its title. Select the arrow again to bring either back; the editor remembers your choice. On a phone the route panel sits below the map, so it always stays open.
 
 ### Snap or freehand
 
@@ -272,13 +276,14 @@ Open your profile from the account menu. It shows the accounts you have connecte
 | **Default map** | The base map new routes open with |
 | **Units** | Metric or imperial |
 | **Appearance** | Dark or light |
-| **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded, with a left icon rail). Each works in both dark and light appearance |
+| **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded). Each works in both dark and light appearance, and all use the same menu |
+| **Menu position** | **Left (sidebar)**, an icon rail down the left side, or **Top**, in the top bar. On narrower screens the top menu shows icons only. The change applies straight away |
 | **Default routing profile** | Choose a profile for new routes, or leave blank to match the selected sport |
 | **Favorite sports** | Choose the sports shown as quick checkboxes in the route editor; other sports remain in its activity list |
 
 The moon/sun button in the top bar also switches between dark and light.
 
-On a phone, the main navigation moves to a bar at the bottom of the screen.
+On a phone, the main navigation moves to a bar at the bottom of the screen, whichever menu position you chose.
 
 ## 10. Keyboard shortcuts
 

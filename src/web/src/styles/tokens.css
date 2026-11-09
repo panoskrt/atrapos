@@ -12,7 +12,8 @@
   /* The site footer's height on one line; the desktop editor subtracts it to fit the viewport. */
   --footer-h: 44px;
   --bottomnav-h: 0px;
-  --rail-w: 0px;
+  /* Width of the left navigation rail; zero when the menu is in the top bar and on phones. */
+  --rail-w: 76px;
   /* The route line on the map. Classic keeps Leaflet's own blue. */
   --route-color: #3388ff;
   --route-casing: #3388ff;
@@ -22,6 +23,7 @@
   @media (max-width: 700px) {
     --topbar-h: 56px;
     --bottomnav-h: calc(60px + env(safe-area-inset-bottom, 0px));
+    --rail-w: 0px;
   }
 
   /* dark */
@@ -50,6 +52,11 @@
   --shadow-soft: 0 10px 24px rgb(14 20 26 / 0.22);
   --scrim: rgb(0 0 0 / 0.6);
   color-scheme: dark;
+}
+
+/* The menu sits in the top bar, so there is no left rail. */
+:root[data-menu='top'] {
+  --rail-w: 0px;
 }
 
 @media (prefers-color-scheme: light) {

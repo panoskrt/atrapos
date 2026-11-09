@@ -62,7 +62,8 @@ Routes go through Suunto's **Route API** and POIs through its **POI API**. The t
 
 **Profile and preferences**
 - A profile page shows your connected accounts and lets you set a **default map**, **units** (metric or imperial) and **appearance** (dark or light). Preferences are saved to your account (`/api/settings`), so they follow you across browsers.
-- Choose a **design**: *Classic* (the original dark glass look), *Alpine* (light and editorial, with serif headings) or *Soft* (warm and rounded, with a left icon rail). Each works in both dark and light appearance, and the choice is saved to your account like the other preferences.
+- Choose a **design**: *Classic* (the original dark glass look), *Alpine* (light and editorial, with serif headings) or *Soft* (warm and rounded). Each works in both dark and light appearance, and the choice is saved to your account like the other preferences.
+- Choose a **menu position**: an icon rail on the left (the default) or a menu in the top bar. Every design uses the same menu; phones always get a bottom tab bar.
 - Choose **favorite sports** to show as alphabetical quick-checkbox options in route planning; other sports remain available in the activity list.
 - Set an optional **default routing profile** for new routes. Leave it blank to suggest a profile based on the selected sport, prioritizing cycling when multiple sport types are selected.
 

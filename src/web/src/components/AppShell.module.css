@@ -67,9 +67,18 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The glass sits on its own layer: backdrop-filter on the top bar itself would make it the containing block of the
+   fixed navigation rail and tab bar. */
+.topbar::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: '';
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: saturate(1.4) blur(16px);
-  border-bottom: 1px solid var(--border);
 }
 
 @media (max-width: 700px) {
@@ -147,11 +156,13 @@
 
 /* Phones: one slim top bar, and the main navigation moves to a tab bar under the thumb. */
 @media (max-width: 700px) {
-  /* backdrop-filter would make the top bar the containing block of the fixed tab bar. */
   .topbar {
     flex-wrap: nowrap;
     gap: 8px;
     padding: 6px 12px;
+  }
+
+  .topbar::before {
     background: var(--bg);
     backdrop-filter: none;
   }
@@ -382,8 +393,8 @@
   display: none;
 }
 
-:global(:root[data-design='alpine']) .topbar,
-:global(:root[data-design='soft']) .topbar {
+:global(:root[data-design='alpine']) .topbar::before,
+:global(:root[data-design='soft']) .topbar::before {
   background: var(--panel);
   backdrop-filter: none;
 }
@@ -405,36 +416,34 @@
   font-weight: 600;
 }
 
+/* ---------- Main navigation on wider screens ----------
+   Every design uses the same menu: icon-and-label items with a soft accent highlight, taking each design's own colours,
+   fonts and radii. It sits in a left rail under the top bar (the default) or in the top bar itself, as chosen in the
+   profile (data-menu on :root). Phones always use the bottom tab bar above. */
+
 @media (min-width: 701px) {
-  /* Alpine: plain underlined tabs. */
-  :global(:root[data-design='alpine']) .nav {
-    gap: 22px;
-    padding: 0 0 0 8px;
+  .navIcon {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .navLink,
+  .navActive {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     border: none;
-    background: none;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
   }
 
-  :global(:root[data-design='alpine']) .navLink,
-  :global(:root[data-design='alpine']) .navActive {
-    padding: 8px 2px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    background: none;
+  .navActive {
+    background: var(--accent-bg);
+    color: var(--accent);
   }
 
-  :global(:root[data-design='alpine']) .navActive {
-    border-bottom-color: var(--accent);
-    color: var(--text);
-  }
-
-  :global(:root[data-design='alpine']) .navLink:hover {
-    background: none;
-    border-bottom-color: var(--border);
-  }
-
-  /* Soft: a left icon rail under the top bar. */
-  :global(:root[data-design='soft']) .nav {
+  /* Left: an icon rail with the label under each icon. */
+  :global(:root:not([data-menu='top'])) .nav {
     position: fixed;
     z-index: 30;
     top: var(--topbar-h);
@@ -450,33 +459,52 @@
     background: var(--panel-2);
   }
 
-  :global(:root[data-design='soft']) .navLink,
-  :global(:root[data-design='soft']) .navActive {
-    display: flex;
+  :global(:root:not([data-menu='top'])) .navLink,
+  :global(:root:not([data-menu='top'])) .navActive {
     flex-direction: column;
-    align-items: center;
     gap: 3px;
     padding: 10px 2px;
-    border: none;
-    border-radius: 16px;
     font-size: 11px;
     text-align: center;
+    white-space: normal;
   }
 
-  :global(:root[data-design='soft']) .navActive {
-    background: var(--accent-bg);
-    color: var(--accent);
+  /* Top: the same items in a row inside the top bar. */
+  :global(:root[data-menu='top']) .nav {
+    gap: 4px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
   }
 
-  :global(:root[data-design='soft']) .navIcon {
-    display: block;
+  :global(:root[data-menu='top']) .navLink,
+  :global(:root[data-menu='top']) .navActive {
+    padding: 8px 12px;
   }
 
-  :global(:root[data-design='soft']) .main {
+  .main {
     padding-left: var(--rail-w);
   }
 
-  :global(:root[data-design='soft']) .footer {
+  .footer {
     margin-left: var(--rail-w);
+  }
+}
+
+/* Top menu on narrow desktops: icons only, so the top bar stays on one line. The labels stay for screen readers. */
+@media (min-width: 701px) and (max-width: 1000px) {
+  :global(:root[data-menu='top']) .navLink,
+  :global(:root[data-menu='top']) .navActive {
+    padding: 8px 10px;
+  }
+
+  :global(:root[data-menu='top']) .navLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
