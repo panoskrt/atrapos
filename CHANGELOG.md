@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-09
+
+### Added
+
+- Choose where the main menu appears: a left-side icon rail or the top bar. The selection is saved to your account, menu styling is consistent across themes, and phones continue to use bottom navigation.
+- Collapse the map tools bar (closed by default) and location search (closed by default) to free up map space. The route and elevation panels can also be collapsed, with their state remembered by the editor.
+
 ## 2026-11-08
 
 ### Added
