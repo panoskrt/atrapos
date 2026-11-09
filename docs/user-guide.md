@@ -107,7 +107,11 @@ Open a route (or choose **New route**) to get the editor: a map with a toolbar, 
 | **Go to my location** | Centre the map on where you are |
 | **Base map** | Switch between OpenStreetMap, OpenTopoMap and CyclOSM |
 
-You can also search for a town, peak or address with the **place search** on the map to jump there.
+The map tools bar starts collapsed. Select the **cog** to show the tools; select it again to hide them.
+
+You can also search for a town, peak or address with the **place search** on the map to jump there. The search starts collapsed to free up map space; select its search button to open it, and select it again to collapse it.
+
+For more map, hide the side panels: the arrow at the top of the route panel folds it into a slim strip (Save and Library stay there), and the arrow on the **Elevation** bar folds the profile down to its title. Select the arrow again to bring either back; the editor remembers your choice. On a phone the route panel sits below the map, so it always stays open.
 
 ### Snap or freehand
 

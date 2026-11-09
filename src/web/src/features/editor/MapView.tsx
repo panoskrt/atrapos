@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { CircleMarker, LeafletMap, Marker, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
 import { locateOnLine, nearestDistance, positionAtDistance, sectionLine, segmentMidpoint, type Coord, type LonLat } from './geo';
@@ -25,6 +25,8 @@ interface Props {
   locateRequest: number;
   /** Pan here when seq changes (e.g. a POI picked from the list). */
   focus: { lon: number; lat: number; seq: number } | null;
+  /** Shown above the location search in the map's top-left column (the map tools). */
+  controls?: ReactNode;
 }
 
 const prefersReducedMotion =
@@ -71,7 +73,7 @@ function pickAlong(map: L.Map, at: L.LatLng, line: Coord[], cumulative: number[]
 
 const insertIcon = L.divIcon({ className: styles.insertHandle, iconSize: [12, 12] });
 
-export function MapView({ segments, line, cumulative, markerPositions, baseLayer, fitRequest, locateRequest, focus }: Props) {
+export function MapView({ segments, line, cumulative, markerPositions, baseLayer, fitRequest, locateRequest, focus, controls }: Props) {
   const saved = useMemo(() => loadMapView(), []);
   const layer = baseLayers.find((l) => l.id === baseLayer)!;
   const tool = useEditorStore((s) => s.tool);
@@ -101,9 +103,17 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
       <RouteLayer segments={segments} line={line} cumulative={cumulative} markerPositions={markerPositions} />
       <SectionLayer line={line} cumulative={cumulative} />
       <PoiLayer line={line} cumulative={cumulative} />
-      <LocationSearch />
+      <MapControls>
+        {controls}
+        <LocationSearch />
+      </MapControls>
     </LeafletMap>
   );
+}
+
+/** The top-left overlays, stacked so that expanding one pushes the next down instead of covering it. */
+function MapControls({ children }: { children: ReactNode }) {
+  return <div className={`leaflet-control ${styles.mapControls}`}>{children}</div>;
 }
 
 /** Map-level events: click to extend or place a POI, view persistence, fit-to-route, zoom control placement. */
@@ -156,6 +166,14 @@ function MapBehaviour({
       storeMapView({ lat: c.lat, lon: c.lng, zoom: map.getZoom() });
     },
   });
+
+  // Collapsing the route or elevation panel resizes the map without a window resize, which is all Leaflet watches.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
 
   useEffect(() => {
     const zoom = L.control.zoom({ position: 'bottomright' });

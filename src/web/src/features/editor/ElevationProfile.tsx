@@ -1,4 +1,6 @@
 import { useMemo, useRef, type PointerEvent } from 'react';
+import { Icon } from '../../components/Icon';
+import { usePersistentState } from '../../lib/usePersistentState';
 import { formatDistance, formatElevation, positionAtDistance, type Coord } from './geo';
 import { useEditorStore, useHoverStore, useSectionStore } from './store';
 import styles from './Editor.module.css';
@@ -26,6 +28,7 @@ interface Props {
 }
 
 export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
+  const [collapsed, setCollapsed] = usePersistentState('editor.profileCollapsed', false, isBoolean);
   const hoverDistance = useHoverStore((s) => s.distance);
   const setHover = useHoverStore((s) => s.setDistance);
   const selectedPoiId = useEditorStore((s) => s.selectedPoiId);
@@ -118,7 +121,7 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
   };
 
   return (
-    <section className={styles.profile} aria-label="Elevation profile">
+    <section className={`${styles.profile} ${collapsed ? styles.profileCollapsed : ''}`} aria-label="Elevation profile">
       <div className={styles.profileHeader}>
         <span className={`display ${styles.profileTitle}`}>Elevation</span>
         {chart && (
@@ -126,10 +129,20 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
             {formatElevation(chart.minE)} – {formatElevation(chart.maxE)}
           </span>
         )}
-        {chart && !section && <span className={styles.muted}>Drag across the profile to analyse a section</span>}
+        {chart && !section && !collapsed && <span className={styles.muted}>Drag across the profile to analyse a section</span>}
+        <button
+          type="button"
+          className={styles.panelToggle}
+          aria-label={collapsed ? 'Show elevation profile' : 'Hide elevation profile'}
+          title={collapsed ? 'Show elevation profile' : 'Hide elevation profile'}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <Icon name={collapsed ? 'chevronUp' : 'chevronDown'} size={18} />
+        </button>
       </div>
 
-      {chart ? (
+      {collapsed ? null : chart ? (
         <div className={styles.profileBody}>
           <div className={styles.yAxis} aria-hidden="true">
             {chart.yTicks.map((t) => (
@@ -214,3 +227,5 @@ export function ElevationProfile({ line, cumulative, pending, pois }: Props) {
     </section>
   );
 }
+
+const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';
