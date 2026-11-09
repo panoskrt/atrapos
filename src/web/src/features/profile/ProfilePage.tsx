@@ -3,7 +3,7 @@ import { Spinner } from '../../components/Spinner';
 import { useMe } from '../auth/useMe';
 import { useUpdateUserSettings, useUserSettings } from './userSettings';
 import { baseLayers } from '../editor/baseLayers';
-import { designs, useTheme, type Design } from '../../lib/theme';
+import { designs, useTheme, type Design, type MenuPosition } from '../../lib/theme';
 import { useActivityTypes, useRoutingProfiles } from '../routes/api';
 import styles from './ProfilePage.module.css';
 
@@ -11,7 +11,7 @@ export function ProfilePage() {
   const me = useMe();
   const settings = useUserSettings();
   const updateSettings = useUpdateUserSettings();
-  const { setTheme, design, setDesign } = useTheme();
+  const { setTheme, design, setDesign, menuPosition, setMenuPosition } = useTheme();
   const activities = useActivityTypes();
   const profiles = useRoutingProfiles();
 
@@ -20,6 +20,13 @@ export function ProfilePage() {
     const previous = design;
     setDesign(next);
     updateSettings.mutate({ ...settings.data, design: next }, { onError: () => setDesign(previous) });
+  };
+
+  const chooseMenuPosition = (next: MenuPosition) => {
+    if (!settings.data || next === settings.data.menuPosition) return;
+    const previous = menuPosition;
+    setMenuPosition(next);
+    updateSettings.mutate({ ...settings.data, menuPosition: next }, { onError: () => setMenuPosition(previous) });
   };
 
   if (me.isPending)
@@ -73,6 +80,20 @@ export function ProfilePage() {
                 ))}
               </div>
             </fieldset>
+            <label>
+              Menu position
+              <select
+                value={menuPosition}
+                disabled={!settings.data || updateSettings.isPending}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === 'left' || next === 'top') chooseMenuPosition(next);
+                }}
+              >
+                <option value="left">Left (sidebar)</option>
+                <option value="top">Top</option>
+              </select>
+            </label>
             <label>
               Default map
               <select

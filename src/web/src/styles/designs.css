@@ -1,6 +1,6 @@
 /* Alternative designs, chosen in the profile. "classic" is the default look from tokens.css and base.css, so it has no
    rules here. Each design overrides tokens (fonts, radii, colours) for both themes, then a few shared pieces. The
-   top bar and navigation overrides live in AppShell.module.css. */
+   top bar overrides live in AppShell.module.css; the navigation menu is the same in every design. */
 
 /* ---------- Alpine: light, editorial, hairline borders ---------- */
 
@@ -102,17 +102,10 @@
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 22px;
-  --rail-w: 76px;
   --route-color: #e0580f;
   --route-casing: #ffffff;
   --poi: #1f7a8c;
   --poi-bg: rgb(31 122 140 / 0.14);
-}
-
-@media (max-width: 700px) {
-  :root[data-design='soft'] {
-    --rail-w: 0px;
-  }
 }
 
 :root[data-design='soft'][data-theme='light'] {

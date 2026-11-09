@@ -112,6 +112,31 @@ public sealed class AdminApiTests(PostgresFixture pg)
     }
 
     [Fact]
+    public async Task Admin_edits_a_users_preferences_including_menu_position()
+    {
+        await using var suunto = new MockSuuntoFactory();
+        await using var api = NewApi(suunto);
+        using var admin = await TestAuth.SignInAsync(api, suunto, Admin);
+        var (userId, _, _) = await SeedAsync(api, "menu-user");
+
+        var saved = await admin.PutAsJsonAsync(
+            $"/api/admin/users/{userId}", new AdminUserUpdate("osm", "imperial", "light", "soft", "top"), Json);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var row = await saved.Content.ReadFromJsonAsync<AdminUserRow>(Json);
+        Assert.Equal("soft", row!.Design);
+        Assert.Equal("top", row.MenuPosition);
+
+        // Leaving the menu position out keeps the stored one.
+        var kept = await admin.PutAsJsonAsync(
+            $"/api/admin/users/{userId}", new AdminUserUpdate("osm", "imperial", "light", "alpine"), Json);
+        Assert.Equal("top", (await kept.Content.ReadFromJsonAsync<AdminUserRow>(Json))!.MenuPosition);
+
+        var invalid = await admin.PutAsJsonAsync(
+            $"/api/admin/users/{userId}", new AdminUserUpdate("osm", "imperial", "light", "soft", "bottom"), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
     public async Task Admin_cannot_delete_their_own_account_but_can_delete_others()
     {
         await using var suunto = new MockSuuntoFactory();

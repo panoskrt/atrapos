@@ -54,6 +54,7 @@ export interface AdminUser {
   units: string;
   theme: string;
   design: string;
+  menuPosition: string;
   routeCount: number;
   poiCount: number;
 }

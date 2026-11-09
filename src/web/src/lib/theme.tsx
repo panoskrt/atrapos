@@ -2,14 +2,16 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSt
 
 export type Theme = 'dark' | 'light';
 export type Design = 'classic' | 'alpine' | 'soft';
+export type MenuPosition = 'left' | 'top';
 
 const STORAGE_KEY = 'rpm.theme';
 const DESIGN_KEY = 'rpm.design';
+const MENU_KEY = 'rpm.menu';
 
 export const designs: { id: Design; label: string; description: string }[] = [
   { id: 'classic', label: 'Classic', description: 'The original look: dark glass panels with a cyan accent.' },
   { id: 'alpine', label: 'Alpine', description: 'Light and editorial: calm greens, serif headings and hairline borders.' },
-  { id: 'soft', label: 'Soft', description: 'Warm and friendly: rounded shapes, an orange accent and a left icon rail.' },
+  { id: 'soft', label: 'Soft', description: 'Warm and friendly: rounded shapes and an orange accent.' },
 ];
 
 function readStoredDesign(): Design {
@@ -18,6 +20,14 @@ function readStoredDesign(): Design {
     return designs.some((d) => d.id === v) ? (v as Design) : 'classic';
   } catch {
     return 'classic';
+  }
+}
+
+function readStoredMenuPosition(): MenuPosition {
+  try {
+    return localStorage.getItem(MENU_KEY) === 'top' ? 'top' : 'left';
+  } catch {
+    return 'left';
   }
 }
 
@@ -41,6 +51,8 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void;
   design: Design;
   setDesign: (design: Design) => void;
+  menuPosition: MenuPosition;
+  setMenuPosition: (position: MenuPosition) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -48,6 +60,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => readStored() ?? systemTheme());
   const [design, setDesign] = useState<Design>(readStoredDesign);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>(readStoredMenuPosition);
 
   // Layout effects, so code that reads the theme's CSS variables in an effect sees them already switched.
   useLayoutEffect(() => {
@@ -58,10 +71,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.design = design;
   }, [design]);
 
+  useLayoutEffect(() => {
+    document.documentElement.dataset.menu = menuPosition;
+  }, [menuPosition]);
+
   const persistDesign = useCallback((next: Design) => {
     setDesign(next);
     try {
       localStorage.setItem(DESIGN_KEY, next);
+    } catch {
+      // Private mode or blocked storage: the choice just won't persist.
+    }
+  }, []);
+
+  const persistMenuPosition = useCallback((next: MenuPosition) => {
+    setMenuPosition(next);
+    try {
+      localStorage.setItem(MENU_KEY, next);
     } catch {
       // Private mode or blocked storage: the choice just won't persist.
     }
@@ -77,8 +103,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ theme, setTheme: persistTheme, design, setDesign: persistDesign }),
-    [theme, persistTheme, design, persistDesign],
+    () => ({
+      theme,
+      setTheme: persistTheme,
+      design,
+      setDesign: persistDesign,
+      menuPosition,
+      setMenuPosition: persistMenuPosition,
+    }),
+    [theme, persistTheme, design, persistDesign, menuPosition, persistMenuPosition],
   );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

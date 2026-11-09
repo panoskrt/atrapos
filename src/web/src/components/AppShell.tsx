@@ -16,13 +16,14 @@ import styles from './AppShell.module.css';
 export function AppShell() {
   const me = useMe();
   const userSettings = useUserSettings(Boolean(me.data));
-  const { setTheme, setDesign } = useTheme();
+  const { setTheme, setDesign, setMenuPosition } = useTheme();
 
   useLayoutEffect(() => {
     if (!userSettings.data) return;
     setTheme(userSettings.data.theme);
     setDesign(userSettings.data.design ?? 'classic');
-  }, [setTheme, setDesign, userSettings.data]);
+    setMenuPosition(userSettings.data.menuPosition === 'top' ? 'top' : 'left');
+  }, [setTheme, setDesign, setMenuPosition, userSettings.data]);
 
   if (me.isPending)
     return (
@@ -77,20 +78,20 @@ function TopBar({ me }: { me: Me }) {
       <nav aria-label="Main" className={styles.nav}>
         <NavLink to="/" end className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
           <Icon name="grid" size={20} className={styles.navIcon} />
-          <span>Library</span>
+          <span className={styles.navLabel}>Library</span>
         </NavLink>
         <NavLink to="/pois" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
           <Icon name="pin" size={20} className={styles.navIcon} />
-          <span>All POIs</span>
+          <span className={styles.navLabel}>All POIs</span>
         </NavLink>
         <NavLink to="/gpx-tools" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
           <Icon name="scissors" size={20} className={styles.navIcon} />
-          <span>GPX tools</span>
+          <span className={styles.navLabel}>GPX tools</span>
         </NavLink>
         {me.isAdmin && (
           <NavLink to="/admin" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
             <Icon name="list" size={20} className={styles.navIcon} />
-            <span>Admin</span>
+            <span className={styles.navLabel}>Admin</span>
           </NavLink>
         )}
       </nav>
