@@ -74,6 +74,7 @@ public sealed class ImportApiTests(PostgresFixture pg)
         Assert.True(created.HasElevation);
         Assert.InRange(created.ControlPoints.Count, 2, 30);
         Assert.All(created.ControlPoints[..^1], cp => Assert.True(cp.Segment!.Length >= 2));
+        Assert.All(created.ControlPoints, cp => Assert.Equal(SegmentMode.Track, cp.ModeToNext));
 
         await using var scope = api.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

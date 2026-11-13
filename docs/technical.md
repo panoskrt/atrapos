@@ -222,10 +222,12 @@ All routes answer `401` signed out and `403` for anyone who is not an admin. Col
 
 ### 6.1 Route drawing model (`Domain/RouteDrawing.cs`)
 
-A route is edited as an ordered list of **control points**. Each stores the user's raw click, the mode of the leg to the next point (`snap` or `freehand`), and a cached **segment** (the computed line, with elevation). The line is the concatenation of segments; legs meeting at a snapped/freehand join get a straight connector (joint tolerance 1 m, identical on client and server). On save, `routes.geometry` is rebuilt from the segments and `distance_m`, `ascent_m`, `descent_m` are recomputed.
+A route is edited as an ordered list of **control points**. Each stores the user's raw click, the mode of the leg to the next point (`snap`, `freehand` or `track`), and a cached **segment** (the computed line, with elevation). The line is the concatenation of segments; legs meeting at a snapped/freehand join get a straight connector (joint tolerance 1 m, identical on client and server). On save, `routes.geometry` is rebuilt from the segments and `distance_m`, `ascent_m`, `descent_m` are recomputed.
 
 - Opening a route never re-routes or re-fetches elevation; editing recomputes only the segments adjacent to the change.
 - Freehand segments are sampled every 50 m so the elevation profile has detail.
+- **Editing recorded legs** (`store.ts`): moving a point turns the `track` legs that end at it into `snap` (re-routed); other modes are kept. Inserting a point with *keepLine* (a click on the line; the two halves are cached by `seedSplit`) keeps the mode, while a drag-insert re-routes a `track` leg. Deleting the point between two `track` legs caches their joined line under the merged leg's key (`bindSegmentCache` lets the store reach the query cache), so the line doesn't change; if either half isn't cached the merged leg becomes `snap`.
+- **Snap failures** (`useSegments`, `useSnapNotice`): a failed leg is not `pending` and doesn't block saving. It stays `snap`, is drawn as a dashed stand-in, and is saved with `segment: null`, so opening the route routes it again. The notice clears once no leg fails.
 - **Loop rotation** (`rotateLoop` in `store.ts`): a route is a loop when it has ≥ 3 control points and ends within 25 m of its start (`isLoop`). Selecting an inner point and choosing *Start loop here* reorders the points to `[pk … p(n-1), p0, p1 … p(k-1), pk′]`: the old end is dropped and the start takes its place at the seam, so each leg keeps its mode and ends. `EditorPage` first copies the cached closing segment under the key for (p(n-1) → p0), so nothing is re-routed. It is one undoable step; geometry changes only by a possible straight connector at the seam when the old end was off the start.
 - Ascent/descent: the elevation profile is resampled every 5 m, smoothed with a ±50 m moving average (always, regardless of route length), then summed between turning points that differ by ≥ 5 m (peaks/valleys count in full, the last leg is included). `Geo.cs` (server) and `geo.ts` (client) implement the same algorithm and must stay in sync.
 
@@ -233,7 +235,7 @@ A route is edited as an ordered list of **control points**. Each stores the user
 
 1. Parse GPX (1.0/1.1; tracks, routes, waypoints, Suunto route-point extension) or FIT (courses with course points, activities with laps). FIT files are read by `FitReader`, which skips CRC checks, keeps the records before a cut-off end, reads chained files in turn and rejects a data message whose definition is missing.
 2. Simplify: 1 m base pass, then Douglas–Peucker at the chosen tolerance. The browser runs an identical algorithm so the preview point count equals what is saved.
-3. Build control points: about 60 m spacing, at least one every 2 km, at most 300; each keeps the original detail as its freehand segment.
+3. Build control points: about 60 m spacing, at least one every 2 km, at most 300; each keeps the original detail as its `track` segment.
 4. Waypoints → POIs with a suggested type (`PoiTypes.FromGpxType`). Waypoints farther than 200 m from the track get no `distance_along_m`. Elevation is taken from the file or the nearest track point; none is looked up on import.
 5. Persist route, POIs and the original file in one `SaveChanges`.
 
@@ -243,7 +245,7 @@ A POI within 200 m of the line is *on route*: it gets `distance_along_m` and tak
 
 ### 6.4 Split and reverse
 
-Split is a server action: the tail and its POIs (keeping their Suunto keys) move to a new route. Reverse is client-side: freehand legs are reversed in the segment cache; snapped legs are re-routed because one-way paths matter. Trim is client-side and undoable.
+Split is a server action: the tail and its POIs (keeping their Suunto keys) move to a new route. Reverse is client-side: freehand and track legs are reversed in the segment cache; snapped legs are re-routed because one-way paths matter. Trim is client-side and undoable.
 
 ## 7. Suunto integration and sync
 
@@ -304,7 +306,7 @@ Suunto has no delete, so deletes are local only; a route still on Suunto can rea
 |---|---|---|---|
 | Suunto Cloud API | Routes, POIs, OAuth | Server | Partner access required |
 | Google OAuth | App sign-in | Server | Optional |
-| BRouter | Snap-to-trail (8 profiles) | Server (`RoutingService`) | Caches results; concurrency gate; a snap farther than `MaxSnapDistanceM` (300 m) → 422 → client falls back to freehand for that leg without an undo step |
+| BRouter | Snap-to-trail (8 profiles) | Server (`RoutingService`) | Caches results; concurrency gate; a snap farther than `MaxSnapDistanceM` (300 m) → 422 → the leg stays `snap`, is drawn as a dashed straight stand-in and saved without a segment; the notice offers *Use a straight line* (undoable) |
 | Open Topo Data | Elevation (`mapzen` dataset, global) | Server (`ElevationService`) | ≤100 points per request, 1 req/s, cache on ~11 m grid; `Elevation:Provider=None` disables |
 | Open-Meteo | 7-day forecast | Server (`RouteWeatherService`) | Sampled at route start, midpoint and end; cached 30 min; local time from the midpoint's time zone; non-commercial free tier; CC BY 4.0 attribution |
 | OSM / OpenTopoMap / CyclOSM tiles | Base maps | Browser | Allowed in the CSP `img-src` |
@@ -432,7 +434,7 @@ Tests never touch a real Suunto account. **MockSuunto** reproduces the documente
 - **Problem details** for errors (`AddProblemDetails`); `SuuntoReauthExceptionHandler` maps re-auth/not-connected to 401/409 and Suunto errors to stable codes (e.g. `suunto_rate_limited`); `SyncExceptionHandler` maps `SyncException` to 422.
 - **Logging:** Serilog to console, configured from `Serilog` settings, with request logging. `SUUNTO_DIAGNOSTICS=true` logs the shape of Suunto responses, never tokens or keys. Refused sign-ins and ended sessions are logged.
 - **Audit:** the `sync_log` table records Suunto operations per user.
-- **Frontend:** an error page for route errors and toasts for action failures; BRouter 503 offers Retry; routing 422 falls back to freehand with a notice.
+- **Frontend:** an error page for route errors and toasts for action failures; BRouter 503 offers Retry; routing 422 leaves the leg a dashed stand-in with a notice (moving the point routes it again).
 
 ## 15. Known limitations and open points
 

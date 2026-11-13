@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 
-export type SegmentMode = 'snap' | 'freehand';
+/** How a leg is drawn: routed along paths (`snap`), a straight line (`freehand`), or a recorded line kept as it is
+ *  (`track`, from an import; re-routed as `snap` once one of its ends moves). */
+export type SegmentMode = 'snap' | 'freehand' | 'track';
+/** The modes a user draws with; `track` only comes from imports. */
+export type DrawMode = Exclude<SegmentMode, 'track'>;
 export type SyncState = 'localOnly' | 'synced' | 'localChanges' | 'remoteNewer' | 'conflict' | 'error';
 export type RouteSource = 'drawn' | 'gpx' | 'fitCourse' | 'fitActivity' | 'suunto';
 

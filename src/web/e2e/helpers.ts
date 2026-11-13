@@ -24,11 +24,14 @@ export async function signIn(page: Page, username: string) {
   });
   await page.goto('/');
   await expect(page).toHaveURL(/\/login$/);
-  await page.getByRole('link', { name: 'Sign in with Suunto' }).click();
+  // Sign-in opens the provider in a popup, which reports back to this page when it is done.
+  const popupOpened = page.waitForEvent('popup');
+  await page.getByRole('button', { name: 'Sign in with Suunto' }).click();
+  const popup = await popupOpened;
 
-  await expect(page.getByRole('heading', { name: 'Authorize app access' })).toBeVisible();
-  await page.getByLabel('Suunto username').fill(username);
-  await page.getByRole('button', { name: 'Allow' }).click();
+  await expect(popup.getByRole('heading', { name: 'Authorize app access' })).toBeVisible();
+  await popup.getByLabel('Suunto username').fill(username);
+  await popup.getByRole('button', { name: 'Allow' }).click();
 
   await expect(page.getByRole('heading', { name: 'My routes' })).toBeVisible();
 }
@@ -39,10 +42,17 @@ export async function clickMap(page: Page, fx: number, fy: number) {
   await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
 }
 
+/** The map tools start collapsed whenever the editor opens. */
+export async function showMapTools(page: Page) {
+  const show = page.getByRole('button', { name: 'Show map tools' });
+  if (await show.isVisible()) await show.click();
+}
+
 export async function newRoute(page: Page) {
   await page.getByRole('button', { name: 'New route' }).click();
   await expect(page).toHaveURL(/\/routes\//);
   await expect(page.locator('.leaflet-container')).toBeVisible();
+  await showMapTools(page);
   // Tests draw freehand: snap-to-trail would call the public BRouter server.
   await page.getByRole('button', { name: 'Freehand', exact: true }).click();
 }

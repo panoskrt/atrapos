@@ -17,7 +17,7 @@ for (const theme of ['dark', 'light'] as const) {
     await blockTiles(page);
     await page.addInitScript((t) => localStorage.setItem('rpm.theme', t), theme);
     await page.goto('/login');
-    await expect(page.getByRole('link', { name: 'Sign in with Suunto' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in with Suunto' })).toBeVisible();
     await expectAccessible(page, `login/${theme}`);
 
     await signIn(page, uniqueUser(`a11y-${theme}`));

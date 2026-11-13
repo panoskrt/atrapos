@@ -117,16 +117,18 @@ For more map, hide the side panels: the arrow at the top of the route panel fold
 
 Each segment between two points is drawn in one of two modes:
 
-- **Snap to trail:** the line follows paths and roads. Pick a **routing profile** (several hiking and bike profiles are available) for the route. If you click too far from any trail, the segment falls back to a straight line and you see a notice.
+- **Snap to trail:** the line follows paths and roads. Pick a **routing profile** (several hiking and bike profiles are available) for the route. If you click too far from any trail, the segment is shown as a dashed straight line and you see a notice. It stays a snap segment: move the point onto a path and it is routed again, or choose **Use a straight line** in the notice to make it freehand.
 - **Freehand:** a straight line between the points, wherever you click.
 
 You can mix both in one route and change a segment's mode later by selecting its point.
 
+**Imported routes** keep the line from your file. Their segments show as **Recorded** when you select a point. A recorded segment stays exactly as imported until you move one of its ends; then that segment is routed along paths with the route's routing profile, and the rest of the track is left alone.
+
 ### Editing
 
-- **Drag a point** to move it. Only the segments next to it are redrawn.
-- **Drag the line** to insert a new point.
-- **Right-click a point** to delete it.
+- **Drag a point** to move it. Only the segments next to it are redrawn; on an imported route they are routed along paths instead of becoming straight lines.
+- **Add a point anywhere on the line:** hover over the route and a handle follows the pointer along it. **Drag** the handle to add a point and move it in one go, or **click** it (with **Select and drag points**) to add a point exactly on the route, then drag that point to adjust from there. Adding a point by clicking leaves the line unchanged, so imported tracks keep their detail. On touch screens, tap the line in select mode. The small handles at the middle of each segment still work too.
+- **Right-click a point** to delete it. Between two recorded segments of an imported route the line stays as it was; elsewhere the segment across the gap is redrawn.
 - **Select a point** to get a bar with more actions: change the segment mode, **trim** everything before or after it, **split** the route there, **start the loop here** (loops only), or delete it.
 - **Start loop here** appears for a loop (a route that ends within 25 m of where it starts) when you select a point in the middle. The route stays exactly the same, but it now starts and ends at that point. Snap and freehand segments are kept as they are, and it can be undone. The ascent and descent totals can change slightly because the profile begins elsewhere.
 - **Reverse** flips the direction. Snapped segments are redrawn so that one-way paths are respected.
@@ -317,7 +319,7 @@ Open the push result for the reason, and use **Retry**. Check the POI has a name
 Suunto keeps its own copy, and **Refresh from Suunto** brings it back. Delete it in the Suunto app too.
 
 **Snap to trail drew a straight line.**
-No trail was found within a few hundred metres of your click, or the routing service didn't answer. Click closer to a path, or use freehand. If the service is unavailable you can retry.
+No trail was found within a few hundred metres of the point, or the routing service didn't answer. The segment is shown dashed: move the point closer to a path and it is routed again, or choose **Use a straight line**. If the service is unavailable you can retry.
 
 **The elevation profile is empty or flat.**
 Elevation comes from a public service and may be turned off or busy, or the imported file had none. Edit the route, or try again later.

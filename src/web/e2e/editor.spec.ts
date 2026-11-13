@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickMap, newRoute, saveChanges, saveDraft, signIn, uniqueUser } from './helpers';
+import { clickMap, newRoute, saveChanges, saveDraft, showMapTools, signIn, uniqueUser } from './helpers';
 
 const distance = (page: import('@playwright/test').Page) =>
   page.locator('dl div').filter({ hasText: 'Distance' }).locator('dd');
@@ -18,6 +18,7 @@ test('draw, drag, undo, reverse and save a route', async ({ page }) => {
   expect(drawn).toMatch(/km$/);
 
   // Drag the middle point: the route gets longer.
+  await showMapTools(page);
   await page.getByRole('button', { name: 'Select and drag points' }).click();
   const middle = page.locator('.leaflet-marker-icon[title^="Point 2."]');
   const box = (await middle.boundingBox())!;
@@ -62,6 +63,7 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await saveDraft(page);
 
   // Click right next to the line: the POI snaps onto it and is on the route.
+  await showMapTools(page);
   await page.getByRole('button', { name: 'Add POI (click the map)' }).click();
   await clickMap(page, 0.5, 0.6);
   const card = page.getByRole('region', { name: /Edit POI/ });

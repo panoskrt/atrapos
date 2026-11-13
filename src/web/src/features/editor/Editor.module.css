@@ -701,6 +701,13 @@
   opacity: 1;
 }
 
+/* Follows the pointer along the route: grab the line anywhere to add a point. */
+.insertGhost {
+  opacity: 1;
+  cursor: grab;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 .mapControls {
   position: absolute;
   top: 12px;

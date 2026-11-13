@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-13
+
+### Fixed
+
+- Editing an imported route no longer turns parts of it into straight lines. Imported segments are kept exactly as recorded until you move one of their ends; then that segment is routed along paths, and the rest of the track is left alone. Deleting a point between two imported segments keeps the line as it was.
+- Dropping a point away from any trail no longer turns its segments into straight lines for good. They are shown dashed with a notice, are routed again as soon as you move the point onto a path, and only become straight lines if you choose *Use a straight line*.
+
+## 2026-11-12
+
+### Added
+
+- Add a point anywhere on a route in the editor: a handle follows the pointer along the line. Drag it to add a point and move it in one step, or click (or tap) the line in select mode to add a point at that spot and then drag it to adjust the route from there. A clicked point leaves the line exactly as it was, so imported tracks and snapped trails are not redrawn.
+
 ## 2026-11-09
 
 ### Added

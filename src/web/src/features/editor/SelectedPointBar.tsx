@@ -82,6 +82,17 @@ export function SelectedPointBar({ routeId, flush, onReload, onStartHere }: Prop
           >
             Freehand
           </button>
+          {point.mode === 'track' && (
+            <button
+              type="button"
+              aria-pressed
+              disabled
+              className={styles.segOn}
+              title="The imported line is kept as it is. Moving either end routes this leg along paths."
+            >
+              Recorded
+            </button>
+          )}
         </div>
       )}
       {inner && isLoop(points) && (
