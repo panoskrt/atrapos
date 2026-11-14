@@ -48,8 +48,8 @@ test('library: boxes and list views, search, sort and bulk delete', async ({ pag
   // Boxes by default, with a summary that doubles as a filter.
   await expect(page.getByRole('heading', { name: 'Alpha ridge' })).toBeVisible();
   const summary = page.getByRole('region', { name: 'Library summary' });
-  await expect(summary).toContainText('3Routes');
-  await expect(summary).toContainText('2POIs');
+  await expect(summary).toContainText('3 Routes');
+  await expect(summary).toContainText('2 POIs');
   await summary.getByRole('button', { name: /Not pushed/ }).click();
   await expect(page.getByText('Showing 3 of 3 routes')).toBeVisible();
   await summary.getByRole('button', { name: /Not pushed/ }).click();
