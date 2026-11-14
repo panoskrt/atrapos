@@ -31,6 +31,7 @@ public static class GpxParser
 
         var metadata = Child(root, "metadata");
         var tracks = new List<ParsedTrack>();
+        var routePoints = new List<ParsedWaypoint>();
         var waypoints = new List<ParsedWaypoint>();
         string? firstType = null;
 
@@ -66,7 +67,7 @@ public static class GpxParser
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     var type = ext?.Element(SuuntoNs + "type")?.Value ?? Text(rtept, "type");
-                    waypoints.Add(new ParsedWaypoint(name.Trim(), type ?? "Route point",
+                    routePoints.Add(new ParsedWaypoint(name.Trim(), type ?? "Route point",
                         PoiTypeMapping.FromGpx(type, Text(rtept, "sym"), name), true, p,
                             ext?.Element(SuuntoNs + "description")?.Value ?? Text(rtept, "desc"),
                             IsExplicitPoi: ext is not null));
@@ -101,7 +102,7 @@ public static class GpxParser
 
         var name0 = new[] { tracks[0].Name, Text(metadata, "name"), Text(root, "name") }
             .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
-        return new ParsedFile(RouteSource.Gpx, name0?.Trim(), ActivityMapping.FromGpxType(firstType), tracks, Dedupe(waypoints));
+        return new ParsedFile(RouteSource.Gpx, name0?.Trim(), ActivityMapping.FromGpxType(firstType), tracks, Dedupe(PairRoutePoints(routePoints, waypoints)));
     }
 
     private static GeoPosition? ReadPoint(XElement e)
@@ -123,7 +124,41 @@ public static class GpxParser
             ? t.UtcDateTime
             : null;
 
-    /// <summary>Suunto-style files list the same point as a named rtept and a matching wpt.</summary>
+    /// <summary>Files list a POI both as a named route point on the line and as a <c>&lt;wpt&gt;</c>: Suunto's exports
+    /// at the same spot, ours (the GPX download) with the wpt at the POI itself, up to the on-route distance off the
+    /// line. Each route point takes its nearest same-named wpt within that distance and becomes one POI at the wpt's
+    /// position, keeping the route point's place in the list and its Suunto details.</summary>
+    private static List<ParsedWaypoint> PairRoutePoints(List<ParsedWaypoint> routePoints, List<ParsedWaypoint> waypoints)
+    {
+        var unpaired = new List<ParsedWaypoint>(waypoints);
+        var result = new List<ParsedWaypoint>(routePoints.Count + waypoints.Count);
+        foreach (var rp in routePoints)
+        {
+            var match = unpaired
+                .Where(w => w.Name == rp.Name)
+                .Select(w => (Waypoint: w, DistanceM: Geo.DistanceM(w.Position, rp.Position)))
+                .Where(m => m.DistanceM <= PoiBehaviour.OnRouteMaxOffsetM)
+                .OrderBy(m => m.DistanceM)
+                .Select(m => m.Waypoint)
+                .FirstOrDefault();
+            if (match is null)
+            {
+                result.Add(rp);
+                continue;
+            }
+            unpaired.Remove(match);
+            result.Add(rp with
+            {
+                Position = match.Position,
+                Description = rp.Description ?? match.Description,
+                IsExplicitPoi = rp.IsExplicitPoi || match.IsExplicitPoi,
+            });
+        }
+        result.AddRange(unpaired);
+        return result;
+    }
+
+    /// <summary>The same point listed twice (same name and position).</summary>
     private static List<ParsedWaypoint> Dedupe(List<ParsedWaypoint> waypoints) =>
         waypoints
             .GroupBy(w => (w.Name, Math.Round(w.Position.Lat, 5), Math.Round(w.Position.Lon, 5)))

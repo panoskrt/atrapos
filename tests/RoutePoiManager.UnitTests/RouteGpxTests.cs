@@ -1,5 +1,7 @@
+using System.Text;
 using System.Xml.Linq;
 using RoutePoiManager.Domain;
+using RoutePoiManager.Infrastructure.Import;
 using RoutePoiManager.Infrastructure.Suunto;
 
 namespace RoutePoiManager.UnitTests;
@@ -77,6 +79,35 @@ public sealed class RouteGpxTests
         Assert.Equal(3, read.Points.Count);
         Assert.Equal(("A view", 22), (read.Waypoints.Single().Name, read.Waypoints.Single().PoiType));
         Assert.Equal(("id1", 42L), RouteGpx.ReadIdentity(gpx));
+    }
+
+    [Fact]
+    public void Downloaded_gpx_imports_each_poi_once_at_its_own_position()
+    {
+        // On route but off the line: the download lists each as a <wpt> at the POI and as a route point on the line.
+        var route = DenseStraightRoute();
+        var line = RouteDrawing.FromLineString(route.Geometry, route.HasElevation);
+        Poi At(string name, int type, double lon, double lat)
+        {
+            var poi = new Poi { Name = name, PoiType = type, Location = PoiBehaviour.CreateLocation(lon, lat) };
+            poi.Relocate(line);
+            return poi;
+        }
+        var pois = new[]
+        {
+            At("Spring", PoiTypes.Water, 24.005, 60.0005),   // ~55 m north of the line
+            At("View", 22, 24.015, 59.9985),                 // ~165 m south
+            At("Spring", PoiTypes.Water, 24.012, 60.0003),   // a second spring with the same name
+            At("Hut", 9, 24.01, 60.01),                      // off route: only a <wpt>
+        };
+        Assert.Equal(3, pois.Count(p => p.DistanceAlongM is not null));
+        var gpx = RouteGpx.BuildForDownload(route, pois);
+
+        var parsed = ImportService.Parse(Encoding.UTF8.GetBytes(gpx), "straight.gpx");
+
+        Assert.Equal(
+            pois.Select(p => (p.Name, p.PoiType, Math.Round(p.Location.Y, 6), Math.Round(p.Location.X, 6))).Order(),
+            parsed.Waypoints.Select(w => (w.Name, w.PoiType, Math.Round(w.Position.Lat, 6), Math.Round(w.Position.Lon, 6))).Order());
     }
 
     [Fact]
