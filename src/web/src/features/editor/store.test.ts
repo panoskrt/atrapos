@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RouteDetail } from '../routes/api';
+import type { Coord } from './geo';
+import { bindSegmentCache, cachedSegment, cacheSegment } from './segments';
 import { useEditorStore } from './store';
 
 const route = (controlPoints: RouteDetail['controlPoints'] = [], pois: RouteDetail['pois'] = []): RouteDetail => ({
@@ -126,18 +129,17 @@ describe('editor store', () => {
     expect(s().activityIds).toEqual([22]);
   });
 
-  it('falls back to freehand without adding an undo step', () => {
+  it('sets the mode of several segments in one undo step', () => {
     s().addPoint({ lon: 1, lat: 0 });
     s().addPoint({ lon: 2, lat: 0 });
-    const first = s().points[0]!.id;
+    s().addPoint({ lon: 3, lat: 0 });
+    const ids = s().points.slice(0, 2).map((p) => p.id);
     const steps = t().pastStates.length;
 
-    s().setSegmentModesSilently([first], 'freehand');
+    s().setSegmentMode(ids, 'freehand');
 
-    expect(s().points[0]!.mode).toBe('freehand');
-    expect(t().pastStates).toHaveLength(steps);
-    t().undo(); // undoes adding the second point, not the fallback
-    expect(lons()).toEqual([1]);
+    expect(s().points.map((p) => p.mode)).toEqual(['freehand', 'freehand', 'snap']);
+    expect(t().pastStates).toHaveLength(steps + 1);
   });
 
   it('makes routing profile and segment mode changes undoable', () => {
@@ -277,5 +279,73 @@ describe('editor store', () => {
     s().setDrawMode('snap');
     s().addPoint({ lon: 2, lat: 0 });
     expect(s().points.map((p) => p.mode)).toEqual(['snap', 'snap']);
+  });
+});
+
+describe('recorded (track) legs', () => {
+  // An imported track: two bends between three points, kept as recorded detail.
+  const leg1: Coord[] = [[24.0, 60.0, 10], [24.005, 60.002, 11], [24.01, 60.0, 12]];
+  const leg2: Coord[] = [[24.01, 60.0, 12], [24.015, 60.002, 13], [24.02, 60.0, 14]];
+  const leg3: Coord[] = [[24.02, 60.0, 14], [24.025, 60.002, 15], [24.03, 60.0, 16]];
+  const imported = () =>
+    route([
+      { lon: 24.0, lat: 60.0, modeToNext: 'track', segment: leg1 },
+      { lon: 24.01, lat: 60.0, modeToNext: 'track', segment: leg2 },
+      { lon: 24.02, lat: 60.0, modeToNext: 'track', segment: leg3 },
+      { lon: 24.03, lat: 60.0, modeToNext: 'track' },
+    ]);
+  const modes = () => s().points.map((p) => p.mode);
+  let unbind: () => void;
+
+  beforeEach(() => {
+    unbind = bindSegmentCache(new QueryClient());
+    s().load(imported());
+    s().points.slice(0, -1).forEach((p, i) => cacheSegment(p, s().points[i + 1]!, 'track', 'hiking-mountain', [leg1, leg2, leg3][i]!));
+  });
+  afterEach(() => unbind());
+
+  it('treats curved freehand legs of older imports as recorded, straight ones as freehand', () => {
+    s().load(
+      route([
+        { lon: 24.0, lat: 60.0, modeToNext: 'freehand', segment: leg1 },
+        { lon: 24.01, lat: 60.0, modeToNext: 'freehand', segment: [[24.01, 60.0, null], [24.015, 60.0, null], [24.02, 60.0, null]] },
+        { lon: 24.02, lat: 60.0, modeToNext: 'snap', segment: leg3 },
+        { lon: 24.03, lat: 60.0, modeToNext: 'freehand' },
+      ]),
+    );
+    expect(modes()).toEqual(['track', 'freehand', 'snap', 'freehand']);
+  });
+
+  it('re-routes only the recorded legs that end at a moved point', () => {
+    s().movePoint(s().points[1]!.id, { lon: 24.01, lat: 60.01 });
+    expect(modes()).toEqual(['snap', 'snap', 'track', 'track']);
+  });
+
+  it('keeps freehand legs freehand when a point moves', () => {
+    s().setSegmentMode(s().points[0]!.id, 'freehand');
+    s().movePoint(s().points[1]!.id, { lon: 24.01, lat: 60.01 });
+    expect(modes().slice(0, 2)).toEqual(['freehand', 'snap']);
+  });
+
+  it('keeps the leg recorded when a point is added on the line, and re-routes it when the point goes elsewhere', () => {
+    s().insertPoint(1, { lon: 24.005, lat: 60.002 }, { keepLine: true });
+    expect(modes()).toEqual(['track', 'track', 'track', 'track', 'track']);
+    t().undo();
+    s().insertPoint(1, { lon: 24.005, lat: 60.01 });
+    expect(modes()).toEqual(['snap', 'snap', 'track', 'track', 'track']);
+  });
+
+  it('merges two recorded legs into one with the same line when the point between them is deleted', () => {
+    const [a, , c] = s().points;
+    s().deletePoint(s().points[1]!.id);
+    expect(modes()).toEqual(['track', 'track', 'track']);
+    expect(cachedSegment(a!, c!, 'track', 'hiking-mountain')).toEqual([...leg1, ...leg2.slice(1)]);
+  });
+
+  it('re-routes the leg across a deleted point when a recorded line is missing', () => {
+    unbind();
+    unbind = bindSegmentCache(new QueryClient());
+    s().deletePoint(s().points[1]!.id);
+    expect(modes()).toEqual(['snap', 'track', 'track']);
   });
 });

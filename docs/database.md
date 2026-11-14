@@ -71,6 +71,7 @@ erDiagram
         text units
         text theme
         text design
+        text menu_position
     }
     routes {
         uuid id PK
@@ -154,10 +155,11 @@ One row per app account. An account is created either by Suunto OAuth sign-in (`
 | `units` | `text` | no | `'metric'` | Display units (`metric`/`imperial`) |
 | `theme` | `text` | no | `'dark'` | Colour theme (`dark`/`light`) |
 | `design` | `text` | no | `'classic'` | Visual design (`classic`/`alpine`/`soft`); independent of `theme` |
+| `menu_position` | `text` | no | `'left'` | Where the main menu sits on wider screens (`left` rail or `top` bar); phones always use the bottom tab bar |
 
 Notes:
 - A user is "connected to Suunto" when `refresh_token_protected <> ''`. Disconnecting blanks the three token columns but keeps the user, routes and POIs.
-- Setting columns (`default_map`, `units`, `theme`, `design`) are free `text`; allowed values are validated in the API (`UserSettingsEndpoints`), not by a DB constraint.
+- Setting columns (`default_map`, `units`, `theme`, `design`, `menu_position`) are free `text`; allowed values are validated in the API (`UserSettingsEndpoints`), not by a DB constraint.
 
 ### 3.2 `routes`
 
@@ -411,7 +413,7 @@ Each element is a `ControlPoint`:
 |---|---|---|
 | `lon` | number | Longitude of the point the user placed |
 | `lat` | number | Latitude |
-| `modeToNext` | `"snap"` \| `"freehand"` | How the segment to the next point is drawn: routed along paths by BRouter (`snap`) or a straight line (`freehand`) |
+| `modeToNext` | `"snap"` \| `"freehand"` \| `"track"` | How the segment to the next point is drawn: routed along paths by BRouter (`snap`), a straight line (`freehand`), or a recorded line kept as imported (`track`). Routes imported before `track` existed store recorded legs as `freehand`; the editor treats a freehand segment that isn't straight (any point more than 3 m off the line between its ends) as `track` |
 | `segment` | `[[lon, lat, ele\|null], …]` \| `null` | Cached computed line from this point to the next one. Reopening a route reuses it, so no re-routing or elevation fetch is needed. Null on the last point or when not yet computed |
 
 Example:
@@ -523,6 +525,7 @@ Migrations are EF Core code-first, in `src/RoutePoiManager.Infrastructure/Persis
 | `20261024194351_UserTheme` | 2026-10-24 | `users.theme` (default `'dark'`) |
 | `20261024203327_UserDesign` | 2026-10-24 | `users.design` (default `'classic'`) |
 | `20261025090621_ErrorLogs` | 2026-10-25 | Creates `error_logs` with indexes on `at` and `user_id` |
+| `20261109200309_UserMenuPosition` | 2026-11-09 | `users.menu_position` (default `'left'`) |
 
 Working with migrations (the repo pins the EF tool in `dotnet-tools.json`):
 

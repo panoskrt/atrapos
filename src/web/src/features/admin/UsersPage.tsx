@@ -53,7 +53,13 @@ export function UsersPage() {
 }
 
 function UserDialog({ user, onClose }: { user: AdminUser; onClose: () => void }) {
-  const [form, setForm] = useState({ defaultMap: user.defaultMap, units: user.units, theme: user.theme, design: user.design });
+  const [form, setForm] = useState({
+    defaultMap: user.defaultMap,
+    units: user.units,
+    theme: user.theme,
+    design: user.design,
+    menuPosition: user.menuPosition,
+  });
   const save = useAdminMutation((body: typeof form) => adminApi.put<AdminUser>(`users/${user.id}`, body));
   const disconnect = useAdminMutation(() => adminApi.post(`users/${user.id}/disconnect-suunto`));
   const remove = useAdminMutation(() => adminApi.delete(`users/${user.id}`));
@@ -106,6 +112,12 @@ function UserDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
               <option value="classic">Classic</option>
               <option value="alpine">Alpine</option>
               <option value="soft">Soft</option>
+            </select>
+          </Field>
+          <Field label="Menu position" error={errors.menuPosition}>
+            <select value={form.menuPosition} onChange={(e) => setForm({ ...form, menuPosition: e.target.value })}>
+              <option value="left">Left</option>
+              <option value="top">Top</option>
             </select>
           </Field>
         </div>

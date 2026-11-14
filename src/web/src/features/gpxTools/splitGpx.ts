@@ -1,4 +1,5 @@
 import { escapeXml, type GpxPoint } from './mergeGpx';
+import { distanceM } from '../editor/geo';
 
 export interface GpxSplitPart {
   fileName: string;
@@ -26,7 +27,71 @@ export function splitGpxPoints(points: GpxPoint[], cuts: number[], routeName: st
     throw new Error('Split points must leave at least two points in each part.');
   }
 
-  const boundaries = [...orderedCuts, points.length - 1];
+  return makeParts(points, orderedCuts, routeName);
+}
+
+export function splitGpxPointsByDistance(
+  points: GpxPoint[],
+  distanceIntervalM: number,
+  routeName: string,
+): GpxSplitPart[] {
+  return splitGpxPoints(points, getDistanceSplitCuts(points, distanceIntervalM), routeName);
+}
+
+function getDistanceSplitCuts(points: GpxPoint[], distanceIntervalM: number): number[] {
+  if (points.length < 2) throw new Error('The GPX needs at least two points to split.');
+  if (!Number.isFinite(distanceIntervalM) || distanceIntervalM <= 0) {
+    throw new Error('Enter a split distance greater than zero.');
+  }
+
+  const cumulativeDistances = [0];
+  for (let index = 1; index < points.length; index++) {
+    cumulativeDistances.push(
+      cumulativeDistances[index - 1]! +
+        distanceM(
+          { lat: points[index - 1]!.lat, lon: points[index - 1]!.lon },
+          { lat: points[index]!.lat, lon: points[index]!.lon },
+        ),
+    );
+  }
+
+  const totalDistance = cumulativeDistances.at(-1)!;
+  if (distanceIntervalM >= totalDistance) {
+    throw new Error('The split distance must be shorter than the route to create multiple parts.');
+  }
+
+  const cuts: number[] = [];
+  const lastPossibleCut = points.length - 3;
+  for (let targetDistance = distanceIntervalM; targetDistance < totalDistance; targetDistance += distanceIntervalM) {
+    const firstPossibleCut = cuts.length === 0 ? 1 : cuts.at(-1)! + 2;
+    if (firstPossibleCut > lastPossibleCut) break;
+
+    let low = firstPossibleCut;
+    let high = lastPossibleCut + 1;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (cumulativeDistances[middle]! < targetDistance) low = middle + 1;
+      else high = middle;
+    }
+
+    const afterTarget = Math.min(low, lastPossibleCut);
+    const beforeTarget = Math.max(firstPossibleCut, afterTarget - 1);
+    const cut =
+      Math.abs(cumulativeDistances[beforeTarget]! - targetDistance) <=
+      Math.abs(cumulativeDistances[afterTarget]! - targetDistance)
+        ? beforeTarget
+        : afterTarget;
+    cuts.push(cut);
+  }
+
+  if (cuts.length === 0) {
+    throw new Error('The route does not have enough points to split into parts at this distance.');
+  }
+  return cuts;
+}
+
+function makeParts(points: GpxPoint[], cuts: number[], routeName: string): GpxSplitPart[] {
+  const boundaries = [...cuts, points.length - 1];
   const parts: GpxSplitPart[] = [];
   let start = 0;
   for (let index = 0; index < boundaries.length; index++) {

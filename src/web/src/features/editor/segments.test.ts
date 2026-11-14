@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { joinSegments, type Coord } from './geo';
-import { displayPositions, segmentKey, SnapError } from './segments';
+import { isStraight, joinSegments, type Coord } from './geo';
+import { displayPositions, legMode, segmentKey, SnapError } from './segments';
 
 describe('segments', () => {
   it('bridges a gap between a snapped and a freehand segment', () => {
@@ -52,5 +52,21 @@ describe('segments', () => {
     expect(new SnapError('no_route', 'x').permanent).toBe(true);
     expect(new SnapError('too_long', 'x').permanent).toBe(true);
     expect(new SnapError('routing_unavailable', 'x').permanent).toBe(false);
+  });
+
+  it('keys recorded legs apart from freehand ones, and not by profile', () => {
+    const a = { lon: 24, lat: 60 };
+    const b = { lon: 24.1, lat: 60 };
+    expect(segmentKey(a, b, 'track', 'mtb')).toEqual(segmentKey(a, b, 'track', 'hiking-mountain'));
+    expect(segmentKey(a, b, 'track', 'mtb')).not.toEqual(segmentKey(a, b, 'freehand', 'mtb'));
+  });
+
+  it('tells a recorded line from a straight one', () => {
+    expect(isStraight([[24, 60, null], [24.05, 60, null], [24.1, 60, null]])).toBe(true);
+    // 0.0001° of latitude is ~11 m off the line.
+    expect(isStraight([[24, 60, null], [24.05, 60.0001, null], [24.1, 60, null]])).toBe(false);
+    expect(legMode({ lon: 24, lat: 60, modeToNext: 'freehand', segment: [[24, 60, null], [24.05, 60.0001, null], [24.1, 60, null]] })).toBe('track');
+    expect(legMode({ lon: 24, lat: 60, modeToNext: 'freehand', segment: [[24, 60, null], [24.1, 60, null]] })).toBe('freehand');
+    expect(legMode({ lon: 24, lat: 60, modeToNext: 'snap', segment: [[24, 60, null], [24.05, 60.0001, null], [24.1, 60, null]] })).toBe('snap');
   });
 });

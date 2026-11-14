@@ -27,7 +27,7 @@ Atrapos lets you plan routes on a map, add points of interest (POIs), and send b
 - **Your data stays in this app** until you press a **Push** button. Nothing is sent to Suunto automatically.
 - **Suunto changes come to you only when you ask.** Use **Refresh from Suunto** to fetch changes made in the Suunto app.
 
-The top navigation has three pages: **Library** (your routes), **All POIs** and **GPX tools**. Your account menu (top right) holds your profile, Suunto connection and sign out.
+The main menu has three pages: **Library** (your routes), **All POIs** and **GPX tools**. It sits in a rail on the left, or along the top if you choose that in your profile. Your account menu (top right) holds your profile, Suunto connection and sign out.
 
 ## 2. Signing in
 
@@ -107,26 +107,32 @@ Open a route (or choose **New route**) to get the editor: a map with a toolbar, 
 | **Go to my location** | Centre the map on where you are |
 | **Base map** | Switch between OpenStreetMap, OpenTopoMap and CyclOSM |
 
-You can also search for a town, peak or address with the **place search** on the map to jump there.
+The map tools bar starts collapsed. Select the **cog** to show the tools; select it again to hide them.
+
+You can also search for a town, peak or address with the **place search** on the map to jump there. The search starts collapsed to free up map space; select its search button to open it, and select it again to collapse it.
+
+For more map, hide the side panels: the arrow at the top of the route panel folds it into a slim strip (Save and Library stay there), and the arrow on the **Elevation** bar folds the profile down to its title. Select the arrow again to bring either back; the editor remembers your choice. On a phone the route panel sits below the map, so it always stays open.
 
 ### Snap or freehand
 
 Each segment between two points is drawn in one of two modes:
 
-- **Snap to trail:** the line follows paths and roads. Pick a **routing profile** (several hiking and bike profiles are available) for the route. If you click too far from any trail, the segment falls back to a straight line and you see a notice.
+- **Snap to trail:** the line follows paths and roads. Pick a **routing profile** (several hiking and bike profiles are available) for the route. If you click too far from any trail, the segment is shown as a dashed straight line and you see a notice. It stays a snap segment: move the point onto a path and it is routed again, or choose **Use a straight line** in the notice to make it freehand.
 - **Freehand:** a straight line between the points, wherever you click.
 
 You can mix both in one route and change a segment's mode later by selecting its point.
 
+**Imported routes** keep the line from your file. Their segments show as **Recorded** when you select a point. A recorded segment stays exactly as imported until you move one of its ends; then that segment is routed along paths with the route's routing profile, and the rest of the track is left alone.
+
 ### Editing
 
-- **Drag a point** to move it. Only the segments next to it are redrawn.
-- **Drag the line** to insert a new point.
-- **Right-click a point** to delete it.
+- **Drag a point** to move it. Only the segments next to it are redrawn; on an imported route they are routed along paths instead of becoming straight lines.
+- **Add a point anywhere on the line:** hover over the route and a handle follows the pointer along it. **Drag** the handle to add a point and move it in one go, or **click** it (with **Select and drag points**) to add a point exactly on the route, then drag that point to adjust from there. Adding a point by clicking leaves the line unchanged, so imported tracks keep their detail. On touch screens, tap the line in select mode. The small handles at the middle of each segment still work too.
+- **Right-click a point** to delete it. Between two recorded segments of an imported route the line stays as it was; elsewhere the segment across the gap is redrawn.
 - **Select a point** to get a bar with more actions: change the segment mode, **trim** everything before or after it, **split** the route there, **start the loop here** (loops only), or delete it.
 - **Start loop here** appears for a loop (a route that ends within 25 m of where it starts) when you select a point in the middle. The route stays exactly the same, but it now starts and ends at that point. Snap and freehand segments are kept as they are, and it can be undone. The ascent and descent totals can change slightly because the profile begins elsewhere.
 - **Reverse** flips the direction. Snapped segments are redrawn so that one-way paths are respected.
-- **Split here** turns the route into two routes: the first part stays, the second becomes "*name* (part 2)" together with its POIs. A split cannot be undone, so the app asks first.
+- **Split here** turns the route into two routes: the first part stays, the second becomes "*name* (part 2)" together with its POIs. In the Route panel, **Split into new routes** opens a dialog for distance-based splitting. It creates a separate route for every part at the nearest control points to the chosen interval; part lengths may differ from the target. The original route stays unchanged, and POIs are copied to their part. Splitting cannot be undone.
 
 Every edit except split can be undone with **Ctrl+Z** and redone with **Ctrl+Y**.
 
@@ -209,7 +215,7 @@ The **GPX tools** page works on route files without needing them in your library
 | Tool | What it does |
 |---|---|
 | **Merge GPX files** | Combine several tracks or routes into one ordered route and create it in the app |
-| **Split a GPX route** | View a file on a map, click to add split points, then download the parts or create a route for each part |
+| **Split a GPX route** | Split manually by clicking the map, or set a distance interval to create parts at the nearest available GPX points; download the parts or create a route for each part. A completion dialog confirms the result and links to created routes or GPX downloads |
 | **Shrink a GPX or FIT file** | Reduce the size and number of points, then download the smaller file |
 | **Convert FIT and GPX** | Turn a GPX into a FIT course or a FIT into a GPX, and download it. The first track is converted point for point; elevation, recorded times and waypoints are kept where the format supports them |
 
@@ -272,11 +278,14 @@ Open your profile from the account menu. It shows the accounts you have connecte
 | **Default map** | The base map new routes open with |
 | **Units** | Metric or imperial |
 | **Appearance** | Dark or light |
-| **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded, with a left icon rail). Each works in both dark and light appearance |
+| **Design** | **Classic** (dark glass look), **Alpine** (light and editorial) or **Soft** (warm and rounded). Each works in both dark and light appearance, and all use the same menu |
+| **Menu position** | **Left (sidebar)**, an icon rail down the left side, or **Top**, in the top bar. On narrower screens the top menu shows icons only. The change applies straight away |
+| **Default routing profile** | Choose a profile for new routes, or leave blank to match the selected sport |
+| **Favorite sports** | Choose the sports shown as quick checkboxes in the route editor; other sports remain in its activity list |
 
 The moon/sun button in the top bar also switches between dark and light.
 
-On a phone, the main navigation moves to a bar at the bottom of the screen.
+On a phone, the main navigation moves to a bar at the bottom of the screen, whichever menu position you chose.
 
 ## 10. Keyboard shortcuts
 
@@ -310,7 +319,7 @@ Open the push result for the reason, and use **Retry**. Check the POI has a name
 Suunto keeps its own copy, and **Refresh from Suunto** brings it back. Delete it in the Suunto app too.
 
 **Snap to trail drew a straight line.**
-No trail was found within a few hundred metres of your click, or the routing service didn't answer. Click closer to a path, or use freehand. If the service is unavailable you can retry.
+No trail was found within a few hundred metres of the point, or the routing service didn't answer. The segment is shown dashed: move the point closer to a path and it is routed again, or choose **Use a straight line**. If the service is unavailable you can retry.
 
 **The elevation profile is empty or flat.**
 Elevation comes from a public service and may be turned off or busy, or the imported file had none. Edit the route, or try again later.

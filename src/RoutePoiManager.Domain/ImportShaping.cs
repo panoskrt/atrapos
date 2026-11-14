@@ -1,7 +1,7 @@
 namespace RoutePoiManager.Domain;
 
 /// <summary>Turns an imported track into the editor's model: a manageable number of control points whose
-/// freehand segments carry the original detail. Dragging a control point then redraws only its two segments.</summary>
+/// track segments carry the original detail. Dragging a control point then redraws only its two segments.</summary>
 public static class ImportShaping
 {
     /// <summary>Tolerance for picking control points from the (already simplified) track.</summary>
@@ -17,7 +17,7 @@ public static class ImportShaping
         if (track.Count == 0)
             return [];
         if (track.Count == 1)
-            return [new ControlPoint(track[0].Lon, track[0].Lat, SegmentMode.Freehand)];
+            return [new ControlPoint(track[0].Lon, track[0].Lat, SegmentMode.Track)];
 
         var indices = PickIndices(track, ControlPointToleranceM);
         for (var tol = ControlPointToleranceM * 2; indices.Count > MaxControlPoints; tol *= 2)
@@ -32,7 +32,7 @@ public static class ImportShaping
                     .Select(q => new double?[] { q.Lon, q.Lat, q.Ele })
                     .ToArray()
                 : null;
-            points.Add(new ControlPoint(p.Lon, p.Lat, SegmentMode.Freehand, segment));
+            points.Add(new ControlPoint(p.Lon, p.Lat, SegmentMode.Track, segment));
         }
         return points;
     }

@@ -11,6 +11,7 @@ export interface LonLat {
 }
 
 const EARTH_RADIUS_M = 6371008.8;
+const METRES_PER_DEGREE = (Math.PI * EARTH_RADIUS_M) / 180;
 /** A climb or descent only counts once the profile has reversed by this much from its extreme. */
 export const CLIMB_HYSTERESIS_M = 5;
 /** The profile is resampled to this spacing before smoothing, so point density doesn't change the totals. */
@@ -42,6 +43,28 @@ export function densify(a: LonLat, b: LonLat): Coord[] {
     out.push([a.lon + (b.lon - a.lon) * t, a.lat + (b.lat - a.lat) * t, null]);
   }
   return out;
+}
+
+/** A leg counts as straight when no point strays further than this from the line between its ends. */
+const STRAIGHT_TOLERANCE_M = 3;
+
+/** True when the line is (near enough) the straight line between its ends, like a freehand leg. */
+export function isStraight(line: Coord[]): boolean {
+  if (line.length <= 2) return true;
+  const first = line[0]!;
+  const last = line.at(-1)!;
+  const k = Math.cos(rad(first[1])) * METRES_PER_DEGREE;
+  const ax = first[0] * k;
+  const ay = first[1] * METRES_PER_DEGREE;
+  const dx = last[0] * k - ax;
+  const dy = last[1] * METRES_PER_DEGREE - ay;
+  const lenSq = dx * dx + dy * dy;
+  return line.every((c) => {
+    const px = c[0] * k - ax;
+    const py = c[1] * METRES_PER_DEGREE - ay;
+    const t = lenSq === 0 ? 0 : Math.min(1, Math.max(0, (px * dx + py * dy) / lenSq));
+    return Math.hypot(px - t * dx, py - t * dy) <= STRAIGHT_TOLERANCE_M;
+  });
 }
 
 /** Points closer than this are the same joint (mirrors RouteDrawing.JointToleranceM). */
@@ -210,7 +233,6 @@ export interface LineLocation {
   point: Coord;
 }
 
-const METRES_PER_DEGREE = (Math.PI * EARTH_RADIUS_M) / 180;
 
 /** Projects a point onto the line (nearest spot on any segment). Mirrors Geo.Locate on the server. */
 export function locateOnLine(line: Coord[], cumulative: number[], p: LonLat): LineLocation | null {
@@ -313,6 +335,38 @@ export function sectionStats(line: Coord[], cumulative: number[], fromM: number,
     avgGradePct: netM !== null && base.distanceM > 0 ? (netM / base.distanceM) * 100 : null,
     maxClimbPct: maxClimbPct !== null && maxClimbPct > 0 ? maxClimbPct : null,
     maxDescentPct: maxDescentPct !== null && maxDescentPct < 0 ? maxDescentPct : null,
+  };
+}
+
+export interface SegmentSplit {
+  /** Index of the segment (= index of its start point). */
+  index: number;
+  /** The spot on the segment nearest to the given point. */
+  point: Coord;
+  /** Distance from the given point to that spot. */
+  offsetM: number;
+  /** The segment's line up to and from that spot; both include it. */
+  before: Coord[];
+  after: Coord[];
+}
+
+/** The segment nearest to p and where on it p falls, so a point can be inserted there without changing the line. */
+export function splitAt(segments: Coord[][], cumulatives: number[][], p: LonLat): SegmentSplit | null {
+  let best: { index: number; loc: LineLocation } | null = null;
+  segments.forEach((seg, index) => {
+    const loc = locateOnLine(seg, cumulatives[index]!, p);
+    if (loc && (!best || loc.offsetM < best.loc.offsetM)) best = { index, loc };
+  });
+  if (!best) return null;
+  const { index, loc } = best as { index: number; loc: LineLocation };
+  const seg = segments[index]!;
+  const cum = cumulatives[index]!;
+  return {
+    index,
+    point: loc.point,
+    offsetM: loc.offsetM,
+    before: [...seg.filter((_, i) => cum[i]! < loc.alongM), loc.point],
+    after: [loc.point, ...seg.filter((_, i) => cum[i]! > loc.alongM)],
   };
 }
 

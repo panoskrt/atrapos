@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
-import { useSearchParams } from 'react-router';
+import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { Icon, type IconName } from '../../components/Icon';
 import { CircleMarker, LeafletMap, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { Spinner } from '../../components/Spinner';
@@ -10,10 +10,11 @@ import { useUploadLimit } from '../import/api';
 import { simplifyIndices } from '../import/simplify';
 import type { Coord } from '../editor/geo';
 import { ImportDialog } from '../import/ImportDialog';
+import type { RouteDetail } from '../routes/api';
 import { formatBytes, postForFile, saveFile } from './fileApi';
 import { mergeGpxFiles, readGpxPoints, type GpxPoint } from './mergeGpx';
 import { ShrinkTool } from './ShrinkTool';
-import { splitGpxPoints } from './splitGpx';
+import { splitGpxPoints, splitGpxPointsByDistance } from './splitGpx';
 import styles from './GpxToolsPage.module.css';
 
 type ToolId = 'merge' | 'split' | 'shrink' | 'convert';
@@ -46,9 +47,15 @@ export function GpxToolsPage() {
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePoints, setSourcePoints] = useState<GpxPoint[]>([]);
   const [cuts, setCuts] = useState<number[]>([]);
+  const [splitMode, setSplitMode] = useState<'manual' | 'distance'>('manual');
+  const [splitDistanceKm, setSplitDistanceKm] = useState('5');
   const [createRoutes, setCreateRoutes] = useState(true);
   const [splitParts, setSplitParts] = useState<File[]>([]);
   const [routeQueue, setRouteQueue] = useState<File[]>([]);
+  const [createdRoutes, setCreatedRoutes] = useState<RouteDetail[]>([]);
+  const [splitResult, setSplitResult] = useState<
+    { kind: 'files'; files: File[] } | { kind: 'routes'; routes: RouteDetail[] } | null
+  >(null);
   const [createdCount, setCreatedCount] = useState(0);
   const [splitComplete, setSplitComplete] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
@@ -155,6 +162,8 @@ export function GpxToolsPage() {
     setSourcePoints([]);
     setSplitParts([]);
     setRouteQueue([]);
+    setCreatedRoutes([]);
+    setSplitResult(null);
     setSplitComplete(false);
     try {
       const points = readGpxPoints({ fileName: file.name, contents: await file.text() });
@@ -195,8 +204,13 @@ export function GpxToolsPage() {
     setSplitError(null);
     setSplitComplete(false);
     setCreatedCount(0);
+    setCreatedRoutes([]);
+    setSplitResult(null);
     try {
-      const splitParts = splitGpxPoints(sourcePoints, cuts, splitRouteName);
+      const splitParts =
+        splitMode === 'manual'
+          ? splitGpxPoints(sourcePoints, cuts, splitRouteName)
+          : splitGpxPointsByDistance(sourcePoints, Number(splitDistanceKm) * 1000, splitRouteName);
       const partFiles = splitParts.map((part) => new File([part.xml], part.fileName, { type: 'application/gpx+xml' }));
       if (createRoutes) {
         const tooLarge = partFiles.find((part) => part.size > maxFileBytes);
@@ -204,17 +218,24 @@ export function GpxToolsPage() {
         setRouteQueue(partFiles);
       } else {
         setSplitParts(partFiles);
+        setSplitComplete(true);
+        setSplitResult({ kind: 'files', files: partFiles });
       }
     } catch (e) {
       setSplitError(e instanceof Error ? e.message : 'The GPX could not be split.');
     }
   };
 
-  const routeImported = () => {
+  const routeImported = (route: RouteDetail) => {
     const remaining = routeQueue.slice(1);
-    setCreatedCount((count) => count + 1);
+    const imported = [...createdRoutes, route];
+    setCreatedCount(imported.length);
+    setCreatedRoutes(imported);
     setRouteQueue(remaining);
-    if (remaining.length === 0) setSplitComplete(true);
+    if (remaining.length === 0) {
+      setSplitComplete(true);
+      setSplitResult({ kind: 'routes', routes: imported });
+    }
   };
 
   const convert = async () => {
@@ -299,6 +320,12 @@ export function GpxToolsPage() {
             if (createdCount > 0) setSplitComplete(true);
           }}
           onImported={routeImported}
+        />
+      )}
+      {splitResult && (
+        <SplitCompletionDialog
+          result={splitResult}
+          onClose={() => setSplitResult(null)}
         />
       )}
 
@@ -473,11 +500,63 @@ export function GpxToolsPage() {
                   <span>Route name prefix</span>
                   <input value={splitRouteName} maxLength={120} onChange={(event) => setSplitRouteName(event.target.value)} />
                 </label>
+                <fieldset className={styles.splitMode}>
+                  <legend>Split method</legend>
+                  <label>
+                    <input
+                      type="radio"
+                      name="split-mode"
+                      value="manual"
+                      checked={splitMode === 'manual'}
+                      onChange={() => {
+                        setSplitMode('manual');
+                        setSplitParts([]);
+                        setSplitComplete(false);
+                      }}
+                    />
+                    Choose points on map
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="split-mode"
+                      value="distance"
+                      checked={splitMode === 'distance'}
+                      onChange={() => {
+                        setSplitMode('distance');
+                        setSplitParts([]);
+                        setSplitComplete(false);
+                      }}
+                    />
+                    Split by distance
+                  </label>
+                </fieldset>
+                {splitMode === 'distance' && (
+                  <label className={styles.distanceField}>
+                    <span>Distance between parts (km)</span>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={splitDistanceKm}
+                      onChange={(event) => {
+                        setSplitDistanceKm(event.target.value);
+                        setSplitParts([]);
+                        setSplitComplete(false);
+                      }}
+                    />
+                    <span>Cuts use available GPX points; long gaps between points can make part lengths differ from this distance.</span>
+                  </label>
+                )}
               </div>
 
               <div className={styles.mapHelp}>
-                <strong>Choose split points on the route</strong>
-                <span>Click the route line to add a split. Click a numbered marker to remove it. Each part needs at least two points.</span>
+                <strong>{splitMode === 'manual' ? 'Choose split points on the route' : 'Route overview'}</strong>
+                <span>
+                  {splitMode === 'manual'
+                    ? 'Click the route line to add a split. Click a numbered marker to remove it. Each part needs at least two points.'
+                    : 'Cuts use available GPX points; long gaps between points can make part lengths differ from this distance.'}
+                </span>
               </div>
               <div className={styles.splitMap} role="region" aria-label="GPX route split map">
                 <LeafletMap
@@ -496,10 +575,15 @@ export function GpxToolsPage() {
                   />
                   <SplitMapBehavior
                     points={sourcePoints}
+                    enabled={splitMode === 'manual'}
                     onAddCut={addCut}
                     onNotice={setMapHint}
                   />
-                  <Polyline positions={displayLine} pathOptions={{ color: 'var(--accent)', weight: 5, opacity: 0.9 }} />
+                  <Polyline
+                    positions={displayLine}
+                    pathOptions={{ color: 'var(--accent)', weight: 5, opacity: 0.9 }}
+                    interactive={splitMode === 'manual'}
+                  />
                   <CircleMarker
                     center={[sourcePoints[0]!.lat, sourcePoints[0]!.lon]}
                     radius={7}
@@ -512,7 +596,7 @@ export function GpxToolsPage() {
                     pathOptions={{ color: '#fff', weight: 2, fillColor: '#2878cf', fillOpacity: 1 }}
                     interactive={false}
                   />
-                  {cuts.map((cut, index) => {
+                  {splitMode === 'manual' && cuts.map((cut, index) => {
                     const point = sourcePoints[cut]!;
                     return (
                       <CircleMarker
@@ -529,25 +613,29 @@ export function GpxToolsPage() {
                   })}
                 </LeafletMap>
               </div>
-              <p className={styles.mapHint} role="status">{mapHint}</p>
-              <p className={styles.note}>
-                {cuts.length} split point{cuts.length === 1 ? '' : 's'} selected · {cuts.length + 1}{' '}
-                {cuts.length === 0 ? 'part' : 'parts'}
-              </p>
-              <div className={styles.cutList}>
-                {cuts.map((cut, index) => {
-                  const point = sourcePoints[cut]!;
-                  return (
-                    <div className={styles.cut} key={cut}>
-                      <span>
-                        <strong>Split point {index + 1}</strong>
-                        <span>After point {cut + 1} · {point.lat.toFixed(5)}, {point.lon.toFixed(5)}</span>
-                      </span>
-                      <button type="button" className="btn" onClick={() => removeCut(cut)}>Remove</button>
-                    </div>
-                  );
-                })}
-              </div>
+              {splitMode === 'manual' && (
+                <>
+                  <p className={styles.mapHint} role="status">{mapHint}</p>
+                  <p className={styles.note}>
+                    {cuts.length} split point{cuts.length === 1 ? '' : 's'} selected · {cuts.length + 1}{' '}
+                    {cuts.length === 0 ? 'part' : 'parts'}
+                  </p>
+                  <div className={styles.cutList}>
+                    {cuts.map((cut, index) => {
+                      const point = sourcePoints[cut]!;
+                      return (
+                        <div className={styles.cut} key={cut}>
+                          <span>
+                            <strong>Split point {index + 1}</strong>
+                            <span>After point {cut + 1} · {point.lat.toFixed(5)}, {point.lon.toFixed(5)}</span>
+                          </span>
+                          <button type="button" className="btn" onClick={() => removeCut(cut)}>Remove</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
               <label className={styles.createRoutes}>
                 <input
@@ -563,7 +651,11 @@ export function GpxToolsPage() {
                 Create a route in the app for each split part
               </label>
               <div className={styles.footer}>
-                <p className={styles.note}>Each selected cut divides between adjacent points. Point data such as elevation and time is retained.</p>
+                <p className={styles.note}>
+                  {splitMode === 'manual'
+                    ? 'Each selected cut divides between adjacent points. Point data such as elevation and time is retained.'
+                    : 'Point data such as elevation and time is retained in every part.'}
+                </p>
                 <button type="button" className="btn btn-primary" onClick={split}>
                   <Icon name={createRoutes ? 'routePlus' : 'scissors'} size={18} />
                   {createRoutes ? 'Split and create routes' : 'Split GPX'}
@@ -592,7 +684,9 @@ export function GpxToolsPage() {
           {splitComplete && (
             <p role="status" className={styles.success}>
               <Icon name="check" size={18} />
-              Created {createdCount} {createdCount === 1 ? 'route' : 'routes'} in your library.
+              {createRoutes
+                ? `Created ${createdCount} ${createdCount === 1 ? 'route' : 'routes'} in your library.`
+                : `Split complete. Created ${splitParts.length} GPX ${splitParts.length === 1 ? 'file' : 'files'}, ready to download.`}
             </p>
           )}
           {splitError && (
@@ -679,12 +773,76 @@ export function GpxToolsPage() {
   );
 }
 
+function SplitCompletionDialog({
+  result,
+  onClose,
+}: {
+  result: { kind: 'files'; files: File[] } | { kind: 'routes'; routes: RouteDetail[] };
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+  }, []);
+
+  return (
+    <dialog ref={ref} className={styles.splitResultDialog} aria-labelledby={titleId} onClose={onClose}>
+      <div className={styles.splitResultHead}>
+        <h2 id={titleId} className="display">Split complete</h2>
+        <button type="button" className={styles.splitResultClose} onClick={() => ref.current?.close()} aria-label="Close">
+          <Icon name="close" />
+        </button>
+      </div>
+      <div className={styles.splitResultBody}>
+        <p role="status" className={styles.splitResultSuccess}>
+          <Icon name="check" size={18} />
+          {result.kind === 'routes'
+            ? `Created ${result.routes.length} new ${result.routes.length === 1 ? 'route' : 'routes'} in your library.`
+            : `Created ${result.files.length} GPX ${result.files.length === 1 ? 'file' : 'files'}, ready to download.`}
+        </p>
+        <ul className={styles.splitResultList} aria-label={result.kind === 'routes' ? 'Created routes' : 'Created GPX files'}>
+          {result.kind === 'routes'
+            ? result.routes.map((route) => (
+              <li key={route.id}>
+                <Link to={`/routes/${route.id}`} onClick={() => ref.current?.close()}>
+                  {route.name}
+                </Link>
+              </li>
+            ))
+            : result.files.map((file) => (
+              <li key={file.name}>
+                <span>{file.name}</span>
+                <button type="button" className="btn" onClick={() => saveFile(file)}>
+                  <Icon name="download" size={16} />
+                  Download
+                </button>
+              </li>
+            ))}
+        </ul>
+        <div className={styles.splitResultActions}>
+          <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>
+            Done
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
 function SplitMapBehavior({
   points,
+  enabled,
   onAddCut,
   onNotice,
 }: {
   points: GpxPoint[];
+  enabled: boolean;
   onAddCut: (pointIndex: number) => boolean;
   onNotice: (message: string) => void;
 }) {
@@ -692,6 +850,7 @@ function SplitMapBehavior({
 
   useMapEvents({
     click(event) {
+      if (!enabled) return;
       const clickPoint = map.latLngToContainerPoint(event.latlng);
       let nearest = -1;
       let nearestDistance = Infinity;

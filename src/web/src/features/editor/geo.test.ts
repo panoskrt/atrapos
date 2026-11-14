@@ -12,16 +12,23 @@ import {
   positionAtDistance,
   sectionLine,
   sectionStats,
+  splitAt,
   stats,
   type Coord,
 } from './geo';
-import { applyUserSettings } from '../../lib/userPreferences';
+import { applyUserSettings, DEFAULT_FAVORITE_ACTIVITY_IDS } from '../../lib/userPreferences';
 
 describe('geo', () => {
-  afterEach(() => applyUserSettings({ defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic' }));
+  afterEach(() => applyUserSettings({
+    defaultMap: 'topo', units: 'metric', theme: 'dark', design: 'classic',
+    favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+  }));
 
   it('formats values using the selected unit system', () => {
-    applyUserSettings({ defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic' });
+    applyUserSettings({
+      defaultMap: 'topo', units: 'imperial', theme: 'dark', design: 'classic',
+      favoriteActivityIds: DEFAULT_FAVORITE_ACTIVITY_IDS, defaultRoutingProfile: null,
+    });
     expect(formatDistance(1609.344)).toBe('1.0 mi');
     expect(formatElevation(100)).toBe('328 ft');
     expect(formatTemperature(0)).toBe('32°');
@@ -204,5 +211,33 @@ describe('geo', () => {
     it('needs a stretch with length', () => {
       expect(sectionStats(line, cum, 50, 50)).toBeNull();
     });
+  });
+});
+
+describe('splitAt', () => {
+  const a: Coord[] = [[0, 0, 100], [0.01, 0, 110], [0.02, 0, 120]];
+  const b: Coord[] = [[0.02, 0, 120], [0.02, 0.01, 130]];
+  const cums = [cumulativeDistances(a), cumulativeDistances(b)];
+
+  it('finds the nearest segment and splits it without changing the line', () => {
+    const split = splitAt([a, b], cums, { lon: 0.015, lat: 0.0001 })!;
+    expect(split.index).toBe(0);
+    expect(split.point[0]).toBeCloseTo(0.015, 9);
+    expect(split.point[1]).toBeCloseTo(0, 9);
+    expect(split.point[2]).toBeCloseTo(115, 6);
+    expect(split.offsetM).toBeGreaterThan(5);
+    expect(split.before.map((c) => c[0])).toEqual([0, 0.01, split.point[0]]);
+    expect(split.after.map((c) => c[0])).toEqual([split.point[0], 0.02]);
+  });
+
+  it('picks a later segment when it is nearer', () => {
+    const split = splitAt([a, b], cums, { lon: 0.0201, lat: 0.005 })!;
+    expect(split.index).toBe(1);
+    expect(split.before).toHaveLength(2);
+    expect(split.after).toHaveLength(2);
+  });
+
+  it('returns null without segments', () => {
+    expect(splitAt([], [], { lon: 0, lat: 0 })).toBeNull();
   });
 });

@@ -12,7 +12,7 @@ import { ElevationProfile } from './ElevationProfile';
 import { cumulativeDistances, joinSegments, stats } from './geo';
 import { LayerSwitcher, MapToolbar } from './MapToolbar';
 import { MapView } from './MapView';
-import { displayPositions, seedSegments, segmentKey, toWire, useSegments, type SegmentFailure } from './segments';
+import { bindSegmentCache, displayPositions, seedSegments, segmentKey, toWire, useSegments, type SegmentFailure } from './segments';
 import { PoiCard } from '../pois/PoiCard';
 import { usePoiLocations } from '../pois/placement';
 import { SectionAnalysis } from './SectionAnalysis';
@@ -79,7 +79,7 @@ function LoadedEditor({ route }: { route: RouteDetail }) {
 
 interface SnapNotice {
   message: string;
-  /** Points whose outgoing segment fell back to freehand. */
+  /** Points whose outgoing segment couldn't be snapped (still snap legs, drawn as a dashed straight stand-in). */
   ids: string[];
   retryable: boolean;
 }
@@ -97,12 +97,14 @@ function Editor({
 }) {
   const points = useEditorStore((s) => s.points);
   const profile = useEditorStore((s) => s.routingProfile);
-  const { segments, snapped, pending, failures } = useSegments(points, profile);
+  const { segments, snapped, pending, failed, failures } = useSegments(points, profile);
   const line = useMemo(() => joinSegments(segments), [segments]);
   const cumulative = useMemo(() => cumulativeDistances(line), [line]);
   const routeStats = useMemo(() => stats(line), [line]);
   const markerPositions = useMemo(() => displayPositions(points, segments, snapped), [points, segments, snapped]);
   const qc = useQueryClient();
+  // Lets store actions keep recorded lines when points are removed.
+  useEffect(() => bindSegmentCache(qc), [qc]);
   const createRoute = useCreateRoute();
   const navigate = useNavigate();
   const name = useEditorStore((s) => s.name);
@@ -122,7 +124,8 @@ function Editor({
         lon: point.lon,
         lat: point.lat,
         modeToNext: point.mode,
-        segment: index < segments.length ? toWire(segments[index]!) : null,
+        // A leg that couldn't be snapped is saved without a line: it is routed again when the route is opened.
+        segment: index < segments.length && !failed[index] ? toWire(segments[index]!) : null,
       })),
       pois: pois.map((poi) => ({
         id: poi.id,
@@ -134,7 +137,7 @@ function Editor({
         ele: poi.ele,
       })),
     }),
-    [name, description, activityIds, turnWaypointsEnabled, routingProfile, points, segments, pois],
+    [name, description, activityIds, turnWaypointsEnabled, routingProfile, points, segments, failed, pois],
   );
   const requestKey = useMemo(
     () =>
@@ -219,13 +222,12 @@ function Editor({
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [isDirty]);
 
-  // Freehand legs are the same line backwards, so seed them reversed instead of recomputing; snapped legs are
-  // re-routed, because one-way paths make direction matter (especially on bike profiles).
+  // Freehand and recorded legs are the same line backwards, so seed them reversed instead of recomputing; snapped
+  // legs are re-routed, because one-way paths make direction matter (especially on bike profiles).
   const reverseRoute = () => {
     points.slice(0, -1).forEach((a, i) => {
       const b = points[i + 1]!;
-      if (a.mode === 'freehand' && segments[i])
-        qc.setQueryData(segmentKey(b, a, 'freehand', profile), [...segments[i]!].reverse());
+      if (a.mode !== 'snap' && segments[i]) qc.setQueryData(segmentKey(b, a, a.mode, profile), [...segments[i]!].reverse());
     });
     useEditorStore.getState().reverse();
   };
@@ -262,12 +264,24 @@ function Editor({
   const tool = useEditorStore((s) => s.tool);
   useEditorShortcuts();
 
-  // A snapped segment that can't be routed falls back to a straight line, and the user is told.
-  useSnapFallback(failures, setNotice);
+  // A snapped segment that can't be routed is shown as a dashed straight stand-in, and the user is told. It stays
+  // a snap leg: moving its points routes it again, and only the user turns it into a straight line.
+  useSnapNotice(failures, setNotice);
 
+  const failedKeys = (ids: string[]) =>
+    ids.flatMap((id) => {
+      const i = points.findIndex((p) => p.id === id);
+      const next = points[i + 1];
+      return i >= 0 && next ? [segmentKey(points[i]!, next, 'snap', profile)] : [];
+    });
   const retrySnap = () => {
     if (!notice) return;
-    useEditorStore.getState().setSegmentModesSilently(notice.ids, 'snap');
+    for (const queryKey of failedKeys(notice.ids)) void qc.resetQueries({ queryKey, exact: true });
+    setNotice(null);
+  };
+  const drawStraight = () => {
+    if (!notice) return;
+    useEditorStore.getState().setSegmentMode(notice.ids, 'freehand');
     setNotice(null);
   };
 
@@ -298,6 +312,7 @@ function Editor({
         <div className={styles.mapWrap}>
           <MapView
             segments={segments}
+            failedLegs={failed}
             line={line}
             cumulative={cumulative}
             markerPositions={markerPositions}
@@ -305,14 +320,16 @@ function Editor({
             fitRequest={fitRequest}
             locateRequest={locateRequest}
             focus={focus}
+            controls={
+              <MapToolbar
+                canFit={line.length > 1}
+                onFit={() => setFitRequest((n) => n + 1)}
+                onLocate={() => setLocateRequest((n) => n + 1)}
+                onReverse={reverseRoute}
+              />
+            }
           />
           <PoiCard line={line} cumulative={cumulative} locations={poiLocations} />
-          <MapToolbar
-            canFit={line.length > 1}
-            onFit={() => setFitRequest((n) => n + 1)}
-            onLocate={() => setLocateRequest((n) => n + 1)}
-            onReverse={reverseRoute}
-          />
           <LayerSwitcher
             value={baseLayer}
             onChange={(l) => {
@@ -334,6 +351,9 @@ function Editor({
                   Retry snapping
                 </button>
               )}
+              <button type="button" className={styles.linkBtn} onClick={drawStraight}>
+                Use a straight line
+              </button>
               <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
                 <Icon name="close" size={16} />
               </button>
@@ -351,14 +371,14 @@ function Editor({
             {tool === 'extend'
               ? points.length === 0
                 ? 'Click the map to place the start'
-                : 'Click to extend · drag ○ on the line to add a point between'
+                : 'Click to extend · drag the line to add a point between'
               : tool === 'section'
                 ? sectionPending
                   ? 'Click the second point on the route · Esc to cancel'
                   : 'Click two points on the route (or its markers) to analyse the section between them'
                 : tool === 'poi'
                 ? 'Click to place a POI · clicks near the route snap onto it'
-                : 'Drag points and POIs to move · right-click a point to delete'}
+                : 'Click or drag the line to add a point · drag points and POIs to move · right-click a point to delete'}
           </div>
         </div>
         <ElevationProfile line={line} cumulative={cumulative} pending={pending} pois={profilePois} />
@@ -367,25 +387,28 @@ function Editor({
   );
 }
 
-function useSnapFallback(failures: SegmentFailure[], setNotice: (n: SnapNotice) => void) {
+function useSnapNotice(failures: SegmentFailure[], setNotice: (update: (n: SnapNotice | null) => SnapNotice | null) => void) {
   const failureKey = failures.map((f) => `${f.index}:${f.error.code}`).join('|');
 
   useEffect(() => {
-    if (failures.length === 0) return;
-    const { points, setSegmentModesSilently } = useEditorStore.getState();
+    // Fixed (a point moved onto a path, or routing came back): the notice goes too.
+    if (failures.length === 0) {
+      setNotice(() => null);
+      return;
+    }
+    const { points } = useEditorStore.getState();
     const ids = failures.map((f) => points[f.index]?.id).filter((id): id is string => !!id);
     if (ids.length === 0) return;
-    setSegmentModesSilently(ids, 'freehand');
 
     const first = failures[0]!.error;
     const unavailable = failures.some((f) => !f.error.permanent);
-    setNotice({
+    setNotice(() => ({
       ids,
       retryable: unavailable,
       message: unavailable
-        ? 'The routing service is unavailable, so the segment was drawn as a straight line.'
-        : `${first.message} The segment was drawn as a straight line.`,
-    });
+        ? 'The routing service is unavailable. The dashed part is a straight stand-in until it is routed.'
+        : `${first.message} The dashed part is a straight stand-in: move the point onto a path, or use a straight line.`,
+    }));
     // Keyed on failureKey: the failures array is a new object on every render.
   }, [failureKey]);
 }

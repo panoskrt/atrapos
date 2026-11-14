@@ -82,6 +82,15 @@
   .sideTopRow {
     display: none;
   }
+
+  /* The panel sits below the map here, so hiding it gives the map nothing: always show it. */
+  .editor .sideRail {
+    display: none;
+  }
+
+  .sidebar.sidebarCollapsed {
+    display: flex;
+  }
 }
 
 .sideHead {
@@ -95,9 +104,60 @@
 .sideTopRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 6px;
+}
+
+.sideTopRow .back {
+  margin-right: auto;
+}
+
+/* Collapsed route panel: a slim rail that keeps the way back and Save in reach. */
+.sidebarCollapsed {
+  display: none;
+}
+
+.sideRail {
+  flex: 0 0 52px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.railSave {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.railError {
+  display: grid;
+  place-items: center;
+  color: var(--danger);
+}
+
+/* Show/hide button of the route and elevation panels. */
+.panelToggle {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.panelToggle:hover {
+  background: var(--panel-2);
+  color: var(--text);
 }
 
 .saveActions {
@@ -336,6 +396,124 @@
   accent-color: var(--accent);
 }
 
+.openSplitDialog {
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.splitDialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(90dvh, 680px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.splitDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.splitDialog::backdrop {
+  background: var(--scrim);
+}
+
+.splitDialogHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.splitDialogHead h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 24px;
+}
+
+.splitDialogClose {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.splitDialogClose:hover {
+  background: var(--panel-2);
+}
+
+.splitDialogBody {
+  overflow: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.splitDialogBody > p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.splitDialogBody > .splitDialogSuccess {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.splitResultList {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 12px 12px 34px;
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.splitResultList li + li {
+  margin-top: 6px;
+}
+
+.splitResultList a {
+  color: var(--accent);
+}
+
+.splitDialogBody .field {
+  margin: 0;
+}
+
+.splitDialogBody input {
+  width: 100%;
+}
+
+.splitDistanceHint,
+.splitDialogError {
+  margin: 0;
+  font-size: 13px;
+}
+
+.splitDistanceHint {
+  color: var(--text-muted);
+}
+
+.splitDialogError {
+  color: var(--danger);
+}
+
+.splitDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
 .sideFoot {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
@@ -523,21 +701,82 @@
   opacity: 1;
 }
 
-.toolbar {
+/* Follows the pointer along the route: grab the line anywhere to add a point. */
+.insertGhost {
+  opacity: 1;
+  cursor: grab;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.mapControls {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 1000;
+  width: max-content;
   max-width: calc(100% - 24px);
+  margin: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font: inherit;
+}
+
+/* Map tools and location search: a 40px toggle button, with the content beside it when open. */
+.mapPanel {
+  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
-  padding: 6px;
+  padding: 4px;
   border-radius: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.mapPanelOpen {
+  padding: 6px;
+}
+
+.mapPanelToggle {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+}
+
+.mapPanelToggle:hover {
+  background: var(--panel-2);
+}
+
+.mapPanelOpen .mapPanelToggle {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.mapPanelContent {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mapPanelContent[hidden] {
+  display: none;
+}
+
+.toolbar {
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 /* A narrow map: one row of tools that scrolls sideways, instead of a stack that covers the map. */
@@ -637,20 +876,11 @@
 }
 
 .locationSearch {
-  position: absolute;
-  top: 68px;
-  left: 12px;
-  z-index: 1000;
-  width: min(360px, calc(100% - 24px));
-  padding: 10px;
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  color: var(--text);
+  width: min(300px, calc(100cqi - 90px));
+  padding: 2px 4px 0 0;
 }
 
-.locationSearchForm label {
+.locationSearch label {
   display: block;
   margin-bottom: 6px;
   font-size: 12px;
@@ -895,10 +1125,20 @@
   gap: 6px;
 }
 
+.profileCollapsed {
+  height: auto;
+  padding-bottom: 10px;
+}
+
 .profileHeader {
   display: flex;
   align-items: baseline;
   gap: 16px;
+}
+
+.profileHeader .panelToggle {
+  align-self: center;
+  margin: -4px 0 -4px auto;
 }
 
 .profileTitle {

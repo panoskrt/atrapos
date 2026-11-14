@@ -1,6 +1,6 @@
-import L from 'leaflet';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMap } from '../../components/LeafletMap';
+import { MapPanel } from './MapPanel';
 import { useEditorStore } from './store';
 import styles from './Editor.module.css';
 
@@ -63,7 +63,6 @@ async function searchPlaces(query: string, signal: AbortSignal): Promise<Place[]
 
 export function LocationSearch() {
   const map = useMap();
-  const panelRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[]>([]);
@@ -76,13 +75,6 @@ export function LocationSearch() {
     },
     [],
   );
-
-  // The panel is inside the map's container: without this, a click in it (or Enter, which clicks Search) is also
-  // a map click and adds a route point, a drag pans the map and scrolling the results zooms it.
-  useEffect(() => {
-    L.DomEvent.disableClickPropagation(panelRef.current!);
-    L.DomEvent.disableScrollPropagation(panelRef.current!);
-  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -117,42 +109,44 @@ export function LocationSearch() {
   };
 
   return (
-    <div ref={panelRef} className={`leaflet-control ${styles.locationSearch}`}>
-      <form className={styles.locationSearchForm} onSubmit={(event) => void submit(event)}>
+    <MapPanel icon="search" name="location search">
+      <div className={styles.locationSearch}>
         <label htmlFor="location-search">Search location</label>
-        <div className={styles.locationSearchRow}>
-          <input
-            id="location-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Place or address"
-            autoComplete="off"
-          />
-          <button type="submit" disabled={!query.trim() || loading}>
-            {loading ? 'Searching…' : 'Search'}
-          </button>
-        </div>
-      </form>
-      {error && <p className={styles.locationSearchMessage} role="status">{error}</p>}
-      {results.length > 0 && (
-        <ul className={styles.locationSearchResults} aria-label="Search results">
-          {results.map((place) => (
-            <li key={`${place.lat},${place.lon}`}>
-              <button type="button" onClick={() => selectPlace(place)} title={place.label}>
-                {place.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <a
-        className={styles.locationSearchAttribution}
-        href="https://nominatim.openstreetmap.org/"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Search by OpenStreetMap Nominatim
-      </a>
-    </div>
+        <form onSubmit={(event) => void submit(event)}>
+          <div className={styles.locationSearchRow}>
+            <input
+              id="location-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Place or address"
+              autoComplete="off"
+            />
+            <button type="submit" disabled={!query.trim() || loading}>
+              {loading ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+        </form>
+        {error && <p className={styles.locationSearchMessage} role="status">{error}</p>}
+        {results.length > 0 && (
+          <ul className={styles.locationSearchResults} aria-label="Search results">
+            {results.map((place) => (
+              <li key={`${place.lat},${place.lon}`}>
+                <button type="button" onClick={() => selectPlace(place)} title={place.label}>
+                  {place.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <a
+          className={styles.locationSearchAttribution}
+          href="https://nominatim.openstreetmap.org/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Search by OpenStreetMap Nominatim
+        </a>
+      </div>
+    </MapPanel>
   );
 }

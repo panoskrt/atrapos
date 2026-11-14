@@ -1,19 +1,33 @@
+import { useQueryClient } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { CircleMarker, LeafletMap, Marker, Polyline, TileLayer, useMap, useMapEvents } from '../../components/LeafletMap';
 import { baseLayers, loadMapView, storeMapView, type BaseLayerId } from './baseLayers';
-import { locateOnLine, nearestDistance, positionAtDistance, sectionLine, segmentMidpoint, type Coord, type LonLat } from './geo';
+import {
+  cumulativeDistances,
+  locateOnLine,
+  nearestDistance,
+  positionAtDistance,
+  sectionLine,
+  segmentMidpoint,
+  splitAt,
+  type Coord,
+  type LonLat,
+} from './geo';
 import { LocationSearch } from './LocationSearch';
 import { useMe } from '../auth/useMe';
 import { useTheme } from '../../lib/theme';
 import { lookupElevation, placePoi } from '../pois/placement';
 import { poiGlyph } from '../pois/poiTypes';
+import { seedSplit } from './segments';
 import { useEditorStore, useHoverStore, useSectionStore, type EditorPoi, type EditorPoint } from './store';
 import styles from './Editor.module.css';
 
 interface Props {
   segments: Coord[][];
+  /** Per segment: snapping failed, so it is a straight stand-in (drawn dashed). */
+  failedLegs: boolean[];
   line: Coord[];
   cumulative: number[];
   /** Where to draw each control point (on the trail for snapped segments). */
@@ -25,6 +39,8 @@ interface Props {
   locateRequest: number;
   /** Pan here when seq changes (e.g. a POI picked from the list). */
   focus: { lon: number; lat: number; seq: number } | null;
+  /** Shown above the location search in the map's top-left column (the map tools). */
+  controls?: ReactNode;
 }
 
 const prefersReducedMotion =
@@ -70,8 +86,14 @@ function pickAlong(map: L.Map, at: L.LatLng, line: Coord[], cumulative: number[]
 }
 
 const insertIcon = L.divIcon({ className: styles.insertHandle, iconSize: [12, 12] });
+const ghostIcon = L.divIcon({ className: `${styles.insertHandle} ${styles.insertGhost}`, iconSize: [14, 14] });
 
-export function MapView({ segments, line, cumulative, markerPositions, baseLayer, fitRequest, locateRequest, focus }: Props) {
+/** The insert handle that follows the pointer shows while it is within this many screen pixels of the line. */
+const GHOST_PICK_PIXELS = 12;
+/** ...and hides this close to a point, so pressing on a point always grabs the point. */
+const GHOST_VERTEX_CLEARANCE_PIXELS = 16;
+
+export function MapView({ segments, failedLegs, line, cumulative, markerPositions, baseLayer, fitRequest, locateRequest, focus, controls }: Props) {
   const saved = useMemo(() => loadMapView(), []);
   const layer = baseLayers.find((l) => l.id === baseLayer)!;
   const tool = useEditorStore((s) => s.tool);
@@ -98,12 +120,20 @@ export function MapView({ segments, line, cumulative, markerPositions, baseLayer
         className="rpm-tiles"
       />
       <MapBehaviour line={line} cumulative={cumulative} fitRequest={fitRequest} locateRequest={locateRequest} focus={focus} />
-      <RouteLayer segments={segments} line={line} cumulative={cumulative} markerPositions={markerPositions} />
+      <RouteLayer segments={segments} failedLegs={failedLegs} line={line} cumulative={cumulative} markerPositions={markerPositions} />
       <SectionLayer line={line} cumulative={cumulative} />
       <PoiLayer line={line} cumulative={cumulative} />
-      <LocationSearch />
+      <MapControls>
+        {controls}
+        <LocationSearch />
+      </MapControls>
     </LeafletMap>
   );
+}
+
+/** The top-left overlays, stacked so that expanding one pushes the next down instead of covering it. */
+function MapControls({ children }: { children: ReactNode }) {
+  return <div className={`leaflet-control ${styles.mapControls}`}>{children}</div>;
 }
 
 /** Map-level events: click to extend or place a POI, view persistence, fit-to-route, zoom control placement. */
@@ -157,6 +187,14 @@ function MapBehaviour({
     },
   });
 
+  // Collapsing the route or elevation panel resizes the map without a window resize, which is all Leaflet watches.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
   useEffect(() => {
     const zoom = L.control.zoom({ position: 'bottomright' });
     zoom.addTo(map);
@@ -192,11 +230,13 @@ function MapBehaviour({
 
 function RouteLayer({
   segments,
+  failedLegs,
   line,
   cumulative,
   markerPositions,
 }: {
   segments: Coord[][];
+  failedLegs: boolean[];
   line: Coord[];
   cumulative: number[];
   markerPositions: LonLat[];
@@ -233,6 +273,62 @@ function RouteLayer({
 
   const mids = useMemo(() => segments.map(segmentMidpoint), [segments]);
 
+  // Insert anywhere on the line: a handle follows the pointer along the route; click it to add a point there,
+  // or drag it to add one and move it. A tap on the line (touch, no hover) adds a point too.
+  const map = useMap();
+  const qc = useQueryClient();
+  const profile = useEditorStore((s) => s.routingProfile);
+  const segmentCums = useMemo(() => segments.map(cumulativeDistances), [segments]);
+  const [ghost, setGhost] = useState<{ index: number; pos: LonLat } | null>(null);
+  const ghostDragging = useRef(false);
+  const locate = (p: LonLat, maxPixels: number) => {
+    const split = splitAt(segments, segmentCums, p);
+    if (!split || !points[split.index + 1]) return null;
+    const px = map.latLngToContainerPoint([p.lat, p.lon]);
+    const at = L.latLng(p.lat, p.lon);
+    const thresholdM = at.distanceTo(map.containerPointToLatLng(px.add([maxPixels, 0])));
+    return split.offsetM <= thresholdM ? split : null;
+  };
+  /** Adds a point on the line nearest to p (in segment `index` when given), keeping the line exactly as it is. */
+  const insertOnLine = (p: LonLat, index?: number) => {
+    const found =
+      index === undefined ? locate(p, SECTION_PICK_PIXELS) : splitAt([segments[index] ?? []], [segmentCums[index] ?? []], p);
+    if (!found) return;
+    const split = { ...found, index: index ?? found.index };
+    const a = points[split.index];
+    const b = points[split.index + 1];
+    if (!a || !b) return;
+    const at = { lon: split.point[0], lat: split.point[1] };
+    seedSplit(qc, a, b, at, split.before, split.after, profile);
+    useEditorStore.getState().insertPoint(split.index + 1, at, { keepLine: true });
+  };
+
+  useMapEvents({
+    mousemove: (e) => {
+      // A button is down while the handle is being dragged (the map sees the first move before the marker's drag
+      // starts) or the map panned; moving the handle then would end the drag without a drop.
+      if (ghostDragging.current || e.originalEvent.buttons !== 0) return;
+      const nearPoint = markerPositions.some((m) => map.latLngToContainerPoint([m.lat, m.lon]).distanceTo(e.containerPoint) < GHOST_VERTEX_CLEARANCE_PIXELS);
+      const split = showInsertHandles && !nearPoint ? locate({ lon: e.latlng.lng, lat: e.latlng.lat }, GHOST_PICK_PIXELS) : null;
+      setGhost(split ? { index: split.index + 1, pos: { lon: split.point[0], lat: split.point[1] } } : null);
+    },
+    mouseout: (e) => {
+      if (!ghostDragging.current && e.originalEvent.buttons === 0) setGhost(null);
+    },
+  });
+  useEffect(() => {
+    if (!showInsertHandles) setGhost(null);
+  }, [showInsertHandles]);
+
+  const lineClick: L.LeafletEventHandlerFnMap = {
+    ...lineHandlers,
+    click: (e) => {
+      if (useEditorStore.getState().tool !== 'select' || !showInsertHandles) return;
+      L.DomEvent.stopPropagation(e);
+      insertOnLine({ lon: e.latlng.lng, lat: e.latlng.lat });
+    },
+  };
+
   return (
     <>
       {latlngs.length > 1 && (
@@ -240,8 +336,18 @@ function RouteLayer({
           <Polyline positions={latlngs} pathOptions={{ color: routeColors.casing, weight: 9, lineCap: 'round', lineJoin: 'round' }} interactive={false} />
           <Polyline positions={latlngs} pathOptions={{ color: routeColors.line, weight: 5, lineCap: 'round', lineJoin: 'round' }} eventHandlers={lineHandlers} />
           {/* Wide invisible hit area so the line is easy to hover. */}
-          <Polyline positions={latlngs} pathOptions={{ className: styles.routeHit, weight: 18, opacity: 0 }} eventHandlers={lineHandlers} />
+          <Polyline positions={latlngs} pathOptions={{ className: styles.routeHit, weight: 18, opacity: 0 }} eventHandlers={lineClick} />
         </>
+      )}
+      {segments.map((seg, i) =>
+        failedLegs[i] && points[i] && seg.length > 1 ? (
+          <Polyline
+            key={`failed-${points[i]!.id}`}
+            positions={seg.map(toLatLng)}
+            pathOptions={{ color: themeColor('--warn', '#f5bd58'), weight: 5, dashArray: '2 10', lineCap: 'round' }}
+            interactive={false}
+          />
+        ) : null,
       )}
       {rubberBand && <Polyline positions={rubberBand} pathOptions={{ className: styles.rubberBand, weight: 3 }} interactive={false} />}
 
@@ -254,9 +360,31 @@ function RouteLayer({
               position={mid}
               index={i + 1}
               onDrag={(pos) => setDrag(pos ? { index: i + 1, pos, inserting: true } : null)}
+              onClick={() => insertOnLine(mid, i)}
             />
           );
         })}
+
+      {showInsertHandles && ghost && (
+        <InsertHandle
+          position={ghost.pos}
+          index={ghost.index}
+          icon={ghostIcon}
+          // Below the points, so a point under the pointer always wins.
+          zIndexOffset={-1000}
+          title="Click to add a point here, or drag to add and move it"
+          onDrag={(pos) => {
+            ghostDragging.current = pos !== null;
+            setDrag(pos ? { index: ghost.index, pos, inserting: true } : null);
+            if (!pos) setGhost(null);
+          }}
+          onClick={(e) => {
+            if (useEditorStore.getState().tool === 'extend') useEditorStore.getState().addPoint({ lon: e.latlng.lng, lat: e.latlng.lat });
+            else insertOnLine(ghost.pos);
+            setGhost(null);
+          }}
+        />
+      )}
 
       {points.map((p, i) => (
         <VertexMarker
@@ -408,15 +536,33 @@ function SectionLayer({ line, cumulative }: { line: Coord[]; cumulative: number[
   );
 }
 
-function InsertHandle({ position, index, onDrag }: { position: LonLat; index: number; onDrag: (pos: LonLat | null) => void }) {
+function InsertHandle({
+  position,
+  index,
+  onDrag,
+  onClick,
+  icon = insertIcon,
+  title = 'Drag to add a point here',
+  zIndexOffset = 0,
+}: {
+  position: LonLat;
+  index: number;
+  onDrag: (pos: LonLat | null) => void;
+  /** Replaces the default click (insert at the handle). */
+  onClick?: (e: L.LeafletMouseEvent) => void;
+  icon?: L.DivIcon;
+  title?: string;
+  zIndexOffset?: number;
+}) {
   const latLng = useMemo<L.LatLngTuple>(() => [position.lat, position.lon], [position.lat, position.lon]);
-  const latest = useLatest({ index, position, onDrag });
+  const latest = useLatest({ index, position, onDrag, onClick });
 
   const handlers = useMemo<L.LeafletEventHandlerFnMap>(
     () => ({
       click: (e) => {
         L.DomEvent.stopPropagation(e);
-        useEditorStore.getState().insertPoint(latest.current.index, latest.current.position);
+        if (latest.current.onClick) latest.current.onClick(e as L.LeafletMouseEvent);
+        else useEditorStore.getState().insertPoint(latest.current.index, latest.current.position);
       },
       drag: (e) => {
         const ll = (e.target as L.Marker).getLatLng();
@@ -434,12 +580,12 @@ function InsertHandle({ position, index, onDrag }: { position: LonLat; index: nu
   return (
     <Marker
       position={latLng}
-      icon={insertIcon}
+      icon={icon}
       draggable
       eventHandlers={handlers}
       keyboard={false}
-      title="Drag to add a point here"
-      zIndexOffset={0}
+      title={title}
+      zIndexOffset={zIndexOffset}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readGpxPoints } from './mergeGpx';
-import { splitGpxPoints } from './splitGpx';
+import { splitGpxPoints, splitGpxPointsByDistance } from './splitGpx';
 
 describe('splitGpxPoints', () => {
   const points = [0, 1, 2, 3, 4, 5].map((index) => ({
@@ -50,5 +50,41 @@ describe('splitGpxPoints', () => {
     const parts = splitGpxPoints(parsed, [1], 'Route');
 
     expect(parts.map((part) => part.pointCount)).toEqual([2, 2]);
+  });
+
+  it('splits into distance-based parts at the nearest available points', () => {
+    const spacedPoints = Array.from({ length: 10 }, (_, index) => ({
+      lat: 0,
+      lon: index * 0.001,
+      elevation: String(index),
+      time: null,
+    }));
+    const parts = splitGpxPointsByDistance(spacedPoints, 220, 'Trip');
+    const coordinates = parts.map((part) => {
+      const document = new DOMParser().parseFromString(part.xml, 'application/xml');
+      return Array.from(document.getElementsByTagNameNS('*', 'rtept'), (point) => Number(point.getAttribute('lon')));
+    });
+
+    expect(parts.map((part) => part.pointCount)).toEqual([3, 2, 2, 3]);
+    expect(coordinates.flat()).toEqual(spacedPoints.map((point) => point.lon));
+    expect(parts.map((part) => part.fileName)).toEqual([
+      'Trip - Part 1.gpx',
+      'Trip - Part 2.gpx',
+      'Trip - Part 3.gpx',
+      'Trip - Part 4.gpx',
+    ]);
+  });
+
+  it('rejects invalid distances and tracks that cannot be split into multiple parts', () => {
+    expect(() => splitGpxPointsByDistance(points, 0, 'Trip')).toThrow('Enter a split distance greater than zero.');
+    expect(() => splitGpxPointsByDistance(points, Number.POSITIVE_INFINITY, 'Trip')).toThrow(
+      'Enter a split distance greater than zero.',
+    );
+    expect(() => splitGpxPointsByDistance(points, 1_000_000, 'Trip')).toThrow(
+      'The split distance must be shorter than the route',
+    );
+    expect(() => splitGpxPointsByDistance(points.slice(0, 3), 1, 'Trip')).toThrow(
+      'The route does not have enough points',
+    );
   });
 });

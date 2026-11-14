@@ -463,10 +463,19 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("default_map");
 
+                    b.Property<string>("DefaultRoutingProfile")
+                        .HasColumnType("text")
+                        .HasColumnName("default_routing_profile");
+
                     b.Property<string>("Design")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("design");
+
+                    b.PrimitiveCollection<int[]>("FavoriteActivityIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]")
+                        .HasColumnName("favorite_activity_ids");
 
                     b.Property<string>("GoogleSubject")
                         .HasMaxLength(255)
@@ -476,6 +485,11 @@ namespace RoutePoiManager.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastSuuntoRefreshAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_suunto_refresh_at");
+
+                    b.Property<string>("MenuPosition")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("menu_position");
 
                     b.Property<string>("RefreshTokenProtected")
                         .IsRequired()

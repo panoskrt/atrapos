@@ -48,3 +48,50 @@ describe('ThemeProvider designs', () => {
     expect(screen.getByRole('button')).toHaveTextContent('classic');
   });
 });
+
+function MenuProbe() {
+  const { menuPosition, setMenuPosition } = useTheme();
+  return (
+    <button type="button" onClick={() => setMenuPosition('top')}>
+      {menuPosition}
+    </button>
+  );
+}
+
+describe('ThemeProvider menu position', () => {
+  afterEach(() => {
+    localStorage.clear();
+    delete document.documentElement.dataset.menu;
+  });
+
+  it('starts with the menu on the left and marks the page with it', () => {
+    render(
+      <ThemeProvider>
+        <MenuProbe />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole('button')).toHaveTextContent('left');
+    expect(document.documentElement.dataset.menu).toBe('left');
+  });
+
+  it('remembers a top menu for the next visit', () => {
+    render(
+      <ThemeProvider>
+        <MenuProbe />
+      </ThemeProvider>,
+    );
+    act(() => screen.getByRole('button').click());
+    expect(document.documentElement.dataset.menu).toBe('top');
+    expect(localStorage.getItem('rpm.menu')).toBe('top');
+  });
+
+  it('ignores a stored position it does not know', () => {
+    localStorage.setItem('rpm.menu', 'bottom');
+    render(
+      <ThemeProvider>
+        <MenuProbe />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole('button')).toHaveTextContent('left');
+  });
+});
