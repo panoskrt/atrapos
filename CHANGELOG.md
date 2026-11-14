@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-14
+
+### Fixed
+
+- Importing a GPX file downloaded from Atrapos no longer duplicates POIs. A POI near the route but not exactly on the line was listed in the file twice (at its own spot and at its spot on the route) and came back as two POIs; it now comes back once, at its own position. Files downloaded before this fix import correctly too.
+
 ## 2026-11-13
 
 ### Fixed
