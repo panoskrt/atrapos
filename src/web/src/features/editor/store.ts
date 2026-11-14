@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { RouteDetail, SegmentMode, SyncState } from '../routes/api';
-import { distanceM, type LonLat } from './geo';
+import type { DrawMode, RouteDetail, SegmentMode, SyncState } from '../routes/api';
+import { distanceM, joinSegments, type LonLat } from './geo';
+import { cachedSegment, cacheSegment, legMode } from './segments';
 
 export interface EditorPoint extends LonLat {
   id: string;
@@ -51,7 +52,7 @@ interface EditorState extends UndoableDoc {
   selectedId: string | null;
   selectedPoiId: string | null;
   tool: Tool;
-  drawMode: SegmentMode;
+  drawMode: DrawMode;
 
   load: (route: RouteDetail) => void;
   startNew: () => void;
@@ -62,14 +63,18 @@ interface EditorState extends UndoableDoc {
   setRoutingProfile: (profile: string) => void;
   setSyncState: (s: SyncState) => void;
   setPoiServerState: (states: Record<string, PoiServerState>) => void;
-  /** Mode of the segment that starts at this point. */
-  setSegmentMode: (id: string, mode: SegmentMode) => void;
-  /** Changes segment modes without an undo step (automatic snap → freehand fallback, or retrying it). */
-  setSegmentModesSilently: (ids: string[], mode: SegmentMode) => void;
+  /** Mode of the segments that start at these points (one undo step). */
+  setSegmentMode: (ids: string | string[], mode: SegmentMode) => void;
 
   addPoint: (p: LonLat) => void;
-  insertPoint: (index: number, p: LonLat) => void;
+  /** Inserts a point into the segment that ends at `index`. With `keepLine` the caller has cached the two halves
+   *  of the old line, so a recorded leg stays recorded; otherwise the point is about to go somewhere new and a
+   *  recorded leg is re-routed. */
+  insertPoint: (index: number, p: LonLat, options?: { keepLine?: boolean }) => void;
+  /** Moves a point; recorded legs ending at it are re-routed (snap), the others keep their mode. */
   movePoint: (id: string, p: LonLat) => void;
+  /** Deletes a point. Two recorded legs either side merge into one with the same line; any other recorded leg
+   *  that now spans the gap is re-routed. */
   deletePoint: (id: string) => void;
   /** Reverses the direction; each segment keeps its mode. */
   reverse: () => void;
@@ -89,11 +94,14 @@ interface EditorState extends UndoableDoc {
   selectPoi: (id: string | null) => void;
 
   setTool: (tool: Tool) => void;
-  setDrawMode: (mode: SegmentMode) => void;
+  setDrawMode: (mode: DrawMode) => void;
 }
 
 let counter = 0;
 const newId = () => `p${Date.now().toString(36)}${(counter++).toString(36)}`;
+
+/** Recorded legs re-route once an end moves: the recorded line no longer fits the new end. */
+const rerouted = (mode: SegmentMode): SegmentMode => (mode === 'track' ? 'snap' : mode);
 
 /** Runs a state change without recording an undo step. */
 function silently(fn: () => void) {
@@ -133,7 +141,7 @@ export const useEditorStore = create<EditorState>()(
           activityIds: route.activityIds,
           turnWaypointsEnabled: route.turnWaypointsEnabled,
           routingProfile: route.routingProfile,
-          points: route.controlPoints.map((cp) => ({ id: newId(), lon: cp.lon, lat: cp.lat, mode: cp.modeToNext })),
+          points: route.controlPoints.map((cp) => ({ id: newId(), lon: cp.lon, lat: cp.lat, mode: legMode(cp) })),
           pois: route.pois.map((p) => ({
             id: p.id,
             name: p.name,
@@ -185,9 +193,10 @@ export const useEditorStore = create<EditorState>()(
       setRoutingProfile: (routingProfile) => set({ routingProfile }),
       setSyncState: (syncState) => set({ syncState }),
       setPoiServerState: (states) => set({ poiServer: { ...get().poiServer, ...states } }),
-      setSegmentMode: (id, mode) => set({ points: get().points.map((p) => (p.id === id ? { ...p, mode } : p)) }),
-      setSegmentModesSilently: (ids, mode) =>
-        silently(() => set({ points: get().points.map((p) => (ids.includes(p.id) ? { ...p, mode } : p)) })),
+      setSegmentMode: (ids, mode) => {
+        const list = typeof ids === 'string' ? [ids] : ids;
+        set({ points: get().points.map((p) => (list.includes(p.id) ? { ...p, mode } : p)) });
+      },
 
       addPoint: (p) => {
         const point: EditorPoint = { id: newId(), lon: p.lon, lat: p.lat, mode: get().drawMode };
@@ -195,21 +204,46 @@ export const useEditorStore = create<EditorState>()(
         const points = get().points.map((x, i, all) => (i === all.length - 1 ? { ...x, mode: get().drawMode } : x));
         set({ points: [...points, point], selectedId: point.id, selectedPoiId: null });
       },
-      insertPoint: (index, p) => {
+      insertPoint: (index, p, options) => {
         const points = [...get().points];
-        // The inserted point inherits the mode of the segment it splits.
-        const mode = points[index - 1]?.mode ?? get().drawMode;
+        // Both halves take the mode of the segment being split.
+        const split = points[index - 1]?.mode ?? get().drawMode;
+        const mode = options?.keepLine ? split : rerouted(split);
+        if (points[index - 1]) points[index - 1] = { ...points[index - 1]!, mode };
         const point: EditorPoint = { id: newId(), lon: p.lon, lat: p.lat, mode };
         points.splice(index, 0, point);
         set({ points, selectedId: point.id, selectedPoiId: null });
       },
-      movePoint: (id, p) =>
-        set({ points: get().points.map((x) => (x.id === id ? { ...x, lon: p.lon, lat: p.lat } : x)) }),
-      deletePoint: (id) =>
+      movePoint: (id, p) => {
+        const points = get().points;
+        const i = points.findIndex((x) => x.id === id);
+        if (i < 0) return;
         set({
-          points: get().points.filter((x) => x.id !== id),
+          points: points.map((x, j) =>
+            j === i ? { ...x, lon: p.lon, lat: p.lat, mode: rerouted(x.mode) } : j === i - 1 ? { ...x, mode: rerouted(x.mode) } : x,
+          ),
+        });
+      },
+      deletePoint: (id) => {
+        const points = get().points;
+        const i = points.findIndex((x) => x.id === id);
+        if (i < 0) return;
+        const prev = points[i - 1];
+        const next = points[i + 1];
+        let merged = prev?.mode;
+        if (prev && next && prev.mode === 'track') {
+          // Two recorded legs join into one with exactly the same line; anything else is re-routed.
+          const profile = get().routingProfile;
+          const before = points[i]!.mode === 'track' ? cachedSegment(prev, points[i]!, 'track', profile) : undefined;
+          const after = before ? cachedSegment(points[i]!, next, 'track', profile) : undefined;
+          if (before && after) cacheSegment(prev, next, 'track', profile, joinSegments([before, after]));
+          else merged = 'snap';
+        }
+        set({
+          points: points.filter((x) => x.id !== id).map((x) => (x === prev && merged ? { ...x, mode: merged } : x)),
           selectedId: get().selectedId === id ? null : get().selectedId,
-        }),
+        });
+      },
       reverse: () => {
         const pts = get().points;
         if (pts.length < 2) return;

@@ -413,7 +413,7 @@ Each element is a `ControlPoint`:
 |---|---|---|
 | `lon` | number | Longitude of the point the user placed |
 | `lat` | number | Latitude |
-| `modeToNext` | `"snap"` \| `"freehand"` | How the segment to the next point is drawn: routed along paths by BRouter (`snap`) or a straight line (`freehand`) |
+| `modeToNext` | `"snap"` \| `"freehand"` \| `"track"` | How the segment to the next point is drawn: routed along paths by BRouter (`snap`), a straight line (`freehand`), or a recorded line kept as imported (`track`). Routes imported before `track` existed store recorded legs as `freehand`; the editor treats a freehand segment that isn't straight (any point more than 3 m off the line between its ends) as `track` |
 | `segment` | `[[lon, lat, ele\|null], …]` \| `null` | Cached computed line from this point to the next one. Reopening a route reuses it, so no re-routing or elevation fetch is needed. Null on the last point or when not yet computed |
 
 Example:

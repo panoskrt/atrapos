@@ -94,7 +94,7 @@ describe('PoiCard', () => {
 
   it('moves an off-route POI onto the route, taking the route elevation', async () => {
     renderCard({ alongM: null, offsetM: 222 });
-    expect(screen.getByText('Off route: POI only')).toBeInTheDocument();
+    expect(await screen.findByText('Off route: POI only')).toBeInTheDocument();
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Move onto route' }));
 

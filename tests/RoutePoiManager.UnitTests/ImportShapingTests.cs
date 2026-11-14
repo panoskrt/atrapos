@@ -54,7 +54,7 @@ public sealed class ImportShapingTests
 
         Assert.InRange(cps.Count, 2, ImportShaping.MaxControlPoints);
         Assert.Null(cps[^1].Segment);
-        Assert.All(cps, cp => Assert.Equal(SegmentMode.Freehand, cp.ModeToNext));
+        Assert.All(cps, cp => Assert.Equal(SegmentMode.Track, cp.ModeToNext));
 
         // Rebuilding the line from the segments gives back exactly the imported track.
         var rebuilt = RouteDrawing.BuildLine(cps);

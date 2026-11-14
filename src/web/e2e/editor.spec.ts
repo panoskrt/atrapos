@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickMap, newRoute, saveChanges, saveDraft, signIn, uniqueUser } from './helpers';
+import { clickMap, newRoute, saveChanges, saveDraft, showMapTools, signIn, uniqueUser } from './helpers';
 
 const distance = (page: import('@playwright/test').Page) =>
   page.locator('dl div').filter({ hasText: 'Distance' }).locator('dd');
@@ -18,6 +18,7 @@ test('draw, drag, undo, reverse and save a route', async ({ page }) => {
   expect(drawn).toMatch(/km$/);
 
   // Drag the middle point: the route gets longer.
+  await showMapTools(page);
   await page.getByRole('button', { name: 'Select and drag points' }).click();
   const middle = page.locator('.leaflet-marker-icon[title^="Point 2."]');
   const box = (await middle.boundingBox())!;
@@ -61,9 +62,27 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await clickMap(page, 0.7, 0.6);
   await saveDraft(page);
 
-  // Click right next to the line: the POI snaps onto it and is on the route.
+  // Click right next to the line: the POI snaps onto it and is on the route. The saved route reopens fitted to
+  // the line, so find the line by its end points (once the map has settled) rather than where it was drawn.
+  const lineEnds = () =>
+    Promise.all(
+      ['Point 1.', 'Point 2.'].map(async (title) => {
+        const box = (await page.locator(`.leaflet-marker-icon[title^="${title}"]`).boundingBox())!;
+        return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+      }),
+    );
+  let ends = await lineEnds();
+  await expect
+    .poll(async () => {
+      const before = JSON.stringify(await lineEnds());
+      await page.waitForTimeout(500);
+      ends = await lineEnds();
+      return JSON.stringify(ends) === before;
+    })
+    .toBe(true);
+  await showMapTools(page);
   await page.getByRole('button', { name: 'Add POI (click the map)' }).click();
-  await clickMap(page, 0.5, 0.6);
+  await page.mouse.click((ends[0]!.x + ends[1]!.x) / 2, (ends[0]!.y + ends[1]!.y) / 2 + 8);
   const card = page.getByRole('region', { name: /Edit POI/ });
   await expect(card).toBeVisible();
   await expect(card.getByText('On route at')).toBeVisible();
@@ -76,6 +95,9 @@ test('POIs: place on the route, rename, push route and POIs to Suunto', async ({
   await saveChanges(page);
 
   await page.getByRole('button', { name: 'Push route' }).click();
+  const routeResult = page.getByRole('dialog', { name: 'Pushed to Suunto' });
+  await expect(routeResult.getByText('Route "Untitled route" pushed')).toBeVisible();
+  await routeResult.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByText('Synced', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Push 1 POI' }).click();

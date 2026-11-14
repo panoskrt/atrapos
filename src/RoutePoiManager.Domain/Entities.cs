@@ -32,6 +32,9 @@ public enum SegmentMode
 {
     Snap = 0,
     Freehand = 1,
+    /// <summary>A recorded line (an imported track) kept as it is. Once an end of the leg moves, the editor
+    /// re-routes it as <see cref="Snap"/>.</summary>
+    Track = 2,
 }
 
 public sealed class User
